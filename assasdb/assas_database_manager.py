@@ -1,5 +1,5 @@
-from .assas_database.assas_database_handler import DatabaseHandler
-from .assas_database.assas_dataset import AssasDataset
+from .assas_database_handler import DatabaseHandler
+from .assas_dataset import AssasDataset
 
 import pandas
 
