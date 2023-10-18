@@ -20,3 +20,7 @@ class DatabaseHandler:
     def insert_file_document(self, file):
 
         self.file_collection.insert_one(file)
+
+    def drop_file_collection(self):
+
+        self.file_collection.drop()
