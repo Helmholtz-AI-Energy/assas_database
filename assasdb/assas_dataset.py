@@ -1,6 +1,7 @@
 import os
 import uuid
 import time
+from datetime import datetime
 import h5py
 import numpy
 
@@ -13,7 +14,7 @@ class AssasDataset:
         self.tmp_dir = tmp_dir
         
         self.uuid = str(uuid.uuid4())
-        self.upload_time = str(time.time())
+        self.upload_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         self.filename = "dataset.h5"
         self.path = self.mount_point + self.archive_dir + str(self.uuid) + "/"
 
