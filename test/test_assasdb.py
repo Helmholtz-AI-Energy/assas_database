@@ -5,17 +5,29 @@ from assasdb import AssasStorageHandler
 
 class AssasStorageHandlerTest(unittest.TestCase):
     
-    def setup(self) -> None:
+    def setUp(self):
         
         self.storage_handler = AssasStorageHandler()
     
-    def tearDown(self) -> None:
+    def tearDown(self):
         
         self.test_storage_handler = None
     
     def test_storage_handler_get_path(self):
         
         self.storage_handler.get_path()
+        
+    def test_storage_handler_client_config(self):
+        
+        print(self.storage_handler.client_config())
+        
+    def test_storage_handler_register_session(self):
+        
+        print(self.storage_handler.register_session())
+        
+    def test_storage_handler_reset_connection_cache(self):
+        
+        print(self.storage_handler.reset_connection_cache())
 
 class AssasDatabaseManagerTest(unittest.TestCase):
     

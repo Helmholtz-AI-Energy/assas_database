@@ -1,5 +1,8 @@
 import os
 import smbclient
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AssasStorageHandler:
     
@@ -23,11 +26,15 @@ class AssasStorageHandler:
 
         if not os.path.isdir(self.path):
             os.mkdir(self.path)
+        else:
+            logger.warning("lsdf archive already exists")
             
     def create_dataset_archive(self, path):
         
         if not os.path.isdir(path):
             os.mkdir(path)
+        else:
+            logger.warning("dataset archive already exists")
             
     def get_path(self):
         
@@ -35,12 +42,20 @@ class AssasStorageHandler:
     
     def register_session(self):
         
-        return smbclient.register_session(self.server, username=self.user, password=self.password)
+        try:
+            session = smbclient.register_session(self.server, username=self.user, password=self.password)
+            logger.info("successfully connected to share")
+        except:
+            session = None
+            logger.error("unable to connect to share")
+            
+        return session
         
     def client_config(self):
         
         return smbclient.ClientConfig(username=self.user, password=self.password)
     
+    @staticmethod
     def reset_connection_cache():
         
-        return smbclient.reset_coonection_cache()
+        return smbclient.reset_connection_cache()
