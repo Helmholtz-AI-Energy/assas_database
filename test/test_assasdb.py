@@ -43,6 +43,15 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
         self.database_manager.upload()
         
+    def test_database_manager_insert_50_entries(self):
+        
+        for i in range(0, 50):
+            self.database_manager.upload()
+        
+    def test_database_manager_drop(self):
+
+        self.database_manager.drop()
+        
     def test_database_manager_basic_view(self):
 
         self.database_manager.view()

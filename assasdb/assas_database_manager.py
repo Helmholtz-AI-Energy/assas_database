@@ -1,8 +1,16 @@
 import pandas
+import zipfile
+import glob
+from datetime import datetime
 
 from .assas_database_handler import DatabaseHandler
 from .assas_data_handler import AssasDataHandler
 from .assas_database_storage import AssasStorageHandler
+from .assas_astec_handler import convert_archive, unzip_archive, get_astec_archive
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 class AssasDatabaseManager:
 
@@ -10,31 +18,38 @@ class AssasDatabaseManager:
         
         self.connectionstring = "mongodb://localhost:27017/"
         self.database_handler = DatabaseHandler(self.connectionstring)
-        self.storage_handler = AssasStorageHandler()
-        self.storage_handler.create_lsdf_archive()
-
-    def upload(self):
+        #self.storage_handler = AssasStorageHandler()
+        #self.storage_handler.create_lsdf_archive()
         
-        archive_dir = "./data/"
-        assas_datahandler = AssasDataHandler(archive_dir)
+    def upload(self, uuid):
         
-        archive_path = self.storage_handler.create_dataset_archive(assas_datahandler.get_archive_path())
-        print("created dataset archive: %s" % (archive_path))
+        logger.info("start upload for uuid %s", uuid)
         
-        file_path = assas_datahandler.generate_file()
-        print("created dataset file: %s" % (file_path))
+        archive_dir = "/mnt/ASSAS/media/documents/" + uuid
+        logger.info(archive_dir)
         
-        dataset_file_document = assas_datahandler.get_document_file()
-        print(dataset_file_document)
-
+        zipped_archive = get_astec_archive(archive_dir)
+        
+        unzip_archive(zipped_archive, archive_dir + "/archive")
+        
+        #convert_archive(archive_dir)
+        
+        dataset_file_document = {"uuid": uuid, "upload_time": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"), "path": archive_dir}
+        
         self.database_handler.insert_file_document(dataset_file_document)
+        
+        logger.info("inserted %s", dataset_file_document)
         
     def view(self):
         
         file_collection = self.database_handler.get_file_collection()
-        print(file_collection)
+        logger.info(file_collection)
 
         for file in file_collection.find():
-            print(file)
+            logger.info(file)
 
         return pandas.DataFrame(list(file_collection.find()))
+    
+    def drop(self):
+        
+        self.database_handler.drop_file_collection()

@@ -91,7 +91,7 @@ def convert_structure_reduced(dir):
     print(saved_instants)
     
     # New directory created to store data
-    path = os.getcwd()+"/results"
+    path = os.getcwd()+"/result"
     if not os.path.exists(path):
         os.mkdir(path)
         
@@ -294,23 +294,13 @@ def convert_full(dir):
             
     pyod.close(binary_file)
 
-def main(dir):
-    
-    convert_structure_reduced(dir)
-    
-    convert_full(dir)
-
 if __name__ == '__main__':
     
-    for eachArg in sys.argv:   
-        print(eachArg)
-    
-    if len(sys.argv) > 1:
-        dir = sys.argv[1]
-        print("load dir %s" % (dir))        
-    else:
-        dir = "/home/jonas/django_prototype/data/PWR1300_LOCA_12P_CL_linux_64.bin"
-        print("load default dir %s" % (dir))
-    
-    # todo: callable with paramters
-    main(dir)
+    cwd = os.getcwd()
+    archive_dir = cwd + "/archive/"
+    print(os.listdir(archive_dir))    
+    dir = archive_dir + os.listdir(archive_dir)[0]
+    print("convert from archive %s", dir)
+   
+    convert_structure_reduced(dir)
+

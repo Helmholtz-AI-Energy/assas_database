@@ -54,8 +54,5 @@ class AssasDataHandler:
         channels = 4
         meshes = 16
         samples = 1000        
-        data = {}
-        for variable in variables:
-            data[variable] = numpy.random.rand(channels, meshes, samples, 1).reshape(channels, meshes, samples)
         
-        return AssasDataset(name, variables, channels, meshes, samples, data)
+        return AssasDataset(name, variables, channels, meshes, samples)
