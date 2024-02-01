@@ -33,8 +33,25 @@ class AssasDatabaseManager:
         unzip_archive(zipped_archive, archive_dir + "/archive")
         
         #convert_archive(archive_dir)
-        
-        dataset_file_document = {"uuid": uuid, "upload_time": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"), "path": archive_dir}
+                
+        dataset_file_document = {
+                                "uuid": uuid,
+                                "file_name": "testname",
+                                "file_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                                "file_path": archive_dir,
+                                "file_size": "1MB",
+                                "file_user": "test",
+                                "file_download": "LINK",
+                                "common_scenario": "scenario A",
+                                "common_description": "'this is a test description!'",
+                                "common_attribute_1": "attribute 1",
+                                "common_attribute_2": "attribute 2",
+                                "common_attribute_3": "attribute 3",
+                                "data_variables": "['pressure', 'voidf', 'temp', 'sat_temp']",
+                                "data_channels": "4",
+                                "data_meshes": "16",
+                                "data_timesteps": "1000"
+                                }
         
         self.database_handler.insert_file_document(dataset_file_document)
         

@@ -7,16 +7,19 @@ class AssasDatasetInputDeck:
 
 class AssasDataset:
     
-    def __init__(self, name, variables, channels, meshes, samples):
+    def __init__(self, name, samples):
+        '''
+        TODO: @JD Find generic implementation for variables and dimension
+        '''
         
         self.name = name
-        self.variables = variables
-        self.channels = channels
-        self.meshes = meshes
+        self.variables = ["pressure", "voidf", "temp", "sat_temp"]
+        self.channels = 4
+        self.meshes = 16
         self.samples = samples
         self.data = {}        
-        for variable in variables:
-            self.data[variable] = np.random.rand(channels, meshes, samples, 1).reshape(channels, meshes, samples)
+        for variable in self.variables:
+            self.data[variable] = np.random.rand(self.channels, self.meshes, samples, 1).reshape(self.channels, self.meshes, samples)
     
     def get_data(self):
         
@@ -49,5 +52,4 @@ class AssasDataset:
     def insert_data_point(self, variable, channel, mesh, sample, value):
         
         self.data[variable][channel][mesh][sample] = value
-        
         
