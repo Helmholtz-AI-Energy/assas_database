@@ -42,6 +42,7 @@ class AssasDatabaseManager:
                                 "file_size": "1MB",
                                 "file_user": "test",
                                 "file_download": "LINK",
+                                "file_status": "complete",
                                 "common_scenario": "scenario A",
                                 "common_description": "'this is a test description!'",
                                 "common_attribute_1": "attribute 1",

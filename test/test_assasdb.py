@@ -50,12 +50,13 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         for i in range(0, 50):
             dataset_file_document = {
                                     "uuid": str(uuid.uuid4()),
-                                    "file_name": "testname",
-                                    "file_upload": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                                    "file_name": "dataset",
+                                    "file_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                                     "file_path": "test path",
                                     "file_size": "1MB",
                                     "file_user": "test",
                                     "file_download": "LINK",
+                                    "file_status": "complete",
                                     "common_scenario": "scenario A",
                                     "common_description": "'this is a test description!'",
                                     "common_attribute_1": "attribute 1",
@@ -73,12 +74,13 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         for i in range(0, 1000):
             dataset_file_document = {
                                     "uuid": str(uuid.uuid4()),
-                                    "file_name": "testname",
-                                    "file_size": "1MB",
+                                    "file_name": "dataset",
                                     "file_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                                    "file_path": "test path",                             
+                                    "file_path": "test path",
+                                    "file_size": "1MB",                             
                                     "file_user": "test",
                                     "file_download": "LINK",
+                                    "file_status": "complete",
                                     "common_scenario": "scenario A",
                                     "common_description": "'this is a test description!'",
                                     "common_attribute_1": "attribute 1",
