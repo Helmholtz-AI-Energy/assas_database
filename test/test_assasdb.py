@@ -49,23 +49,20 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         for i in range(0, 50):
             dataset_file_document = {
-                                    "uuid": str(uuid.uuid4()),
-                                    "file_name": "dataset",
-                                    "file_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                                    "file_path": "test path",
-                                    "file_size": "1MB",
-                                    "file_user": "test",
-                                    "file_download": "LINK",
-                                    "file_status": "complete",
-                                    "common_scenario": "scenario A",
-                                    "common_description": "'this is a test description!'",
-                                    "common_attribute_1": "attribute 1",
-                                    "common_attribute_2": "attribute 2",
-                                    "common_attribute_3": "attribute 3",
-                                    "data_variables": "['pressure', 'voidf', 'temp', 'sat_temp']",
-                                    "data_channels": "4",
-                                    "data_meshes": "16",
-                                    "data_timesteps": "1000"    
+                                    "system_uuid": str(uuid.uuid4()),
+                                    "system_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                                    "system_path": "test path",
+                                    "system_size": "1MB",
+                                    "system_user": "test",
+                                    "system_download": "LINK",
+                                    "system_status": "complete",
+                                    "meta_name": "Name of Simulation X",
+                                    "meta_group": "Group or Kind of Simulation",
+                                    "meta_description": "'this is a test description!'",
+                                    "meta_data_variables": "['pressure', 'voidf', 'temp', 'sat_temp']",
+                                    "meta_data_channels": "4",
+                                    "meta_data_meshes": "16",
+                                    "meta_data_timesteps": "1000"    
                                  }
             self.database_manager.database_handler.insert_file_document(dataset_file_document)
             
@@ -73,23 +70,20 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         for i in range(0, 1000):
             dataset_file_document = {
-                                    "uuid": str(uuid.uuid4()),
-                                    "file_name": "dataset",
-                                    "file_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                                    "file_path": "test path",
-                                    "file_size": "1MB",                             
-                                    "file_user": "test",
-                                    "file_download": "LINK",
-                                    "file_status": "complete",
-                                    "common_scenario": "scenario A",
-                                    "common_description": "'this is a test description!'",
-                                    "common_attribute_1": "attribute 1",
-                                    "common_attribute_2": "attribute 2",
-                                    "common_attribute_3": "attribute 3",
-                                    "data_variables": "['pressure', 'voidf', 'temp', 'sat_temp']",
-                                    "data_channels": "4",
-                                    "data_meshes": "16",
-                                    "data_timesteps": "1000"      
+                                    "system_uuid": str(uuid.uuid4()),
+                                    "system_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                                    "system_path": "test path",
+                                    "system_size": "1MB",
+                                    "system_user": "test",
+                                    "system_download": "LINK",
+                                    "system_status": "complete",
+                                    "meta_name": "Name of Simulation X",
+                                    "meta_group": "Group or Kind of Simulation",
+                                    "meta_description": "'This is a test description!'",
+                                    "meta_data_variables": "['pressure', 'voidf', 'temp', 'sat_temp']",
+                                    "meta_data_channels": "4",
+                                    "meta_data_meshes": "16",
+                                    "meta_data_timesteps": "1000"    
                                  }
             self.database_manager.database_handler.insert_file_document(dataset_file_document)
         

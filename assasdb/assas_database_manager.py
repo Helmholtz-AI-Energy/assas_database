@@ -71,3 +71,7 @@ class AssasDatabaseManager:
     def drop(self):
         
         self.database_handler.drop_file_collection()
+        
+    def get_file_document(self, id):
+        
+        return self.database_handler.get_file_document(id)

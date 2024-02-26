@@ -1,4 +1,5 @@
 from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 class DatabaseHandler:
 
@@ -24,3 +25,7 @@ class DatabaseHandler:
     def drop_file_collection(self):
 
         self.file_collection.drop()
+        
+    def get_file_document(self, id):
+        
+        return self.file_collection.find_one(ObjectId(id))
