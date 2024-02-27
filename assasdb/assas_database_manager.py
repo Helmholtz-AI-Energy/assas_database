@@ -1,16 +1,18 @@
 import pandas
 import zipfile
 import glob
-from datetime import datetime
+import logging
 
+from uuid import uuid4
+from datetime import datetime
 from .assas_database_handler import DatabaseHandler
 from .assas_data_handler import AssasDataHandler
 from .assas_database_storage import AssasStorageHandler
 from .assas_astec_handler import convert_archive, unzip_archive, get_astec_archive
+from .assas_database_hdf5 import AssasDatasetHandler
+from .assas_database_dataset import AssasDataset
 
-import logging
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('assas_app')
 
 class AssasDatabaseManager:
 
@@ -18,7 +20,7 @@ class AssasDatabaseManager:
         
         self.connectionstring = "mongodb://localhost:27017/"
         self.database_handler = DatabaseHandler(self.connectionstring)
-        #self.storage_handler = AssasStorageHandler()
+        self.storage_handler = AssasStorageHandler()
         #self.storage_handler.create_lsdf_archive()
         
     def upload(self, uuid):
@@ -34,37 +36,33 @@ class AssasDatabaseManager:
         
         #convert_archive(archive_dir)
                 
-        dataset_file_document = {
-                                "uuid": uuid,
-                                "file_name": "testname",
-                                "file_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                                "file_path": archive_dir,
-                                "file_size": "1MB",
-                                "file_user": "test",
-                                "file_download": "LINK",
-                                "file_status": "complete",
-                                "common_scenario": "scenario A",
-                                "common_description": "'this is a test description!'",
-                                "common_attribute_1": "attribute 1",
-                                "common_attribute_2": "attribute 2",
-                                "common_attribute_3": "attribute 3",
-                                "data_variables": "['pressure', 'voidf', 'temp', 'sat_temp']",
-                                "data_channels": "4",
-                                "data_meshes": "16",
-                                "data_timesteps": "1000"
-                                }
-        
+        dataset_file_document = DatabaseHandler.get_test_document_file(uuid, archive_dir)
+                                            
         self.database_handler.insert_file_document(dataset_file_document)
         
         logger.info("inserted %s", dataset_file_document)
         
+    def store_dataset(self, uuid):
+        
+        logger.info("store dataset for uuid %s", uuid)
+        
+        archive_dir = self.storage_handler.get_path() + uuid
+        self.storage_handler.create_dataset_archive(archive_dir)
+        
+        dataset_file_document = DatabaseHandler.get_test_document_file(uuid, archive_dir)
+        
+        self.database_handler.insert_file_document(dataset_file_document)
+        
+        dataset = AssasDataset('test',1000)
+        
+        dataset_handler = AssasDatasetHandler(dataset_file_document, dataset)
+        dataset_handler.create_hdf5()
+        
     def view(self):
         
         file_collection = self.database_handler.get_file_collection()
-        logger.info(file_collection)
-
-        for file in file_collection.find():
-            logger.info(file)
+        
+        #logger.info(list(file_collection.find()))
 
         return pandas.DataFrame(list(file_collection.find()))
     
@@ -75,3 +73,4 @@ class AssasDatabaseManager:
     def get_file_document(self, id):
         
         return self.database_handler.get_file_document(id)
+    

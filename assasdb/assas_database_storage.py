@@ -2,7 +2,7 @@ import os
 import smbclient
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('assas_app')
 
 class AssasStorageHandler:
     
@@ -19,17 +19,21 @@ class AssasStorageHandler:
         self.server = 'os.lsdf.kit.edu'
         self.share = 'kit\scc\projects\ASSAS'
         
-        self.smbclient_config = self.client_config()
-        self.session = self.register_session()
+        #self.smbclient_config = self.client_config()
+        #self.session = self.register_session()
         
     def create_lsdf_archive(self):
 
+        logger.info('create lsdf archive %s' % self.path)
+        
         if not os.path.isdir(self.path):
             os.mkdir(self.path)
         else:
             logger.warning("lsdf archive already exists")
             
     def create_dataset_archive(self, path):
+        
+        logger.info('create dataset archive %s' % path)
         
         if not os.path.isdir(path):
             os.mkdir(path)
