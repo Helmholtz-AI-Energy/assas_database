@@ -16,7 +16,7 @@ class AssasDatasetHandler:
         
         logger.info('create hdf5 file at %s' % self.document['system_path'])
         
-        with h5py.File(self.document['system_path']+"/dataset.h5","w") as h5file:
+        with h5py.File(self.document['system_path']+"dataset.h5","w") as h5file:
         
             h5file.create_group('metadata')
             

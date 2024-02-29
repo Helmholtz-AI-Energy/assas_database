@@ -6,13 +6,10 @@ logger = logging.getLogger('assas_app')
 
 class AssasStorageHandler:
     
-    def __init__(self, mount_point="/mnt/ASSAS/", archive_dir="/test/", tmp_dir="./tmp/"):
+    def __init__(self, mount_point="/mnt/ASSAS/", sub_dir="/test/"):
         
         self.mount_point = mount_point
-        self.archive_dir = archive_dir
-        self.tmp_dir = tmp_dir
-
-        self.path = self.mount_point + self.archive_dir
+        self.archive_dir = mount_point + sub_dir
         
         self.user = 'ke4920'
         self.password = 'R.adio_!1234'
@@ -24,10 +21,10 @@ class AssasStorageHandler:
         
     def create_lsdf_archive(self):
 
-        logger.info('create lsdf archive %s' % self.path)
+        logger.info('create lsdf archive %s' % self.archive_dir)
         
-        if not os.path.isdir(self.path):
-            os.mkdir(self.path)
+        if not os.path.isdir(self.archive_dir):
+            os.makedirs(self.archive_dir)
         else:
             logger.warning("lsdf archive already exists")
             
@@ -36,13 +33,13 @@ class AssasStorageHandler:
         logger.info('create dataset archive %s' % path)
         
         if not os.path.isdir(path):
-            os.mkdir(path)
+            os.makedirs(path)
         else:
             logger.warning("dataset archive already exists")
             
-    def get_path(self):
+    def get_archive_dir(self):
         
-        return self.path
+        return self.archive_dir
     
     def register_session(self):
         

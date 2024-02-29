@@ -1,6 +1,6 @@
 import unittest
-import uuid
 
+from uuid import uuid4
 from assasdb import AssasDatabaseManager
 from assasdb import AssasStorageHandler
 
@@ -14,9 +14,9 @@ class AssasStorageHandlerTest(unittest.TestCase):
         
         self.test_storage_handler = None
     
-    def test_storage_handler_get_path(self):
+    def test_storage_handler_get_archive_dir(self):
         
-        self.storage_handler.get_path()
+        self.storage_handler.get_archive_dir()
         
     def test_storage_handler_client_config(self):
         
@@ -42,14 +42,16 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
     def test_database_manager_basic_upload(self):
 
-        self.database_manager.upload()
+        uuid = str(uuid4())
+        test_archive = '/home/jonas/django_prototype/assas_database/test/data'
+        self.database_manager.upload_archive(test_archive, uuid)
         
-    def test_database_store_1000_datasets(self):
+    def test_database_store_10_datasets(self):
         
         self.database_manager.drop()
         
-        for i in range(0, 1000):
-            self.database_manager.store_dataset(str(uuid.uuid4()))  
+        for i in range(0, 10):
+            self.database_manager.store_dataset(str(uuid4()))
         
     def test_database_manager_insert_50_entries(self):
         

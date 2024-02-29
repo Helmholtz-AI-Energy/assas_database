@@ -1,24 +1,19 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import h5py
 import numpy as np
 import uuid
-import shutil
-from datetime import datetime
-
-import assas_database_dataset as add
-
-# import astec python imterface
+import logging
 import pyastec as pyas
 import pyodessa as pyod
 
-import logging
+import assas_database_dataset as add
 
-logger = logging.getLogger(__name__)
+from datetime import datetime
 
-# define constants for parsing
+logger = logging.getLogger('assas_app.log')
+
 SEP = ":"
 MAX_DEPTH = 50
 

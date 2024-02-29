@@ -6,7 +6,6 @@ import logging
 from uuid import uuid4
 from datetime import datetime
 from .assas_database_handler import DatabaseHandler
-from .assas_data_handler import AssasDataHandler
 from .assas_database_storage import AssasStorageHandler
 from .assas_astec_handler import convert_archive, unzip_archive, get_astec_archive
 from .assas_database_hdf5 import AssasDatasetHandler
@@ -20,8 +19,28 @@ class AssasDatabaseManager:
         
         self.connectionstring = "mongodb://localhost:27017/"
         self.database_handler = DatabaseHandler(self.connectionstring)
-        self.storage_handler = AssasStorageHandler()
+        self.storage_handler = AssasStorageHandler(mount_point='/mnt/ASSAS', sub_dir='/test/')
         self.storage_handler.create_lsdf_archive()
+        
+    def upload_archive(self, path_to_zipped_archive, uuid):
+        
+        logger.info("start upload for uuid %s", uuid)
+        
+        archive_dir = self.storage_handler.get_archive_dir() + uuid
+        logger.info('archive dir %s' % archive_dir)
+        
+        zipped_archive = get_astec_archive(path_to_zipped_archive)
+        logger.info('zipped_archive %s' % zipped_archive)   
+        
+        unzip_archive(zipped_archive, archive_dir + "/archive")
+        
+        convert_archive(archive_dir)
+        
+        dataset_file_document = DatabaseHandler.get_test_document_file(uuid, archive_dir)
+                                            
+        self.database_handler.insert_file_document(dataset_file_document)
+        
+        logger.info("inserted document %s", dataset_file_document)
         
     def upload(self, uuid):
         
@@ -46,7 +65,7 @@ class AssasDatabaseManager:
         
         logger.info("store dataset for uuid %s", uuid)
         
-        archive_dir = self.storage_handler.get_path() + uuid
+        archive_dir = self.storage_handler.get_archive_dir() + uuid + '/result/'
         self.storage_handler.create_dataset_archive(archive_dir)
         
         dataset_file_document = DatabaseHandler.get_test_document_file(uuid, archive_dir)
