@@ -12,7 +12,7 @@ import assas_database_dataset as add
 
 from datetime import datetime
 
-logger = logging.getLogger('assas_app.log')
+logger = logging.getLogger('assas_app')
 
 SEP = ":"
 MAX_DEPTH = 50

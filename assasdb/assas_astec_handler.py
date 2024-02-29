@@ -3,7 +3,7 @@ import zipfile
 import glob
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('assas_app')
 
 def unzip_archive(dir, target_dir):
         

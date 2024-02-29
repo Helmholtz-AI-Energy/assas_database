@@ -1,8 +1,11 @@
 import unittest
+import logging
 
 from uuid import uuid4
 from assasdb import AssasDatabaseManager
 from assasdb import AssasStorageHandler
+
+logger = logging.getLogger('assas_app')
 
 class AssasStorageHandlerTest(unittest.TestCase):
     
@@ -42,9 +45,12 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
     def test_database_manager_basic_upload(self):
 
-        uuid = str(uuid4())
+        test_uuid = str(uuid4())
         test_archive = '/home/jonas/django_prototype/assas_database/test/data'
-        self.database_manager.upload_archive(test_archive, uuid)
+        
+        logger.info('test_archive %s test_uuid %s' % (test_archive, test_uuid))
+        
+        self.database_manager.upload_archive(test_archive, test_uuid)
         
     def test_database_store_10_datasets(self):
         
