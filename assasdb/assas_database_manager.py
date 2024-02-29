@@ -21,7 +21,7 @@ class AssasDatabaseManager:
         self.connectionstring = "mongodb://localhost:27017/"
         self.database_handler = DatabaseHandler(self.connectionstring)
         self.storage_handler = AssasStorageHandler()
-        #self.storage_handler.create_lsdf_archive()
+        self.storage_handler.create_lsdf_archive()
         
     def upload(self, uuid):
         
@@ -53,7 +53,7 @@ class AssasDatabaseManager:
         
         self.database_handler.insert_file_document(dataset_file_document)
         
-        dataset = AssasDataset('test',1000)
+        dataset = AssasDataset('test', 1000)
         
         dataset_handler = AssasDatasetHandler(dataset_file_document, dataset)
         dataset_handler.create_hdf5()

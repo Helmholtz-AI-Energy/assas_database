@@ -46,7 +46,7 @@ class DatabaseHandler:
                     "system_path": system_path,
                     "system_size": "1MB",
                     "system_user": "test",
-                    "system_download": "LINK",
+                    "system_download": "Download",
                     "system_status": "complete",
                     "meta_name": "Name of Simulation X",
                     "meta_group": "Group or Kind of Simulation",
