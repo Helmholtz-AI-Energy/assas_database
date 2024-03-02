@@ -26,7 +26,7 @@ class AssasDatabaseManager:
         
         logger.info("start upload for uuid %s", uuid)
         
-        archive_dir = self.storage_handler.get_archive_dir() + uuid
+        archive_dir = self.storage_handler.get_archive_dir() + uuid + '/result/'
         logger.info('archive dir %s' % archive_dir)
         
         zipped_archive = get_astec_archive(path_to_zipped_archive)

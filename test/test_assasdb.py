@@ -52,6 +52,13 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         for i in range(0, 10):
             self.database_manager.store_dataset(str(uuid4()))
+            
+    def test_database_store_100_datasets(self):
+        
+        self.database_manager.drop()
+        
+        for i in range(0, 100):
+            self.database_manager.store_dataset(str(uuid4()))
         
     def test_database_manager_insert_50_entries(self):
         
