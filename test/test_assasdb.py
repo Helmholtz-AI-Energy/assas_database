@@ -52,11 +52,11 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         self.database_manager.upload_archive(test_archive, test_uuid)
         
-    def test_database_store_10_datasets(self):
+    def test_database_store_100_datasets(self):
         
         self.database_manager.drop()
         
-        for i in range(0, 10):
+        for i in range(0, 100):
             self.database_manager.store_dataset(str(uuid4()))
         
     def test_database_manager_insert_50_entries(self):
@@ -75,9 +75,9 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
         self.database_manager.drop()
         
-    def test_database_manager_basic_view(self):
+    def test_database_manager_get_datasets(self):
 
-        self.database_manager.view()
+        self.database_manager.get_datasets()
         
 if __name__ == '__main__':
     unittest.main()

@@ -1,7 +1,6 @@
 import pandas
-import zipfile
-import glob
 import logging
+import numpy as np
 
 from uuid import uuid4
 from datetime import datetime
@@ -77,13 +76,18 @@ class AssasDatabaseManager:
         dataset_handler = AssasDatasetHandler(dataset_file_document, dataset)
         dataset_handler.create_hdf5()
         
-    def view(self):
+    def get_datasets(self):
         
         file_collection = self.database_handler.get_file_collection()
         
-        #logger.info(list(file_collection.find()))
+        data_frame = pandas.DataFrame(list(file_collection.find()))
+        
+        data_frame['system_index'] = range(1, len(data_frame) + 1)    
+        data_frame['_id'] = data_frame['_id'].astype(str)    
+        
+        logger.info('load datasets with shape %s' % (str(data_frame.shape)))
 
-        return pandas.DataFrame(list(file_collection.find()))
+        return data_frame
     
     def drop(self):
         
