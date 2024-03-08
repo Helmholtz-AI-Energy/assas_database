@@ -1,10 +1,12 @@
 import pandas
 import logging
-import numpy as np
+import numpy
+import os
+import shutil
 
 from uuid import uuid4
 from datetime import datetime
-from .assas_database_handler import DatabaseHandler
+from .assas_database_handler import AssasDatabaseHandler
 from .assas_database_storage import AssasStorageHandler
 from .assas_astec_handler import convert_archive, unzip_archive, get_astec_archive
 from .assas_database_hdf5 import AssasDatasetHandler
@@ -14,69 +16,38 @@ logger = logging.getLogger('assas_app')
 
 class AssasDatabaseManager:
 
-    def __init__(self):
+    def __init__(self, local_share, lsdf_share):
         
         self.connectionstring = "mongodb://localhost:27017/"
-        self.database_handler = DatabaseHandler(self.connectionstring)
-        self.storage_handler = AssasStorageHandler(mount_point='/mnt/ASSAS', sub_dir='/test/')
-        self.storage_handler.create_lsdf_archive()
+        self.database_handler = AssasDatabaseHandler(self.connectionstring)
+        self.storage_handler = AssasStorageHandler(local_share, lsdf_share)
+       
+    def process_archive(self, archive: str):
         
-    def upload_archive(self, path_to_zipped_archive, uuid):
+        archive_dir = os.path.dirname(archive)
+        #zipped_archive = get_astec_archive(archive_dir)
         
-        logger.info("start upload for uuid %s", uuid)
+        logger.info(f'start conversion (archive: {archive}')
         
-        archive_dir = self.storage_handler.get_archive_dir() + uuid
-        logger.info('archive dir %s' % archive_dir)
-        
-        zipped_archive = get_astec_archive(path_to_zipped_archive)
-        logger.info('zipped_archive %s' % zipped_archive)   
-        
-        unzip_archive(zipped_archive, archive_dir + "/archive")
+        unzip_archive(archive, archive_dir + "/archive")
         
         convert_archive(archive_dir)
+    
+      
+    def synchronize_archive(self, system_uuid: str):
         
-        dataset_file_document = DatabaseHandler.get_test_document_file(uuid, archive_dir)
+        self.storage_handler.store_archive_on_share(system_uuid)        
+            
+    
+    def add_database_entry(self, system_uuid: str, system_path: str):
+        
+        dataset_file_document = AssasDatabaseHandler.get_test_document_file(system_uuid, system_path)
                                             
         self.database_handler.insert_file_document(dataset_file_document)
         
-        logger.info("inserted document %s", dataset_file_document)
+        logger.info(f'inserted document {dataset_file_document}')
         
-    def upload(self, uuid):
-        
-        logger.info("start upload for uuid %s", uuid)
-        
-        archive_dir = "/mnt/ASSAS/media/documents/" + uuid
-        logger.info(archive_dir)
-        
-        zipped_archive = get_astec_archive(archive_dir)
-        
-        unzip_archive(zipped_archive, archive_dir + "/archive")
-        
-        #convert_archive(archive_dir)
-                
-        dataset_file_document = DatabaseHandler.get_test_document_file(uuid, archive_dir)
-                                            
-        self.database_handler.insert_file_document(dataset_file_document)
-        
-        logger.info("inserted %s", dataset_file_document)
-        
-    def store_dataset(self, uuid):
-        
-        logger.info("store dataset for uuid %s", uuid)
-        
-        archive_dir = self.storage_handler.get_archive_dir() + uuid + '/result/'
-        self.storage_handler.create_dataset_archive(archive_dir)
-        
-        dataset_file_document = DatabaseHandler.get_test_document_file(uuid, archive_dir)
-        
-        self.database_handler.insert_file_document(dataset_file_document)
-        
-        dataset = AssasDataset('test', 1000)
-        
-        dataset_handler = AssasDatasetHandler(dataset_file_document, dataset)
-        dataset_handler.create_hdf5()
-        
-    def get_datasets(self):
+    def get_database_entries(self):
         
         file_collection = self.database_handler.get_file_collection()
         
@@ -85,7 +56,7 @@ class AssasDatabaseManager:
         data_frame['system_index'] = range(1, len(data_frame) + 1)    
         data_frame['_id'] = data_frame['_id'].astype(str)    
         
-        logger.info('load datasets with shape %s' % (str(data_frame.shape)))
+        logger.info(f'load data frame with shape {str(data_frame.shape)}')
 
         return data_frame
     
@@ -93,7 +64,7 @@ class AssasDatabaseManager:
         
         self.database_handler.drop_file_collection()
         
-    def get_file_document(self, id):
+    def get_database_entry(self, id):
         
         return self.database_handler.get_file_document(id)
     

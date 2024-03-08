@@ -7,7 +7,7 @@ from datetime import datetime
 
 logger = logging.getLogger('assas_app')
 
-class DatabaseHandler:
+class AssasDatabaseHandler:
 
     def __init__(self, connectionstring):
         
@@ -39,8 +39,9 @@ class DatabaseHandler:
         return self.file_collection.find_one(ObjectId(id))
     
     @staticmethod
-    def get_test_document_file(system_uuid=str(uuid4()),system_path="default_path"):
-        return {
+    def get_test_document_file(system_uuid=str(uuid4()), system_path="default_path") -> dict:
+ 
+        document = {
                     "system_uuid": system_uuid,
                     "system_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                     "system_path": system_path,
@@ -58,5 +59,7 @@ class DatabaseHandler:
                     "meta_data_meshes": "16",
                     "meta_data_timesteps": "1000"    
                 }
+        
+        return document
         
         

@@ -10,10 +10,14 @@ def unzip_archive(dir, target_dir):
     with zipfile.ZipFile(dir, "r") as zip:
         zip.extractall(target_dir)
         
-def get_astec_archive(dir):
+def get_astec_archive(archive_dir):
+    
+    logger.info(f'archive directory: {archive_dir}')
     
     zip = glob.glob(dir + "/*.zip")
-    logger.info(zip)
+    
+    logger.info(f'archive directory: {zip}')
+    
     if len(zip) != 1:
         raise ValueError("no or more than one archive present")
         return
@@ -29,7 +33,7 @@ def convert_archive(archive_dir):
     logger.info("changed to archive directory: {0}".format(os.getcwd()))
     
     python_interface = "~/astecV3.1/code/proc/astec.py"
-    astec_parser = "~/django_prototype/assas_database/assasdb/assas_astec_parser.py"
+    astec_parser = "~/assas_app/assas_database/assasdb/assas_astec_parser.py"
     space = " "
     
     command = "python3" + space + python_interface + space + astec_parser
