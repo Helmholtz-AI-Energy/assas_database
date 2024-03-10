@@ -8,7 +8,7 @@ from uuid import uuid4
 from datetime import datetime
 from .assas_database_handler import AssasDatabaseHandler
 from .assas_database_storage import AssasStorageHandler
-from .assas_astec_handler import convert_archive, unzip_archive, get_astec_archive
+from .assas_astec_handler import AssasAstecHandler
 from .assas_database_hdf5 import AssasDatasetHandler
 from .assas_database_dataset import AssasDataset
 
@@ -18,9 +18,10 @@ class AssasDatabaseManager:
 
     def __init__(self, local_share, lsdf_share):
         
-        self.connectionstring = "mongodb://localhost:27017/"
+        self.connectionstring = 'mongodb://localhost:27017/'
         self.database_handler = AssasDatabaseHandler(self.connectionstring)
         self.storage_handler = AssasStorageHandler(local_share, lsdf_share)
+        self.astec_handler = AssasAstecHandler()
        
     def process_archive(self, archive: str):
         
@@ -29,15 +30,13 @@ class AssasDatabaseManager:
         
         logger.info(f'start conversion (archive: {archive}')
         
-        unzip_archive(archive, archive_dir + "/archive")
+        self.astec_handler.unzip_archive(archive, archive_dir + '/archive')
         
-        convert_archive(archive_dir)
+        self.astec_handler.convert_archive(archive_dir)
     
-      
     def synchronize_archive(self, system_uuid: str):
         
-        self.storage_handler.store_archive_on_share(system_uuid)        
-            
+        self.storage_handler.store_archive_on_share(system_uuid)           
     
     def add_database_entry(self, system_uuid: str, system_path: str):
         
@@ -54,7 +53,7 @@ class AssasDatabaseManager:
         data_frame = pandas.DataFrame(list(file_collection.find()))
         
         data_frame['system_index'] = range(1, len(data_frame) + 1)    
-        data_frame['_id'] = data_frame['_id'].astype(str)    
+        data_frame['_id'] = data_frame['_id'].astype(str)
         
         logger.info(f'load data frame with shape {str(data_frame.shape)}')
 

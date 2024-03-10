@@ -25,43 +25,44 @@ class AssasStorageHandler:
         
     def store_archive_on_share(self, system_uuid: str):
         
-        logger.info(f'copy archive to share {system_uuid}')
+        logger.info(f'copy archive to share (uuid: {system_uuid})')
         
         try:
             shutil.copytree(self.local_archive + system_uuid, self.lsdf_archive + system_uuid)
-        except OSError as exc: # python >2.5
-            if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-                shutil.copy(self.local_archive + system_uuid, self.lsdf_archive + system_uuid)
-        else: raise
+        except:    
+        #except OSError as exc:
+            logger.warning(f'exception during copy process occured')            
+            #if exc.errno in (errno.ENOTDIR, errno.EINVAL):
+            #    shutil.copy(self.local_archive + system_uuid, self.lsdf_archive + system_uuid)
         
         logger.info(f'copied archive to share {system_uuid}')
         
     def create_lsdf_archive(self):
 
-        logger.info('create lsdf archive %s' % self.lsdf_archive)
+        logger.info(f'create lsdf archive {self.lsdf_archive}')
         
         if not os.path.isdir(self.lsdf_archive):
             os.makedirs(self.lsdf_archive)
         else:
-            logger.warning("lsdf archive already exists")
+            logger.warning('lsdf archive already exists')
             
     def create_local_archive(self):
 
-        logger.info('create local archive %s' % self.local_archive)
+        logger.info(f'create local archive {self.local_archive}')
         
         if not os.path.isdir(self.local_archive):
             os.makedirs(self.local_archive)
         else:
-            logger.warning("local archive already exists")
+            logger.warning(f'local archive already exists {self.local_archive}')
             
     def create_dataset_archive(self, path):
         
-        logger.info('create dataset archive %s' % path)
+        logger.info(f'create dataset archive {path}')
         
         if not os.path.isdir(path):
             os.makedirs(path)
         else:
-            logger.warning("dataset archive already exists")
+            logger.warning(f'dataset archive already exists {path}')
             
     def get_local_archive_dir(self):
         
@@ -75,10 +76,10 @@ class AssasStorageHandler:
         
         try:
             session = smbclient.register_session(self.server, username=self.user, password=self.password)
-            logger.info("successfully connected to share")
+            logger.info('successfully connected to share')
         except:
             session = None
-            logger.error("unable to connect to share")
+            logger.error('unable to connect to share')
             
         return session
         
