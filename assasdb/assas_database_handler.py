@@ -38,8 +38,60 @@ class AssasDatabaseHandler:
         
         return self.file_collection.find_one(ObjectId(id))
     
+class AssasDocumentFile:
+    
+    def __init__(self) -> None:
+        self.document = {}
+        
+    def get_document(self) -> dict:
+        
+        return self.document
+        
+    def set_meta(
+        self,
+        meta_name: str,
+        meta_group: str,
+        meta_date: str,
+        meta_creator: str,
+        meta_description: str,
+
+        ) -> None:
+        
+        self.document['meta_name'] = meta_name
+        self.document['meta_group'] = meta_group
+        self.document['meta_date'] = meta_date
+        self.document['meta_creator'] = meta_creator
+        self.document['meta_description'] = meta_description
+        
+    def set_value(self, key: str, value: str) -> None:
+        
+        self.document[key] = value
+    
+    def set_system(
+        self,
+        system_uuid: str,
+        system_date: str,
+        system_path: str,
+        system_size: str,
+        system_user: str,
+        system_download: str,
+        system_status: str,
+
+        ) -> None:
+        
+        self.document['system_uuid'] = system_uuid
+        self.document['system_date'] = system_date
+        self.document['system_uuid'] = system_path
+        self.document['system_size'] = system_size
+        self.document['system_user'] = system_user
+        self.document['system_download'] = system_download
+        self.document['system_status'] = system_status
+
     @staticmethod
-    def get_test_document_file(system_uuid=str(uuid4()), system_path='default_path') -> dict:
+    def get_test_document_file(
+        system_uuid=str(uuid4()),
+        system_path='default_path'
+        ) -> dict:
  
         document = {
                     "system_uuid": system_uuid,
@@ -60,6 +112,4 @@ class AssasDatabaseHandler:
                     "meta_data_timesteps": "1000"    
                 }
         
-        return document
-        
-        
+        return document  
