@@ -13,7 +13,7 @@ class AssasDataset:
         '''
         
         self.name = name
-        self.variables = ["pressure", "voidf", "temp", "sat_temp"]
+        self.variables = ['pressure', 'voidf', 'temp', 'sat_temp']
         self.channels = 4
         self.meshes = 16
         self.samples = samples

@@ -39,7 +39,7 @@ class AssasDatabaseHandler:
         return self.file_collection.find_one(ObjectId(id))
     
     @staticmethod
-    def get_test_document_file(system_uuid=str(uuid4()), system_path="default_path") -> dict:
+    def get_test_document_file(system_uuid=str(uuid4()), system_path='default_path') -> dict:
  
         document = {
                     "system_uuid": system_uuid,
