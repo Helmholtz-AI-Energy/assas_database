@@ -44,7 +44,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
     
     def setUp(self):
         LSDF_ARCHIVE = r'/mnt/ASSAS/upload/'
-        LOCAL_ARCHIVE = r'/home/jonas/upload/'
+        LOCAL_ARCHIVE = r'/root/upload/'
         self.database_manager = AssasDatabaseManager(LOCAL_ARCHIVE, LSDF_ARCHIVE)
         
     def tearDown(self):

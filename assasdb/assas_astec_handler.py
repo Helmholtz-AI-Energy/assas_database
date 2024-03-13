@@ -9,9 +9,9 @@ class AssasAstecHandler:
     
     def __init__(self):
         
-        self.python_version = 'python3'
-        self.python_interface = '~/astecV3.1/code/proc/astec.py'
-        self.astec_parser = '~/assas_app/assas_database/assasdb/assas_astec_parser.py'
+        self.python_version = '/opt/python/3.11.8/bin/python3.11'
+        self.python_interface = '/root/astecV3.1.1_linux64/astecV3.1.1/code/proc/astec.py'
+        self.astec_parser = '/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'
         self.space = ' '
         self.command = self.python_version + self.space + self.python_interface + self.space + self.astec_parser
 
