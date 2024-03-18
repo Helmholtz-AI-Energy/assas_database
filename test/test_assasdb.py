@@ -40,12 +40,23 @@ class AssasStorageHandlerTest(unittest.TestCase):
         
         print(self.storage_handler.reset_connection_cache())
 
+
+class TestConfig(object):
+    
+    DEBUG = True
+    DEVELOPMENT = True
+    LSDF_ARCHIVE = r'/mnt/ASSAS/upload/'
+    LOCAL_ARCHIVE = r'/jonas/upload/'
+    PYTHON_VERSION = r'python3.10'
+    ASTEC_ROOT = r'/home/jonas/astecV3.1/code/proc/astec.py' 
+    ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'
+
 class AssasDatabaseManagerTest(unittest.TestCase):
     
     def setUp(self):
-        LSDF_ARCHIVE = r'/mnt/ASSAS/upload/'
-        LOCAL_ARCHIVE = r'/root/upload/'
-        self.database_manager = AssasDatabaseManager(LOCAL_ARCHIVE, LSDF_ARCHIVE)
+        
+        config = TestConfig()
+        self.database_manager = AssasDatabaseManager(config)
         
     def tearDown(self):
         
