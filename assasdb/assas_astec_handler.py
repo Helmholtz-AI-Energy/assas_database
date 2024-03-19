@@ -9,44 +9,41 @@ class AssasAstecHandler:
     
     def __init__(self, python_version, astec_root, astec_parser):
         
-        self.python_version = python_version
-        self.astec_root = astec_root
-        self.astec_parser = astec_parser
-        self.space = ' '
-        self.command = self.python_version + self.space + self.astec_root + self.space + self.astec_parser
+        self.command = f'{python_version} {astec_root} {astec_parser}'
 
+    def convert_archive(self, archive_dir: str):
+        
+        current_dir = os.getcwd()
+        logger.info(f'current working directory is {current_dir}')
+
+        logger.info(f'change to archive directory {archive_dir}')
+        os.chdir(archive_dir + '/archive')
+      
+        logger.info(f'run assas astec parser with command {self.command}')
+        os.system(self.command)
+        
+        logger.info(f'changed back to current_dir: {current_dir}')
+        os.chdir(current_dir)
+        
     @staticmethod
-    def unzip_archive(dir: str, target_dir: str):
+    def unzip_archive(zipped_archive_path: str) -> str:
+        
+        unzipped_archive_dir = os.path.dirname(zipped_archive_path) + '/archive'
+        with zipfile.ZipFile(zipped_archive_path, 'r') as zip:
             
-        with zipfile.ZipFile(dir, 'r') as zip:
-            zip.extractall(target_dir)
-    
+            zip.extractall(unzipped_archive_dir)
+            
     @staticmethod
     def get_astec_archive(archive_dir: str):
         
         logger.info(f'archive directory: {archive_dir}')
         
-        zip = glob.glob(dir + '/*.zip')
+        zipped_dir = glob.glob(archive_dir + '/*.zip')
         
-        logger.info(f'archive directory: {zip}')
+        logger.info(f'archive directory: {zipped_dir}')
         
-        if len(zip) != 1:
+        if len(zipped_dir) != 1:
             raise ValueError('no or more than one archive present')
             return
-        return zip[0]
-
-    def convert_archive(self, archive_dir: str):
         
-        current_dir = os.getcwd()
-        logger.info(f'current working directory: {current_dir}')
-
-        os.chdir(archive_dir)
-
-        logger.info(f'changed to archive directory: {current_dir}')
-       
-        logger.info(f'execute command: {self.command}')
-        
-        os.system(self.command)
-            
-        os.chdir(archive_dir)
-        logger.info(f'changed back to archive_dir: {archive_dir}')
+        return zipped_dir[0]

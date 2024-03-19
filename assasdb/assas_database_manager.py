@@ -17,22 +17,21 @@ logger = logging.getLogger('assas_app')
 
 class AssasDatabaseManager:
 
-    def __init__(self, config):
+    def __init__(self, config: dict) -> None:
         
         self.config = config
         
         self.connectionstring = 'mongodb://localhost:27017/'
         self.database_handler = AssasDatabaseHandler(self.connectionstring)
-        self.storage_handler = AssasStorageHandler(config.get('LOCAL_ARCHIVE'), config.get('LSDF_ARCHIVE'))
-        self.astec_handler = AssasAstecHandler(config.get('PYTHON_VERSION'), config.get('ASTEC_ROOT'), config.get('ASTEC_PARSER'))
+        self.storage_handler = AssasStorageHandler(config.LOCAL_ARCHIVE, config.LSDF_ARCHIVE)
+        self.astec_handler = AssasAstecHandler(config.PYTHON_VERSION, config.ASTEC_ROOT, config.ASTEC_PARSER)
        
-    def process_archive(self, archive: str) -> None:
+    def process_archive(self, zipped_archive_path: str) -> None:
         
-        archive_dir = os.path.dirname(archive)
-                
-        logger.info(f'start conversion (archive: {archive}')
+        archive_dir = os.path.dirname(zipped_archive_path)
+        logger.info(f'start processing archive {archive_dir}')
         
-        self.astec_handler.unzip_archive(archive, archive_dir + '/archive')
+        self.astec_handler.unzip_archive(zipped_archive_path)
         
         self.astec_handler.convert_archive(archive_dir)
     

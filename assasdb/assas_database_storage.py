@@ -13,13 +13,6 @@ class AssasStorageHandler:
         self.local_archive = local_archive
         self.lsdf_archive = lsdf_archive
         
-        self.user = 'ke4920'
-        self.password = 'R.adio_!1234'
-        self.server = 'os.lsdf.kit.edu'
-        self.share = 'kit\scc\projects\ASSAS'
-        
-        #self.smbclient_config = self.client_config()
-        #self.session = self.register_session()
         self.create_local_archive()
         self.create_lsdf_archive()
         
@@ -72,22 +65,3 @@ class AssasStorageHandler:
         
         return self.lsdf_archive
     
-    def register_session(self):
-        
-        try:
-            session = smbclient.register_session(self.server, username=self.user, password=self.password)
-            logger.info('successfully connected to share')
-        except:
-            session = None
-            logger.error('unable to connect to share')
-            
-        return session
-        
-    def client_config(self):
-        
-        return smbclient.ClientConfig(username=self.user, password=self.password)
-    
-    @staticmethod
-    def reset_connection_cache():
-        
-        return smbclient.reset_connection_cache()

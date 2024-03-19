@@ -19,7 +19,7 @@ class AssasDataset:
         self.samples = samples
         self.data = {}        
         for variable in self.variables:
-            self.data[variable] = np.random.rand(self.channels, self.meshes, samples, 1).reshape(self.channels, self.meshes, samples)
+            self.data[variable] = np.zeros((self.channels, self.meshes, samples))
     
     def get_data(self):
         

@@ -30,15 +30,15 @@ class AssasStorageHandlerTest(unittest.TestCase):
         
     def test_storage_handler_client_config(self):
         
-        print(self.storage_handler.client_config())
+        logger.info(self.storage_handler.client_config())
         
     def test_storage_handler_register_session(self):
         
-        print(self.storage_handler.register_session())
+        logger.info(self.storage_handler.register_session())
         
     def test_storage_handler_reset_connection_cache(self):
         
-        print(self.storage_handler.reset_connection_cache())
+        logger.info(self.storage_handler.reset_connection_cache())
 
 
 class TestConfig(object):
@@ -46,10 +46,10 @@ class TestConfig(object):
     DEBUG = True
     DEVELOPMENT = True
     LSDF_ARCHIVE = r'/mnt/ASSAS/upload/'
-    LOCAL_ARCHIVE = r'/jonas/upload/'
-    PYTHON_VERSION = r'python3.10'
-    ASTEC_ROOT = r'/home/jonas/astecV3.1/code/proc/astec.py' 
-    ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'
+    LOCAL_ARCHIVE = r'/root/upload/'
+    PYTHON_VERSION = r'/opt/python/3.11.8/bin/python3.11'
+    ASTEC_ROOT = r'/root/astecV3.1.1_linux64/astecV3.1.1/code/proc/astec.py' 
+    ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'    
 
 class AssasDatabaseManagerTest(unittest.TestCase):
     
@@ -72,7 +72,8 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_database_manager_basic_upload(self):
 
-        test_archive = os.path.abspath(__file__) + 'data/PWR1300_LOCA_12P_CL_linux_64.bin.zip'
+        test_archive = os.path.dirname(os.path.abspath(__file__)) \
+            + '/data/PWR1300_LOCA_12P_CL_linux_64.bin.zip'
         
         logger.info(f'test_archive {test_archive}')
         
