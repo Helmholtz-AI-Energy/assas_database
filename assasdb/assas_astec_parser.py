@@ -25,7 +25,7 @@ class AssasAstecParser:
         self.astec_archive_name = archive_name
         self.astec_archive_dir = Path(os.getcwd())
         self.result_dir = f'{self.astec_archive_dir.parent.absolute()}/result'
-        self.result_file = f'{self.result_dir}/dataset.h'
+        self.result_file = f'{self.result_dir}/dataset.h5'
                 
         print(self.result_dir)
         
@@ -63,7 +63,7 @@ class AssasAstecParser:
         
         index = pyod.restore(binary_file, 0.)
         saved_instants = [saving.get('time') for saving in index.family('SAVING')]
-        print(f'found {saved_instants} saved instants')
+        print(f'found {len(saved_instants)} saved instants')
         
         dataset = add.AssasDataset(astec_archive_dir, len(saved_instants))
         

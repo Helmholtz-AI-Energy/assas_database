@@ -87,3 +87,7 @@ class AssasStorageHandler:
         
         return self.lsdf_archive
     
+    def get_dataset_archive_dir(self, uuid):
+        
+        return self.get_lsdf_archive_dir() + uuid
+    
