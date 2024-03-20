@@ -26,14 +26,17 @@ class AssasDatabaseManager:
         self.storage_handler = AssasStorageHandler(config.LOCAL_ARCHIVE, config.LSDF_ARCHIVE)
         self.astec_handler = AssasAstecHandler(config.PYTHON_VERSION, config.ASTEC_ROOT, config.ASTEC_PARSER)
        
-    def process_archive(self, zipped_archive_path: str) -> None:
+    def process_archive(self, zipped_archive_path: str) -> bool:
         
+        success = False
         archive_dir = os.path.dirname(zipped_archive_path)
         logger.info(f'start processing archive {archive_dir}')
         
-        self.astec_handler.unzip_archive(zipped_archive_path)
-        
-        self.astec_handler.convert_archive(archive_dir)
+        if self.astec_handler.unzip_archive(zipped_archive_path):
+            if self.astec_handler.convert_archive(archive_dir):
+                success = True       
+            
+        return success
     
     def store_local_archive(self, uuid) -> None:
         
@@ -53,12 +56,22 @@ class AssasDatabaseManager:
     
     def synchronize_archive(self, system_uuid: str) -> bool:
         
+        success = False
+        
         if self.storage_handler.store_archive_on_share(system_uuid):
-            self.storage_handler.delete_local_archive(system_uuid)
-            return True
-        else:
-            logger.critical(f'could not store archive on lsdf {system_uuid}')
-            return False           
+            if self.storage_handler.delete_local_archive(system_uuid):
+                success = True
+
+        return success
+    
+    def clear_archive(self, system_uuid: str) -> bool:
+        
+        success = False
+        
+        if self.storage_handler.delete_local_archive(system_uuid):
+            success = True
+            
+        return success
     
     def add_test_database_entry(self, system_uuid: str, system_path: str) -> None:
         

@@ -13,17 +13,22 @@ class AssasAstecHandler:
 
     def convert_archive(self, archive_dir: str) -> bool:
         
-        current_dir = os.getcwd()
-        logger.info(f'current working directory is {current_dir}')
+        try:
+            current_dir = os.getcwd()
+            logger.info(f'current working directory is {current_dir}')
 
-        logger.info(f'change to archive directory {archive_dir}')
-        os.chdir(archive_dir + '/archive')
-        
-        logger.info(f'run assas astec parser with command {self.command}')
-        os.system(self.command)
+            logger.info(f'change to archive directory {archive_dir}')
+            os.chdir(archive_dir + '/archive')
             
-        logger.info(f'changed back to current_dir: {current_dir}')
-        os.chdir(current_dir)
+            logger.info(f'run assas astec parser with command {self.command}')
+            os.system(self.command)
+                
+            logger.info(f'changed back to current_dir: {current_dir}')
+            os.chdir(current_dir)
+        except:
+            return False
+        
+        return True
         
     @staticmethod
     def unzip_archive(zipped_archive_path: str) -> bool:
