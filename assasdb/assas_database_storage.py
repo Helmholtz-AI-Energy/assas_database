@@ -4,6 +4,8 @@ import logging
 import shutil
 import errno
 
+from shutil import copytree, copy2, rmtree
+
 logger = logging.getLogger('assas_app')
 
 class AssasStorageHandler:
@@ -16,21 +18,41 @@ class AssasStorageHandler:
         self.create_local_archive()
         self.create_lsdf_archive()
         
-    def store_archive_on_share(self, system_uuid: str):
+    @staticmethod    
+    def copy2_verbose(src, dst):
+        
+        logger.debug(f'Copying {src}')
+        copy2(src, dst)
+        
+    def store_archive_on_share(self, system_uuid: str) -> bool:
         
         logger.info(f'copy archive to share (uuid: {system_uuid})')
         
         try:
-            shutil.copytree(self.local_archive + system_uuid, self.lsdf_archive + system_uuid)
+            copytree(self.local_archive + system_uuid, self.lsdf_archive + system_uuid, copy_function=AssasStorageHandler.copy2_verbose)
         except:    
-        #except OSError as exc:
-            logger.warning(f'exception during copy process occured')            
-            #if exc.errno in (errno.ENOTDIR, errno.EINVAL):
-            #    shutil.copy(self.local_archive + system_uuid, self.lsdf_archive + system_uuid)
+            logger.warning(f'exception during copy process occured')
+            return False                   
         
         logger.info(f'copied archive to share {system_uuid}')
         
-    def create_lsdf_archive(self):
+        return True
+        
+    def delete_local_archive(self, system_uuid: str) -> bool:
+        
+        logger.info(f'delete local archive (uuid: {system_uuid})')
+        
+        try:
+            rmtree(self.local_archive + system_uuid)
+        except:    
+            logger.warning(f'exception during delete process occured')
+            return False
+            
+        logger.info('deleted local archive')
+        
+        return True
+        
+    def create_lsdf_archive(self) -> None:
 
         logger.info(f'create lsdf archive {self.lsdf_archive}')
         
@@ -39,7 +61,7 @@ class AssasStorageHandler:
         else:
             logger.warning('lsdf archive already exists')
             
-    def create_local_archive(self):
+    def create_local_archive(self) -> None:
 
         logger.info(f'create local archive {self.local_archive}')
         

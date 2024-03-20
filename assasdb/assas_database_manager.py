@@ -51,9 +51,14 @@ class AssasDatabaseManager:
         dataset_handler = AssasDatasetHandler(dataset_file_document, dataset)
         dataset_handler.create_hdf5() 
     
-    def synchronize_archive(self, system_uuid: str) -> None:
+    def synchronize_archive(self, system_uuid: str) -> bool:
         
-        self.storage_handler.store_archive_on_share(system_uuid)           
+        if self.storage_handler.store_archive_on_share(system_uuid):
+            self.storage_handler.delete_local_archive(system_uuid)
+            return True
+        else:
+            logger.critical(f'could not store archive on lsdf {system_uuid}')
+            return False           
     
     def add_test_database_entry(self, system_uuid: str, system_path: str) -> None:
         
@@ -77,7 +82,7 @@ class AssasDatabaseManager:
         
         data_frame = pandas.DataFrame(list(file_collection.find()))
         
-        logger.info(f'load data frame with size {str(data_frame.size),str(data_frame.shape)}')
+        logger.info(f'load data frame with size {str(data_frame.size), str(data_frame.shape)}')
         
         if data_frame.size == 0:
             return data_frame

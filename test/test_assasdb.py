@@ -1,6 +1,7 @@
 import unittest
 import logging
 import os
+import shutil
 
 from uuid import uuid4
 from assasdb import AssasDatabaseManager
@@ -70,7 +71,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
         self.database_manager.get_database_entries()
         
-    def test_database_manager_basic_upload(self):
+    def test_database_manager_process_archive(self):
 
         test_archive = os.path.dirname(os.path.abspath(__file__)) \
             + '/data/PWR1300_LOCA_12P_CL_linux_64.bin.zip'
@@ -85,6 +86,28 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         for i in range(0, 100):
             self.database_manager.store_local_archive(str(uuid4()))
+            
+    def test_database_manager_upload_process(self):
+        
+        test_uuid = str(uuid4())
+        
+        self.database_manager.drop()
+        
+        # fake upload through app
+        logger.info(f'store test dataset for uuid {test_uuid}')
+        
+        local_archive_dir = self.database_manager.storage_handler.local_archive + test_uuid
+        self.database_manager.storage_handler.create_dataset_archive(local_archive_dir)
+        
+        zipped_test_archive = os.path.dirname(os.path.abspath(__file__)) \
+            + '/data/PWR1300_LOCA_12P_CL_linux_64.bin.zip'
+        
+        logger.info(f'copy {zipped_test_archive} to {local_archive_dir}')
+        zipped_test_archive = shutil.copy2(zipped_test_archive, local_archive_dir)
+        
+        self.database_manager.process_archive(zipped_test_archive)       
+        
+        self.database_manager.synchronize_archive(test_uuid)
 
 
 class AssasDatabaseHandlerTest(unittest.TestCase):

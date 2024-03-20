@@ -2,10 +2,7 @@
 
 import os
 import h5py
-import numpy as np
-import uuid
 import logging
-import pyastec as pyas
 import pyodessa as pyod
 
 import assas_database_dataset as add
@@ -30,7 +27,7 @@ class AssasAstecParser:
         self.result_dir = f'{self.astec_archive_dir.parent.absolute()}/result'
         self.result_file = f'{self.result_dir}/dataset.h'
                 
-        logger.info(self.result_dir)
+        print(self.result_dir)
         
         if not os.path.exists(self.result_dir):
             os.mkdir(self.result_dir)
@@ -58,7 +55,7 @@ class AssasAstecParser:
     @staticmethod
     def read_binary(astec_archive_dir):
         
-        logger.info(f'start reading binary {astec_archive_dir}')
+        print(f'start reading binary {astec_archive_dir}')
         
         pyod.init()
         
@@ -66,11 +63,11 @@ class AssasAstecParser:
         
         index = pyod.restore(binary_file, 0.)
         saved_instants = [saving.get('time') for saving in index.family('SAVING')]
-        logger.info(f'found {saved_instants} saved instants')
+        print(f'found {saved_instants} saved instants')
         
         dataset = add.AssasDataset(astec_archive_dir, len(saved_instants))
         
-        logger.info(f'start data collection for {astec_archive_dir}')
+        print(f'start data collection for {astec_archive_dir}')
         
         for index, item in enumerate(saved_instants):
                 
@@ -204,7 +201,7 @@ class AssasAstecParser:
                 
                 dataset.insert_data_point('sat_temp', 0, row, index, value)         
                 
-            logger.info(f'Index number {str(index)} out of {str(len(saved_instants)-1)}')
+            print(f'Index number {str(index)} out of {str(len(saved_instants)-1)}')
             
         pyod.close(binary_file)
         
@@ -212,12 +209,12 @@ class AssasAstecParser:
         
     def convert_to_hdf5(self):
         
-        logger.info(f'convert archive in {self.astec_archive_dir} to hdf5 format')
+        print(f'convert archive in {self.astec_archive_dir} to hdf5 format')
             
-        logger.info(f'read binary archive in {self.astec_archive_dir}')
+        print(f'read binary archive in {self.astec_archive_dir}')
         self.dataset = self.read_binary(self.astec_archive_name)
             
-        logger.info(f'create hdf5 file {self.result_file}')
+        print(f'create hdf5 file {self.result_file}')
         self.create_hdf5(self.result_file, self.dataset)
 
 if __name__ == '__main__':
@@ -230,13 +227,13 @@ if __name__ == '__main__':
     file_list = os.listdir(archive_dir)
     file_list.remove('results')
     
-    logger.info(file_list)
+    print(file_list)
     
     if len(file_list) != 1:
         raise ValueError('no or more than one archive present')
     else:
         archive_name = file_list[0]
-        logger.info(f'archive name {archive_name}')
+        print(f'archive name {archive_name}')
         astec_parser = AssasAstecParser(archive_name)
         astec_parser.convert_to_hdf5()
 
