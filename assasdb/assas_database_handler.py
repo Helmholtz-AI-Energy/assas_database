@@ -99,7 +99,7 @@ class AssasDocumentFile:
         self.document['meta_data_variables'] = "['pressure', 'voidf', 'temp', 'sat_temp']"
         self.document['meta_data_channels'] = '4'
         self.document['meta_data_meshes'] = '16'
-        self.document['meta_data_timesteps'] = '1000'   
+        self.document['meta_data_samples'] = '1000'   
         
     def set_value(self, key: str, value: str) -> None:
         
@@ -160,7 +160,7 @@ class AssasDocumentFile:
                     "meta_data_variables": "['pressure', 'voidf', 'temp', 'sat_temp']",
                     "meta_data_channels": "4",
                     "meta_data_meshes": "16",
-                    "meta_data_timesteps": "1000"  
+                    "meta_data_samples": "1000"
                 }
         
         return document  

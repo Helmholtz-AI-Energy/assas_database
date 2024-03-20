@@ -2,6 +2,7 @@ import h5py
 import logging
 
 from .assas_database_dataset import AssasDataset
+from .assas_database_handler import AssasDocumentFile
 
 logger = logging.getLogger('assas_app')
 
@@ -20,11 +21,11 @@ class AssasDatasetHandler:
         
             h5file.create_group('metadata')
             
-            h5file['metadata'].attrs['uuid'] = self.document['system_uuid']
-            h5file['metadata'].attrs['name'] = self.document['meta_name']
-            h5file['metadata'].attrs['group'] = self.document['meta_group']
-            h5file['metadata'].attrs['date'] = self.document['meta_date']
-            h5file['metadata'].attrs['creator'] = self.document['meta_creator']
+            h5file['meta_data'].attrs['uuid'] = self.document['system_uuid']
+            h5file['meta_data'].attrs['name'] = self.document['meta_name']
+            h5file['meta_data'].attrs['group'] = self.document['meta_group']
+            h5file['meta_data'].attrs['date'] = self.document['meta_date']
+            h5file['meta_data'].attrs['creator'] = self.document['meta_creator']
             
             h5file.create_group('input')
             h5file['input'].attrs['debris'] = 0
@@ -36,4 +37,20 @@ class AssasDatasetHandler:
                 array = self.dataset.get_data_for_variable(variable)
                 group.create_dataset(variable, data = array)
 
-        h5file.close()       
+        h5file.close()
+        
+    @staticmethod
+    def update_meta_data(document: AssasDocumentFile) -> AssasDocumentFile:
+        
+        with h5py.File(document.get_value('system_path')+'/result/dataset.h5','r') as h5file:
+            
+            document.set_value('meta_data_variables', h5file['meta_data'].attrs['variables'])
+            document.set_value('meta_data_channels', str(h5file['meta_data'].attrs['channels']))
+            document.set_value('meta_data_meshes', str(h5file['meta_data'].attrs['meshes']))
+            document.set_value('meta_data_samples', str(h5file['meta_data'].attrs['samples']))
+            
+        h5file.close()
+        
+        return document
+        
+             

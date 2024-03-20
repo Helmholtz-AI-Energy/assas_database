@@ -37,11 +37,12 @@ class AssasAstecParser:
         
         with h5py.File(file_path, 'w') as h5file:
             
-            h5file.create_group('metadata')
-            h5file['metadata'].attrs['name'] = dataset.get_name()
-            h5file['metadata'].attrs['channels'] = dataset.get_no_channels()
-            h5file['metadata'].attrs['meshes'] = dataset.get_no_meshes()
-            h5file['metadata'].attrs['samples'] = dataset.get_no_samples()
+            h5file.create_group('meta_data')
+            
+            h5file['meta_data'].attrs['variables'] = '[' + ' '.join(f'{variable}' for variable in dataset.get_variables()) + ']'
+            h5file['meta_data'].attrs['channels'] = dataset.get_no_channels()
+            h5file['meta_data'].attrs['meshes'] = dataset.get_no_meshes()
+            h5file['meta_data'].attrs['samples'] = dataset.get_no_samples()
 
             data_group = h5file.create_group('data')
                 
