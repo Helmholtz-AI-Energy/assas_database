@@ -38,6 +38,16 @@ class AssasDatabaseManager:
             
         return success
     
+    def process_unzipped_archive(self, archive_path: str) -> bool:
+        
+        success = False
+        logger.info(f'start processing archive {archive_path}')
+        
+        if self.astec_handler.convert_archive(archive_path):
+            success = True       
+            
+        return success
+    
     def store_local_archive(self, uuid) -> None:
         
         logger.info("store dataset for uuid %s", uuid)

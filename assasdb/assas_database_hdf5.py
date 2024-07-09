@@ -19,7 +19,7 @@ class AssasDatasetHandler:
         
         with h5py.File(self.document['system_path']+'/result/dataset.h5','w') as h5file:
         
-            h5file.create_group('metadata')
+            h5file.create_group('meta_data')
             
             h5file['meta_data'].attrs['uuid'] = self.document['system_uuid']
             h5file['meta_data'].attrs['name'] = self.document['meta_name']

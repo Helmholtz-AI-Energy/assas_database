@@ -4,11 +4,13 @@ import os
 import h5py
 import logging
 import pyodessa as pyod
+import pyastec as pa
 
 import assas_database_dataset as add
 
 from pathlib import Path
 from datetime import datetime
+from typing import List, Tuple, Union
 
 logger = logging.getLogger('assas_app')
 
@@ -20,16 +22,20 @@ T_type   = h5py.string_dtype('utf-8', 255)
 
 class AssasAstecParser:
     
-    def __init__(self, archive_name):
+    def __init__(
+        self, 
+        archive_name: str
+    ):
         
         self.astec_archive_name = archive_name
         self.astec_archive_dir = Path(os.getcwd())
         self.result_dir = f'{self.astec_archive_dir.parent.absolute()}/result'
         self.result_file = f'{self.result_dir}/dataset.h5'
                 
-        print(self.result_dir)
+        print(f'convert into {self.result_dir}')
         
         if not os.path.exists(self.result_dir):
+            print(f'create result directory {self.result_dir}')
             os.mkdir(self.result_dir)
     
     @staticmethod
@@ -58,21 +64,17 @@ class AssasAstecParser:
         
         print(f'start reading binary {astec_archive_dir}')
         
-        pyod.init()
-        
-        binary_file = pyod.open(os.path.join(astec_archive_dir,'SavingIndex'))
-        
-        index = pyod.restore(binary_file, 0.)
-        saved_instants = [saving.get('time') for saving in index.family('SAVING')]
-        print(f'found {len(saved_instants)} saved instants')
-        
+        saved_instants = pa.tools.get_list_of_saving_time_from_path(astec_archive_dir)
+        print(f'time list {saved_instants}')
+                
         dataset = add.AssasDataset(astec_archive_dir, len(saved_instants))
         
         print(f'start data collection for {astec_archive_dir}')
         
-        for index, item in enumerate(saved_instants):
+        index = 0
+        for t, base in pa.tools.save_iterator(astec_archive_dir):
                 
-            base = pyod.restore(astec_archive_dir, saved_instants[index])
+            print(f'process index {str(index)}, time {t}')
             
             #DATA1  
             for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):            
@@ -203,9 +205,8 @@ class AssasAstecParser:
                 dataset.insert_data_point('sat_temp', 0, row, index, value)         
                 
             print(f'Index number {str(index)} out of {str(len(saved_instants)-1)}')
+            index += 1
             
-        pyod.close(binary_file)
-        
         return dataset
         
     def convert_to_hdf5(self):

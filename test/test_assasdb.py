@@ -80,6 +80,14 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         self.database_manager.process_archive(test_archive)
         
+    def test_database_manager_process_unzipped_archive(self):
+
+        test_archive = '/mnt/ASSAS/media/results/SBO/SBO_fb/sample_1'
+        
+        logger.info(f'test_archive {test_archive}')
+        
+        self.database_manager.process_unzipped_archive(test_archive)
+        
     def test_database_store_100_datasets(self):
         
         self.database_manager.drop()
