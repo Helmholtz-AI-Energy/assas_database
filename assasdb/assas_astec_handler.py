@@ -2,16 +2,23 @@ import os
 import zipfile
 import glob
 import logging
+import subprocess
 
 logger = logging.getLogger('assas_app')
 
 class AssasAstecHandler:
     
-    def __init__(self, python_version, astec_root, astec_parser):
+    def __init__(
+        self,
+        config: dict
+    ) -> None:
         
-        self.command = f'{python_version} {astec_root} {astec_parser}'
+        self.command = [f'{config.PYTHON_VERSION}', f'{config.ASTEC_ROOT}', f'{config.ASTEC_PARSER}']
 
-    def convert_archive(self, archive_dir: str) -> bool:
+    def convert_archive(
+        self,
+        archive_dir: str
+    ) -> bool:
         
         try:
             current_dir = os.getcwd()
@@ -20,9 +27,9 @@ class AssasAstecHandler:
             logger.info(f'change to archive directory {archive_dir}')
             os.chdir(archive_dir + '/archive')
             
-            logger.info(f'run assas astec parser with command {self.command}')
-            os.system(self.command)
-                
+            print(f'run assas astec parser with command {self.command}')
+            with subprocess.Popen(self.command) as process: process.wait()
+                            
             logger.info(f'changed back to current_dir: {current_dir}')
             os.chdir(current_dir)
         except:
@@ -31,7 +38,9 @@ class AssasAstecHandler:
         return True
         
     @staticmethod
-    def unzip_archive(zipped_archive_path: str) -> bool:
+    def unzip_archive(
+        zipped_archive_path: str
+    ) -> bool:
         
         unzipped_archive_dir = os.path.dirname(zipped_archive_path) + '/archive'
         try:
@@ -44,7 +53,9 @@ class AssasAstecHandler:
         return True
             
     @staticmethod
-    def get_astec_archive(archive_dir: str):
+    def get_astec_archive(
+        archive_dir: str
+    )-> str:
         
         logger.info(f'archive directory: {archive_dir}')
         

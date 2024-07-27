@@ -25,7 +25,7 @@ class AssasAstecParser:
     def __init__(
         self, 
         archive_name: str
-    ):
+    )-> None:
         
         self.astec_archive_name = archive_name
         self.astec_archive_dir = Path(os.getcwd())
@@ -37,9 +37,12 @@ class AssasAstecParser:
         if not os.path.exists(self.result_dir):
             print(f'create result directory {self.result_dir}')
             os.mkdir(self.result_dir)
-    
+            
     @staticmethod
-    def create_hdf5(file_path, dataset: add.AssasDataset):
+    def create_hdf5(
+        file_path: str,
+        dataset: add.AssasDataset
+    )-> None:
         
         with h5py.File(file_path, 'w') as h5file:
             
@@ -60,7 +63,9 @@ class AssasAstecParser:
         h5file.close()       
 
     @staticmethod
-    def read_binary(astec_archive_dir):
+    def read_binary(
+        astec_archive_dir: str
+    )-> None:
         
         print(f'start reading binary {astec_archive_dir}')
         
@@ -209,7 +214,9 @@ class AssasAstecParser:
             
         return dataset
         
-    def convert_to_hdf5(self):
+    def convert_to_hdf5(
+        self
+    )-> None:
         
         print(f'convert archive in {self.astec_archive_dir} to hdf5 format')
             
@@ -236,6 +243,6 @@ if __name__ == '__main__':
     else:
         archive_name = file_list[0]
         print(f'archive name {archive_name}')
-        astec_parser = AssasAstecParser(archive_name)
-        astec_parser.convert_to_hdf5()
+        parser = AssasAstecParser(archive_name)
+        parser.convert_to_hdf5()
 

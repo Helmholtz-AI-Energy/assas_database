@@ -11,11 +11,23 @@ from assasdb import AssasDocumentFile
 
 logger = logging.getLogger('assas_app')
 
+class TestConfig(object):
+    
+    DEBUG = True
+    DEVELOPMENT = True
+    LSDF_ARCHIVE = r'/mnt/ASSAS/upload_test/'
+    LOCAL_ARCHIVE = r'/root/upload/'
+    PYTHON_VERSION = r'/opt/python/3.11.8/bin/python3.11'
+    ASTEC_ROOT = r'/root/astecV3.1.1_linux64/astecV3.1.1/code/proc/astec.py' 
+    ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'
+    CONNECTIONSTRING = r'mongodb://localhost:27017/'
+
 class AssasStorageHandlerTest(unittest.TestCase):
     
     def setUp(self):
         
-        self.storage_handler = AssasStorageHandler()
+        self.config = TestConfig()
+        self.storage_handler = AssasStorageHandler(self.config)
     
     def tearDown(self):
         
@@ -23,34 +35,18 @@ class AssasStorageHandlerTest(unittest.TestCase):
     
     def test_storage_handler_get_local_archive_dir(self):
         
-        self.storage_handler.get_local_archive_dir
+        self.assertEqual(
+            self.storage_handler.get_local_archive_dir(),
+            self.config.LOCAL_ARCHIVE
+        )
         
     def test_storage_handler_get_lsdf_archive_dir(self):
         
-        self.storage_handler.create_lsdf_archive
-        
-    def test_storage_handler_client_config(self):
-        
-        logger.info(self.storage_handler.client_config())
-        
-    def test_storage_handler_register_session(self):
-        
-        logger.info(self.storage_handler.register_session())
-        
-    def test_storage_handler_reset_connection_cache(self):
-        
-        logger.info(self.storage_handler.reset_connection_cache())
+        self.assertEqual(
+            self.storage_handler.get_lsdf_archive_dir(),
+            self.config.LSDF_ARCHIVE
+        )    
 
-
-class TestConfig(object):
-    
-    DEBUG = True
-    DEVELOPMENT = True
-    LSDF_ARCHIVE = r'/mnt/ASSAS/upload/'
-    LOCAL_ARCHIVE = r'/root/upload/'
-    PYTHON_VERSION = r'/opt/python/3.11.8/bin/python3.11'
-    ASTEC_ROOT = r'/root/astecV3.1.1_linux64/astecV3.1.1/code/proc/astec.py' 
-    ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'    
 
 class AssasDatabaseManagerTest(unittest.TestCase):
     
@@ -68,8 +64,27 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         self.database_manager.drop()
         
     def test_database_manager_get_datasets(self):
-
-        self.database_manager.get_database_entries()
+        
+        ASTECROOT = "/root/astecV3.1.1_linux64/astecV3.1.1" # root directory of your astec installation
+        COMPUTER = "linux_64" # or "win64"
+        COMPILER = "release" # or an other compiler, but it is release for official releases
+        import numpy as np # It can be necessary to load numpy before pyastec, because numpy importing generate a FPE which can be caught by astec
+        import os,sys
+        sys.path.append( os.path.join( ASTECROOT, "code","proc") ) # where to find astec.py
+        sys.path.append( os.path.join( ASTECROOT, "code","bin", COMPUTER + "-" + COMPILER, "wrap_python" ) ) # where to find pyastec. wrap_python can be replaced by wrap_python_batch for the batch version
+        #import AstecParser # needed by astec (class from astec.py)
+        #import astec # Contains definition of class Astec which will set all environment variables
+        #AP = AstecParser.AstecParser() # initialize a parser of a fictive command line
+        #AP.parsed_arguments.compiler=COMPILER # replace the default compiler by the one you want
+        #A = astec.Astec(AP) # make an instance of Astec
+        #A.set_environment() # initialize all environment variables
+        astec_archive_dir = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_1/archive/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin'
+        import pyastec as pa # pyastec can now be loadded
+        #pa.astec_init() # pyastec initialization
+        saved_instants = pa.tools.get_list_of_saving_time_from_path(astec_archive_dir)
+        print(f'time list {saved_instants}')
+        
+        #self.database_manager.get_database_entries()
         
     def test_database_manager_process_archive(self):
 
@@ -82,19 +97,27 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_database_manager_process_unzipped_archive(self):
 
-        test_archive = '/mnt/ASSAS/media/results/SBO/SBO_fb/sample_1'
+        test_archive = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_32'
         
         logger.info(f'test_archive {test_archive}')
         
         self.database_manager.process_unzipped_archive(test_archive)
         
-    def test_database_store_100_datasets(self):
+    def test_database_manager_add_archive_to_database(self):
+        
+        test_archive = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_1'
+        
+        logger.info(f'test_archive {test_archive}')
+        
+        self.database_manager.add_archive_to_database(test_archive)
+        
+    def test_database_store_100_datasets(self):        
         
         self.database_manager.drop()
         
         for i in range(0, 100):
             self.database_manager.store_local_archive(str(uuid4()))
-            
+        
     def test_database_manager_upload_process(self):
         
         test_uuid = str(uuid4())
@@ -122,7 +145,8 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
     
     def setUp(self):
         
-        self.database_handler = AssasDatabaseHandler('mongodb://localhost:27017/')
+        config = TestConfig()
+        self.database_handler = AssasDatabaseHandler(config)
         
     def tearDown(self):
         

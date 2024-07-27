@@ -4,27 +4,51 @@ import logging
 import shutil
 import errno
 
+from typing import List, Tuple, Union
 from shutil import copytree, copy2, rmtree
 
 logger = logging.getLogger('assas_app')
 
 class AssasStorageHandler:
     
-    def __init__(self, local_archive, lsdf_archive):
+    def __init__(
+        self,
+        config: dict
+    )-> None:
         
-        self.local_archive = local_archive
-        self.lsdf_archive = lsdf_archive
+        self.local_archive = config.LOCAL_ARCHIVE
+        self.lsdf_archive = config.LSDF_ARCHIVE
         
         self.create_local_archive()
         self.create_lsdf_archive()
+    
+    @staticmethod
+    def get_size_of_archive_in_bytes(
+        directory: str
+    )-> int:
         
+        size_list = []
+        for name in os.listdir(directory):
+            if os.path.isfile(name):
+                size = os.path.getsize(name)
+                size_list.append(os.path.getsize(name))
+                logger.debug(f'Size of {name} is {size}')
+        
+        return sum(size_list)
+    
     @staticmethod    
-    def copy2_verbose(src, dst):
+    def copy2_verbose(
+        src: str,
+        dst: str
+    )-> None:
         
         logger.debug(f'Copying {src}')
         copy2(src, dst)
         
-    def store_archive_on_share(self, system_uuid: str) -> bool:
+    def store_archive_on_share(
+        self,
+        system_uuid: str
+    ) -> bool:
         
         logger.info(f'copy archive to share (uuid: {system_uuid})')
         
@@ -38,7 +62,10 @@ class AssasStorageHandler:
         
         return True
         
-    def delete_local_archive(self, system_uuid: str) -> bool:
+    def delete_local_archive(
+        self, 
+        system_uuid: str
+    ) -> bool:
         
         logger.info(f'delete local archive (uuid: {system_uuid})')
         
@@ -52,7 +79,9 @@ class AssasStorageHandler:
         
         return True
         
-    def create_lsdf_archive(self) -> None:
+    def create_lsdf_archive(
+        self
+    ) -> None:
 
         logger.info(f'create lsdf archive {self.lsdf_archive}')
         
@@ -61,7 +90,9 @@ class AssasStorageHandler:
         else:
             logger.warning('lsdf archive already exists')
             
-    def create_local_archive(self) -> None:
+    def create_local_archive(
+        self
+    ) -> None:
 
         logger.info(f'create local archive {self.local_archive}')
         
@@ -70,7 +101,10 @@ class AssasStorageHandler:
         else:
             logger.warning(f'local archive already exists {self.local_archive}')
             
-    def create_dataset_archive(self, path):
+    def create_dataset_archive(
+        self,
+        path: str
+    )-> None:
         
         logger.info(f'create dataset archive {path}')
         
@@ -79,15 +113,22 @@ class AssasStorageHandler:
         else:
             logger.warning(f'dataset archive already exists {path}')
             
-    def get_local_archive_dir(self):
+    def get_local_archive_dir(
+        self
+    )-> str:
         
         return self.local_archive
     
-    def get_lsdf_archive_dir(self):
+    def get_lsdf_archive_dir(
+        self
+    )-> str:
         
         return self.lsdf_archive
     
-    def get_dataset_archive_dir(self, uuid):
+    def get_dataset_archive_dir(
+        self,
+        uuid: str
+    )-> str:
         
         return self.get_lsdf_archive_dir() + uuid
     

@@ -9,67 +9,103 @@ logger = logging.getLogger('assas_app')
 
 class AssasDatabaseHandler:
 
-    def __init__(self, connectionstring):
+    def __init__(
+        self,
+        config: dict
+    )-> None:
         
-        self.client = MongoClient(connectionstring)
+        self.client = MongoClient(config.CONNECTIONSTRING)
 
         self.db_handle = self.client['assas']
         self.file_collection = self.db_handle['files']
 
-    def get_db_handle(self):
+    def get_db_handle(
+        self
+    ):
 
         return self.db_handle
 
-    def get_file_collection(self):
+    def get_file_collection(
+        self
+    ):
         
         return self.file_collection
     
-    def insert_file_document(self, file):
+    def insert_file_document(
+        self,
+        file
+    ):
         
         logger.info('insert %s' % file)
         
         self.file_collection.insert_one(file)
 
-    def drop_file_collection(self):
+    def drop_file_collection(
+        self
+    ):
 
         self.file_collection.drop()
         
-    def get_file_document(self, id):
+    def get_file_document(
+        self,
+        id
+    ):
         
         return self.file_collection.find_one(ObjectId(id))
     
-    def get_file_document_uuid(self, uuid):
+    def get_file_document_uuid(
+        self,
+        uuid
+    ):
         
         return self.file_collection.find_one({'system_uuid':str(uuid)})
     
-    def delete_file_document(self, id):
+    def delete_file_document(
+        self,
+        id
+    ):
         
         return self.file_collection.delete_one({'_id': ObjectId(id)})
     
-    def delete_file_document_uuid(self, uuid):
+    def delete_file_document_uuid(
+        self,
+        uuid
+    ):
         
         return self.file_collection.delete_one({'system_uuid':str(uuid)})
 
 class AssasDocumentFileStatus:
     UPLOADED = 'Uploaded'
     CONVERTED = 'Converted'
+    VALIDATED = 'Validated'
     ARCHIVED = 'Archived'
     FAILED = 'Failed'
 
 class AssasDocumentFile:
     
-    def __init__(self) -> None:
+    def __init__(
+        self
+    ) -> None:
+        
         self.document = {}
         
-    def get_document(self) -> dict:
+    def get_document(
+        self
+    ) -> dict:
         
         return self.document
     
-    def set_document(self, document) -> None:
+    def set_document(
+        self,
+        document: dict
+    ) -> None:
         
         self.document = document
         
-    def extend_document(self, add_document) -> None:
+    def extend_document(
+        self,
+        add_document: dict
+    ) -> None:
         
         temp = self.document.copy()
         temp.update(add_document)
@@ -83,8 +119,7 @@ class AssasDocumentFile:
         meta_date: str,
         meta_creator: str,
         meta_description: str,
-
-        ) -> None:
+    ) -> None:
         
         self.document['meta_name'] = meta_name
         self.document['meta_group'] = meta_group
@@ -94,22 +129,32 @@ class AssasDocumentFile:
         
     def set_data_values(
         self,
-        ) -> None:
+    ) -> None:
         
         self.document['meta_data_variables'] = "['pressure', 'voidf', 'temp', 'sat_temp']"
         self.document['meta_data_channels'] = '4'
         self.document['meta_data_meshes'] = '16'
         self.document['meta_data_samples'] = '1000'   
         
-    def set_value(self, key: str, value: str) -> None:
+    def set_value(
+        self,
+        key: str,
+        value: str
+    ) -> None:
         
         self.document[key] = value
         
-    def get_value(self, key: str) -> None:
+    def get_value(
+        self,
+        key: str
+    ) -> None:
         
         return self.document[key]
         
-    def delete_key(self, key: str) -> bool:
+    def delete_key(
+        self,
+        key: str
+    ) -> bool:
         
         is_in = False
         if key in self.document:
@@ -127,8 +172,7 @@ class AssasDocumentFile:
         system_user: str,
         system_download: str,
         system_status: str,
-
-        ) -> None:
+    ) -> None:
         
         self.document['system_uuid'] = system_uuid
         self.document['system_date'] = system_date
@@ -142,7 +186,7 @@ class AssasDocumentFile:
     def get_test_document_file(
         system_uuid=str(uuid4()),
         system_path='default_path'
-        ) -> dict:
+    ) -> dict:
  
         document = {
                     "system_uuid": system_uuid,

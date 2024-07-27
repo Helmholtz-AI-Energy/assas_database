@@ -8,14 +8,20 @@ logger = logging.getLogger('assas_app')
 
 class AssasDatasetHandler:
     
-    def __init__(self, document, dataset: AssasDataset):
+    def __init__(
+        self,
+        document,
+        dataset: AssasDataset
+    )-> None:
         
         self.dataset = dataset
         self.document = document
 
-    def create_hdf5(self):
+    def create_hdf5(
+        self
+    )-> None:
         
-        logger.info('create hdf5 file at %s' % self.document['system_path'])
+        print('create hdf5 file at %s' % self.document['system_path'])
         
         with h5py.File(self.document['system_path']+'/result/dataset.h5','w') as h5file:
         
@@ -40,7 +46,12 @@ class AssasDatasetHandler:
         h5file.close()
         
     @staticmethod
-    def update_meta_data(document: AssasDocumentFile) -> AssasDocumentFile:
+    def update_meta_data(
+        document: AssasDocumentFile
+    ) -> AssasDocumentFile:
+        
+        hdf5_path = document.get_value('system_path') + '/result/dataset.h5'
+        print(f'Update meta data from {hdf5_path}')
         
         with h5py.File(document.get_value('system_path')+'/result/dataset.h5','r') as h5file:
             

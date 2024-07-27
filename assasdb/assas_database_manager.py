@@ -3,30 +3,66 @@ import logging
 import numpy
 import os
 import shutil
+import uuid
 
-from uuid import uuid4
 from datetime import datetime
+from typing import List, Tuple, Union
+
 from .assas_database_handler import AssasDatabaseHandler
 from .assas_database_storage import AssasStorageHandler
 from .assas_astec_handler import AssasAstecHandler
 from .assas_database_hdf5 import AssasDatasetHandler
 from .assas_database_dataset import AssasDataset
-from .assas_database_handler import AssasDocumentFile
+from .assas_database_handler import AssasDocumentFile, AssasDocumentFileStatus
 
 logger = logging.getLogger('assas_app')
 
 class AssasDatabaseManager:
 
-    def __init__(self, config: dict) -> None:
+    def __init__(
+        self,
+        config: dict
+    ) -> None:
         
-        self.config = config
-        
-        self.connectionstring = 'mongodb://localhost:27017/'
-        self.database_handler = AssasDatabaseHandler(self.connectionstring)
-        self.storage_handler = AssasStorageHandler(config.LOCAL_ARCHIVE, config.LSDF_ARCHIVE)
-        self.astec_handler = AssasAstecHandler(config.PYTHON_VERSION, config.ASTEC_ROOT, config.ASTEC_PARSER)
+        self.database_handler = AssasDatabaseHandler(config)
+        self.storage_handler = AssasStorageHandler(config)
+        self.astec_handler = AssasAstecHandler(config)
        
-    def process_archive(self, zipped_archive_path: str) -> bool:
+    def add_archive_to_database(
+        self,
+        archive_path: str
+    ) -> bool:
+        
+        success = self.process_unzipped_archive(archive_path)
+        
+        if success:
+            
+            system_uuid = uuid.uuid4()
+            system_date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            system_path = archive_path
+            system_size = self.storage_handler.get_size_of_archive_in_bytes(archive_path)
+            system_user = 'User'
+            system_download = 'Download'
+            
+            document = AssasDocumentFile()
+            document.set_system_values(
+                system_uuid=str(system_uuid),
+                system_date=system_date,
+                system_path=system_path,
+                system_size=system_size,
+                system_user=system_user,
+                system_download=system_download,
+                system_status=AssasDocumentFileStatus.UPLOADED
+            )
+            
+            document.set_value('system_status', AssasDocumentFileStatus.ARCHIVED)
+            
+            self.add_database_entry(document.get_document())
+   
+    def process_archive(
+        self,
+        zipped_archive_path: str
+    ) -> bool:
         
         success = False
         archive_dir = os.path.dirname(zipped_archive_path)
@@ -38,17 +74,42 @@ class AssasDatabaseManager:
             
         return success
     
-    def process_unzipped_archive(self, archive_path: str) -> bool:
+    def process_unzipped_archive(
+        self, 
+        archive_path: str
+    ) -> bool:
         
         success = False
         logger.info(f'start processing archive {archive_path}')
         
-        if self.astec_handler.convert_archive(archive_path):
-            success = True       
+        success = self.astec_handler.convert_archive(archive_path)
+        
+        if success:
+            
+            system_uuid = uuid.uuid4()
+            system_date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+            system_path = archive_path
+            system_size = self.storage_handler.get_size_of_archive_in_bytes(archive_path)
+            system_user = 'User'
+            system_download = 'Download'
+            
+            document = AssasDocumentFile()
+            document.set_system_values(
+                system_uuid=str(system_uuid),
+                system_date=system_date,
+                system_path=system_path,
+                system_size=system_size,
+                system_user=system_user,
+                system_download=system_download,
+                system_status=AssasDocumentFileStatus.CONVERTED
+            )       
             
         return success
     
-    def store_local_archive(self, uuid) -> None:
+    def store_local_archive(
+        self, 
+        uuid: str
+    ) -> None:
         
         logger.info("store dataset for uuid %s", uuid)
         
@@ -64,7 +125,10 @@ class AssasDatabaseManager:
         dataset_handler = AssasDatasetHandler(dataset_file_document, dataset)
         dataset_handler.create_hdf5() 
     
-    def synchronize_archive(self, system_uuid: str) -> bool:
+    def synchronize_archive(
+        self, 
+        system_uuid: str
+    ) -> bool:
         
         success = False
         
@@ -74,7 +138,10 @@ class AssasDatabaseManager:
 
         return success
     
-    def clear_archive(self, system_uuid: str) -> bool:
+    def clear_archive(
+        self, 
+        system_uuid: str
+    ) -> bool:
         
         success = False
         
@@ -83,7 +150,11 @@ class AssasDatabaseManager:
             
         return success
     
-    def add_test_database_entry(self, system_uuid: str, system_path: str) -> None:
+    def add_test_database_entry(
+        self, 
+        system_uuid: str, 
+        system_path: str
+    ) -> None:
         
         dataset_file_document = AssasDocumentFile.get_test_document_file(system_uuid, system_path)
         
@@ -93,13 +164,18 @@ class AssasDatabaseManager:
         
         logger.info(f'inserted test document {dataset_file_document}')
         
-    def add_database_entry(self, document: str) -> None:
+    def add_database_entry(
+        self, 
+        document: str
+    ) -> None:
         
-        logger.info(f'insert document {document}')
+        print(f'insert document {document}')
         
         self.database_handler.insert_file_document(document) 
         
-    def get_database_entries(self) -> pandas.DataFrame:
+    def get_database_entries(
+        self
+    ) -> pandas.DataFrame:
         
         file_collection = self.database_handler.get_file_collection()
         
@@ -115,15 +191,23 @@ class AssasDatabaseManager:
 
         return data_frame
     
-    def drop(self):
+    def drop(
+        self
+    )-> None:
         
         self.database_handler.drop_file_collection()
         
-    def get_database_entry(self, id):
+    def get_database_entry(
+        self, 
+        id: str
+    ):
         
         return self.database_handler.get_file_document(id)
     
-    def get_database_entry_uuid(self, uuid):
+    def get_database_entry_uuid(
+        self, 
+        uuid: str
+    ):
         
         return self.database_handler.get_file_document_uuid(uuid)
     
