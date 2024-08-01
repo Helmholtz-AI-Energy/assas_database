@@ -4,6 +4,7 @@ import numpy
 import os
 import shutil
 import uuid
+import pathlib
 
 from datetime import datetime
 from typing import List, Tuple, Union
@@ -28,22 +29,22 @@ class AssasDatabaseManager:
         self.storage_handler = AssasStorageHandler(config)
         self.astec_handler = AssasAstecHandler(config)
        
-    def add_archive_to_database(
+    def add_archives_to_database(
         self,
-        archive_path: str
-    ) -> bool:
+        archive_path_list: List[str]
+    ) -> None:        
         
-        success = self.process_unzipped_archive(archive_path)
+        lists_of_saving_time = self.astec_handler.get_lists_of_saving_times(archive_path_list)
         
-        if success:
-            
+        for idx, archive_path in enumerate(archive_path_list):
+        
             system_uuid = uuid.uuid4()
             system_date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-            system_path = archive_path
-            system_size = self.storage_handler.get_size_of_archive_in_bytes(archive_path)
+            system_path = str(archive_path)
+            system_size = '{:.2f}'.format(AssasAstecHandler.get_size_of_archive_in_giga_bytes(len(lists_of_saving_time[idx])))
             system_user = 'User'
             system_download = 'Download'
-            
+                
             document = AssasDocumentFile()
             document.set_system_values(
                 system_uuid=str(system_uuid),
@@ -53,10 +54,8 @@ class AssasDatabaseManager:
                 system_user=system_user,
                 system_download=system_download,
                 system_status=AssasDocumentFileStatus.UPLOADED
-            )
-            
-            document.set_value('system_status', AssasDocumentFileStatus.ARCHIVED)
-            
+            )       
+                
             self.add_database_entry(document.get_document())
    
     def process_archive(

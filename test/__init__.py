@@ -1,1 +1,2 @@
-from .test_assasdb import AssasDatabaseManagerTest
+from .test_database_manager import AssasDatabaseManagerTest
+from .test_astec_handler import AssasAstecHandlerTest

@@ -3,6 +3,7 @@ import smbclient
 import logging
 import shutil
 import errno
+import pathlib
 
 from typing import List, Tuple, Union
 from shutil import copytree, copy2, rmtree
@@ -35,6 +36,18 @@ class AssasStorageHandler:
                 logger.debug(f'Size of {name} is {size}')
         
         return sum(size_list)
+    
+    @staticmethod
+    def create_lsdf_archive_path(
+            lsdf_dest_path,
+            lsdf_sub_dir,
+            sample: int,
+    ) -> Union[pathlib.Path, str]:
+            
+            lsdf_archive_path = f'{lsdf_dest_path}/sample_{str(sample)}{lsdf_sub_dir}'
+            lsdf_archive_path = pathlib.Path(lsdf_archive_path)      
+            
+            return lsdf_archive_path
     
     @staticmethod    
     def copy2_verbose(
