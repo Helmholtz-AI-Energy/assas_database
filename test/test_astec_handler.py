@@ -25,6 +25,9 @@ class AssasAstecHandlerTest(unittest.TestCase):
         self.test_archive_dir = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_32/archive/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin'
         self.test_archive_dir_2 = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_33/archive/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin'
         
+        self.test_result_dir = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_32/result/dataset.h5'
+        self.test_result_dir_2 = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_33/result/dataset.h5'
+        
     def tearDown(self):
         
         self.astec_handler = None
@@ -40,4 +43,8 @@ class AssasAstecHandlerTest(unittest.TestCase):
         
         size_in_giga_bytes = AssasAstecHandler.get_size_of_archive_in_giga_bytes(69941)        
         self.assertEqual(size_in_giga_bytes, 117.50088)
+        
+    def test_astec_handler_convert_archives(self):
+        
+        self.assertTrue(self.astec_handler.convert_to_hdf5(self.test_archive_dir, self.test_result_dir))
         

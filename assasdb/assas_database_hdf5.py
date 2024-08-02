@@ -10,7 +10,7 @@ class AssasDatasetHandler:
     
     def __init__(
         self,
-        document,
+        document: dict,
         dataset: AssasDataset
     )-> None:
         
@@ -21,9 +21,9 @@ class AssasDatasetHandler:
         self
     )-> None:
         
-        print('create hdf5 file at %s' % self.document['system_path'])
+        logger.info('create hdf5 file at %s' % self.document['system_result'])
         
-        with h5py.File(self.document['system_path']+'/result/dataset.h5','w') as h5file:
+        with h5py.File(self.document['system_result'],'w') as h5file:
         
             h5file.create_group('meta_data')
             
@@ -50,10 +50,10 @@ class AssasDatasetHandler:
         document: AssasDocumentFile
     ) -> AssasDocumentFile:
         
-        hdf5_path = document.get_value('system_path') + '/result/dataset.h5'
-        print(f'Update meta data from {hdf5_path}')
+        hdf5_path = document.get_value('system_result')
+        logger.info(f'update meta data from {hdf5_path}')
         
-        with h5py.File(document.get_value('system_path')+'/result/dataset.h5','r') as h5file:
+        with h5py.File(document.get_value('system_result'),'r') as h5file:
             
             document.set_value('meta_data_variables', h5file['meta_data'].attrs['variables'])
             document.set_value('meta_data_channels', str(h5file['meta_data'].attrs['channels']))

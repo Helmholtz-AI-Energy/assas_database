@@ -41,23 +41,66 @@ class AssasDatabaseManager:
             system_uuid = uuid.uuid4()
             system_date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
             system_path = str(archive_path)
+            system_result = ''
             system_size = '{:.2f}'.format(AssasAstecHandler.get_size_of_archive_in_giga_bytes(len(lists_of_saving_time[idx])))
             system_user = 'User'
             system_download = 'Download'
+            
+            if len(lists_of_saving_time[idx]) == 1:
+                system_status=AssasDocumentFileStatus.FAILED
+            else:
+                system_status=AssasDocumentFileStatus.UPLOADED
                 
             document = AssasDocumentFile()
             document.set_system_values(
                 system_uuid=str(system_uuid),
                 system_date=system_date,
                 system_path=system_path,
+                system_result=system_result,
                 system_size=system_size,
                 system_user=system_user,
                 system_download=system_download,
-                system_status=AssasDocumentFileStatus.UPLOADED
+                system_status=system_status
             )       
                 
             self.add_database_entry(document.get_document())
-   
+            
+    def convert_archive(
+        self,
+        archive_path: str,
+        result_path: str
+    )-> bool:
+        
+        if self.astec_handler.convert_to_hdf5(archive_path, result_path):
+            
+            self.database_handler.update_file_document_path(archive_path, {'system_result':result_path})
+            self.database_handler.update_file_document_path(archive_path, {'system_status':AssasDocumentFileStatus.CONVERTED})
+            
+            document = self.database_handler.get_file_document_path(archive_path)
+            
+            document = AssasDatasetHandler.update_meta_data(document) 
+            self.database_handler.update_file_document_path(archive_path, document)
+            
+            return True
+        else:
+            return False
+    
+    def update_meta_data(
+        self,
+        archive_path: str,
+        result_path: str = None
+    )-> bool:
+
+        if result_path is not None:
+            self.database_handler.update_file_document_path(archive_path, {'system_result':result_path})
+        
+        document = self.database_handler.get_file_document_path(archive_path)
+        
+        document_file = AssasDocumentFile(document)
+        document_file = AssasDatasetHandler.update_meta_data(document_file)
+        
+        self.database_handler.update_file_document_path(archive_path, document_file.get_document())
+    
     def process_archive(
         self,
         zipped_archive_path: str

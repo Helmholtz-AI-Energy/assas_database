@@ -55,10 +55,36 @@ class AssasDatabaseHandler:
     
     def get_file_document_uuid(
         self,
-        uuid
+        uuid: uuid4
     ):
         
         return self.file_collection.find_one({'system_uuid':str(uuid)})
+    
+    def get_file_document_path(
+        self,
+        path: str
+    ):
+        
+        return self.file_collection.find_one({'system_path':path})
+    
+    def update_file_document_uuid(
+        self,
+        uuid: uuid4,
+        update: dict
+    ):
+        
+        post = {"$set": update}
+        return self.file_collection.update_one({'system_uuid':str(uuid)}, post)
+    
+    def update_file_document_path(
+        self,
+        path: str,
+        update: dict
+    ):
+        
+        post = {"$set": update}
+        return self.file_collection.update_one({'system_path':path}, post)
+    
     
     def delete_file_document(
         self,
@@ -69,7 +95,7 @@ class AssasDatabaseHandler:
     
     def delete_file_document_uuid(
         self,
-        uuid
+        uuid: uuid4
     ):
         
         return self.file_collection.delete_one({'system_uuid':str(uuid)})
@@ -84,11 +110,12 @@ class AssasDocumentFileStatus:
 class AssasDocumentFile:
     
     def __init__(
-        self
+        self,
+        document: dict = {}
     ) -> None:
         
-        self.document = {}
-        
+        self.document = document
+                
     def get_document(
         self
     ) -> dict:
@@ -168,6 +195,7 @@ class AssasDocumentFile:
         system_uuid: str,
         system_date: str,
         system_path: str,
+        system_result: str,
         system_size: str,
         system_user: str,
         system_download: str,
@@ -177,6 +205,7 @@ class AssasDocumentFile:
         self.document['system_uuid'] = system_uuid
         self.document['system_date'] = system_date
         self.document['system_path'] = system_path
+        self.document['system_result'] = system_result
         self.document['system_size'] = system_size
         self.document['system_user'] = system_user
         self.document['system_download'] = system_download
@@ -184,14 +213,16 @@ class AssasDocumentFile:
 
     @staticmethod
     def get_test_document_file(
-        system_uuid=str(uuid4()),
-        system_path='default_path'
+        system_uuid: uuid4 =str(uuid4()),
+        system_path: str = 'default_path',
+        system_result: str = 'default_path'
     ) -> dict:
  
         document = {
                     "system_uuid": system_uuid,
                     "system_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                     "system_path": system_path,
+                    "system_result": system_result,
                     "system_size": "8.4 MB",
                     "system_user": "test user",
                     "system_download": "Download",

@@ -6,8 +6,6 @@ import shutil
 from uuid import uuid4
 from assasdb import AssasDatabaseManager
 from assasdb import AssasStorageHandler
-from assasdb import AssasDatabaseHandler
-from assasdb import AssasDocumentFile
 
 logger = logging.getLogger('assas_app')
 
@@ -23,32 +21,6 @@ class TestConfig(object):
     ASTEC_COMPILER = r'release' 
     ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'
     CONNECTIONSTRING = r'mongodb://localhost:27017/'
-
-class AssasStorageHandlerTest(unittest.TestCase):
-    
-    def setUp(self):
-        
-        self.config = TestConfig()
-        self.storage_handler = AssasStorageHandler(self.config)
-    
-    def tearDown(self):
-        
-        self.storage_handler = None
-    
-    def test_storage_handler_get_local_archive_dir(self):
-        
-        self.assertEqual(
-            self.storage_handler.get_local_archive_dir(),
-            self.config.LOCAL_ARCHIVE
-        )
-        
-    def test_storage_handler_get_lsdf_archive_dir(self):
-        
-        self.assertEqual(
-            self.storage_handler.get_lsdf_archive_dir(),
-            self.config.LSDF_ARCHIVE
-        )    
-
 
 class AssasDatabaseManagerTest(unittest.TestCase):
     
@@ -71,7 +43,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_SBO_fb_100_samples_add_entries(self):
         
-        number_of_samples = 20
+        number_of_samples = 35
         lsdf_dest_path = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples'
         lsdf_sub_dir = '/archive/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin'
         target_path_list = [AssasStorageHandler.create_lsdf_archive_path(lsdf_dest_path, lsdf_sub_dir, sample) for sample in range(1, number_of_samples + 1)]
@@ -83,6 +55,23 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         entries = self.database_manager.get_database_entries()
         
         self.assertEqual(len(entries), len(target_path_list))
+        
+    def test_SBO_fb_100_samples_convert_archives(self):
+        
+        test_archive_dir = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_32/archive/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin'
+        test_archive_dir_2 = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_33/archive/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin'
+        
+        test_result_dir = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_32/result/dataset.h5'
+        test_result_dir_2 = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_33/result/dataset.h5'
+        
+        self.assertTrue(self.database_manager.convert_archive(test_archive_dir, test_result_dir))
+        
+    def test_SBO_fb_100_samples_update_meta_data(self):
+        
+        test_archive_dir = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_32/archive/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin'
+        test_result_dir = '/mnt/ASSAS/upload_horeka/results/SBO_fb_100_samples/sample_32/result/dataset.h5'
+        
+        self.database_manager.update_meta_data(test_archive_dir, test_result_dir)
         
     def test_database_manager_process_archive(self):
 
@@ -138,23 +127,5 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         self.database_manager.synchronize_archive(test_uuid)
 
-
-class AssasDatabaseHandlerTest(unittest.TestCase):
-    
-    def setUp(self):
-        
-        config = TestConfig()
-        self.database_handler = AssasDatabaseHandler(config)
-        
-    def tearDown(self):
-        
-        self.database_handler = None
-
-    def test_database_handler_insert_dataset(self):
-        
-        document = AssasDocumentFile.get_test_document_file()
-        self.database_handler.insert_file_document(document)
-        
-        
 if __name__ == '__main__':
     unittest.main()
