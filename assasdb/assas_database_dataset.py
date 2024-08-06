@@ -2,13 +2,6 @@ import numpy as np
 
 from typing import List, Tuple, Union, Any
 
-class AssasDatasetInputDeck:
-    
-    def __init__(
-        self
-    )-> None:
-        self.initial_values = []
-
 class AssasDataset:
     
     def __init__(

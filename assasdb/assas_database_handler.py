@@ -33,11 +33,10 @@ class AssasDatabaseHandler:
     
     def insert_file_document(
         self,
-        file
+        file: dict
     ):
         
-        logger.info('insert %s' % file)
-        
+        logger.info(f'Insert {file}')        
         self.file_collection.insert_one(file)
 
     def drop_file_collection(
@@ -48,7 +47,7 @@ class AssasDatabaseHandler:
         
     def get_file_document(
         self,
-        id
+        id: str
     ):
         
         return self.file_collection.find_one(ObjectId(id))
@@ -88,7 +87,7 @@ class AssasDatabaseHandler:
     
     def delete_file_document(
         self,
-        id
+        id: str
     ):
         
         return self.file_collection.delete_one({'_id': ObjectId(id)})
@@ -106,6 +105,7 @@ class AssasDocumentFileStatus:
     VALIDATED = 'Validated'
     ARCHIVED = 'Archived'
     FAILED = 'Failed'
+    CORRUPTED = 'Corrupted'
 
 class AssasDocumentFile:
     
@@ -120,7 +120,7 @@ class AssasDocumentFile:
         self
     ) -> dict:
         
-        return self.document
+        return self.document.copy()
     
     def set_document(
         self,
@@ -139,7 +139,7 @@ class AssasDocumentFile:
         
         self.document = temp
         
-    def set_meta_values(
+    def set_general_meta_values(
         self,
         meta_name: str,
         meta_group: str,
@@ -154,14 +154,18 @@ class AssasDocumentFile:
         self.document['meta_creator'] = meta_creator
         self.document['meta_description'] = meta_description
         
-    def set_data_values(
+    def set_meta_data_values(
         self,
+        meta_data_variables: str,
+        meta_data_channels: int,
+        meta_data_meshes: int,
+        meta_data_samples: int
     ) -> None:
         
-        self.document['meta_data_variables'] = "['pressure', 'voidf', 'temp', 'sat_temp']"
-        self.document['meta_data_channels'] = '4'
-        self.document['meta_data_meshes'] = '16'
-        self.document['meta_data_samples'] = '1000'   
+        self.document['meta_data_variables'] = meta_data_variables
+        self.document['meta_data_channels'] = meta_data_channels
+        self.document['meta_data_meshes'] = meta_data_meshes
+        self.document['meta_data_samples'] = meta_data_samples
         
     def set_value(
         self,
@@ -174,7 +178,7 @@ class AssasDocumentFile:
     def get_value(
         self,
         key: str
-    ) -> None:
+    ) -> str:
         
         return self.document[key]
         

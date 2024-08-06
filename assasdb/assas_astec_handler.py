@@ -70,21 +70,16 @@ class AssasAstecHandler:
         
         return size_in_giga_bytes
 
-    def create_hdf5(
+    def write_data_into_hdf5(
         self,
         file_path: str,
         dataset: AssasDataset
     )-> None:
         
-        with h5py.File(file_path, 'w') as h5file:
+        logger.info(f'Write data values into {file_path}')
+        
+        with h5py.File(file_path, 'a') as h5file:
             
-            h5file.create_group('meta_data')
-            
-            h5file['meta_data'].attrs['variables'] = '[' + ' '.join(f'{variable}' for variable in dataset.get_variables()) + ']'
-            h5file['meta_data'].attrs['channels'] = dataset.get_no_channels()
-            h5file['meta_data'].attrs['meshes'] = dataset.get_no_meshes()
-            h5file['meta_data'].attrs['samples'] = dataset.get_no_samples()
-
             data_group = h5file.create_group('data')
                 
             for variable in dataset.get_variables():
@@ -102,19 +97,19 @@ class AssasAstecHandler:
         import pyastec as pa # pyastec can now be loadded
         pa.astec_init()
         
-        print(f'start reading binary {astec_archive_path}')
+        logger.info(f'Start reading binary {astec_archive_path}')
         
         saved_instants = pa.tools.get_list_of_saving_time_from_path(astec_archive_path)
-        print(f'time list {saved_instants}')
+        logger.info(f'Time list {saved_instants}')
                 
         dataset = AssasDataset(astec_archive_path, len(saved_instants))
         
-        print(f'start data collection for {astec_archive_path}')
+        logger.info(f'Start data collection for {astec_archive_path}')
         
         index = 0
         for t, base in pa.tools.save_iterator(astec_archive_path):
                 
-            print(f'process index {str(index)}, time {t}')
+            logger.info(f'Process index {str(index)}, time {t}')
             
             #DATA1  
             for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):            
@@ -244,7 +239,7 @@ class AssasAstecHandler:
                 
                 dataset.insert_data_point('sat_temp', 0, row, index, value)         
                 
-            print(f'Index number {str(index)} out of {str(len(saved_instants)-1)}')
+            logger.info(f'Index number {str(index)} out of {str(len(saved_instants)-1)}')
             index += 1
         
         pa.end()
@@ -253,19 +248,20 @@ class AssasAstecHandler:
         
     def convert_to_hdf5(
         self,
-        astec_archive_path: str,
+        archive_path: str,
         result_path: str,
     )-> None:
         
         try:
-            print(f'convert archive in {astec_archive_path} to hdf5 format')
+            logger.info(f'Convert archive in {archive_path} to hdf5 format')
             
-            print(f'read binary archive in {astec_archive_path}')
-            self.dataset = self.read_binary(astec_archive_path)
+            logger.info(f'Read binary archive in {archive_path}')
+            self.dataset = self.read_binary(archive_path)
             
-            print(f'create hdf5 file {result_path}')
-            self.create_hdf5(result_path, self.dataset)
+            logger.info(f'Create hdf5 file {result_path}')
+            self.write_data_into_hdf5(result_path, self.dataset)
         except:
+            logger.exception(f'Exception occurred during conversion')
             return False
         
         return True
@@ -277,15 +273,15 @@ class AssasAstecHandler:
         
         try:
             current_dir = os.getcwd()
-            logger.info(f'current working directory is {current_dir}')
+            logger.info(f'Current working directory is {current_dir}')
 
-            logger.info(f'change to archive directory {archive_dir}')
+            logger.info(f'Change to archive directory {archive_dir}')
             os.chdir(archive_dir + '/archive')
             
-            print(f'run assas astec parser with command {self.command}')
+            logger.info(f'Run assas astec parser with command {self.command}')
             with subprocess.Popen(self.command) as process: process.wait()
                             
-            logger.info(f'changed back to current_dir: {current_dir}')
+            logger.info(f'Changed back to current_dir: {current_dir}')
             os.chdir(current_dir)
         except:
             return False
@@ -312,14 +308,14 @@ class AssasAstecHandler:
         archive_dir: str
     )-> str:
         
-        logger.info(f'archive directory: {archive_dir}')
+        logger.info(f'Archive directory: {archive_dir}')
         
         zipped_dir = glob.glob(archive_dir + '/*.zip')
         
-        logger.info(f'archive directory: {zipped_dir}')
+        logger.info(f'Archive directory: {zipped_dir}')
         
         if len(zipped_dir) != 1:
-            raise ValueError('no or more than one archive present')
+            raise ValueError('No or more than one archive present')
             return
         
         return zipped_dir[0]

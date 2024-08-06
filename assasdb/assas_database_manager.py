@@ -18,6 +18,55 @@ from .assas_database_handler import AssasDocumentFile, AssasDocumentFileStatus
 
 logger = logging.getLogger('assas_app')
 
+class AssasAstecArchive:
+    
+    def __init__(
+        self,
+        name: str,
+        group: str,
+        date: str,
+        creator: str,
+        description: str,
+        archive_path: str,
+        result_path: str
+    ) -> None:
+        
+        self._name = name
+        self._group = group
+        self._date = date
+        self._creator = creator
+        self._description = description
+        self._archive_path = archive_path
+        self._result_path = result_path
+        
+    @property
+    def name(self):
+        return self._name
+    
+    @property
+    def group(self):
+        return self._group
+    
+    @property
+    def date(self):
+        return self._date
+    
+    @property
+    def creator(self):
+        return self._creator
+    
+    @property
+    def description(self):
+        return self._description
+    
+    @property
+    def archive_path(self):
+        return self._archive_path
+    
+    @property
+    def result_path(self):
+        return self._result_path
+
 class AssasDatabaseManager:
 
     def __init__(
@@ -26,196 +75,30 @@ class AssasDatabaseManager:
     ) -> None:
         
         self.database_handler = AssasDatabaseHandler(config)
-        self.storage_handler = AssasStorageHandler(config)
         self.astec_handler = AssasAstecHandler(config)
-       
-    def add_archives_to_database(
-        self,
-        archive_path_list: List[str]
-    ) -> None:        
-        
-        lists_of_saving_time = self.astec_handler.get_lists_of_saving_times(archive_path_list)
-        
-        for idx, archive_path in enumerate(archive_path_list):
-        
-            system_uuid = uuid.uuid4()
-            system_date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-            system_path = str(archive_path)
-            system_result = ''
-            system_size = '{:.2f}'.format(AssasAstecHandler.get_size_of_archive_in_giga_bytes(len(lists_of_saving_time[idx])))
-            system_user = 'User'
-            system_download = 'Download'
-            
-            if len(lists_of_saving_time[idx]) == 1:
-                system_status=AssasDocumentFileStatus.FAILED
-            else:
-                system_status=AssasDocumentFileStatus.UPLOADED
-                
-            document = AssasDocumentFile()
-            document.set_system_values(
-                system_uuid=str(system_uuid),
-                system_date=system_date,
-                system_path=system_path,
-                system_result=system_result,
-                system_size=system_size,
-                system_user=system_user,
-                system_download=system_download,
-                system_status=system_status
-            )       
-                
-            self.add_database_entry(document.get_document())
-            
-    def convert_archive(
-        self,
-        archive_path: str,
-        result_path: str
-    )-> bool:
-        
-        if self.astec_handler.convert_to_hdf5(archive_path, result_path):
-            
-            self.database_handler.update_file_document_path(archive_path, {'system_result':result_path})
-            self.database_handler.update_file_document_path(archive_path, {'system_status':AssasDocumentFileStatus.CONVERTED})
-            
-            document = self.database_handler.get_file_document_path(archive_path)
-            
-            document = AssasDatasetHandler.update_meta_data(document) 
-            self.database_handler.update_file_document_path(archive_path, document)
-            
-            return True
-        else:
-            return False
     
-    def update_meta_data(
-        self,
-        archive_path: str,
-        result_path: str = None
-    )-> bool:
-
-        if result_path is not None:
-            self.database_handler.update_file_document_path(archive_path, {'system_result':result_path})
-        
-        document = self.database_handler.get_file_document_path(archive_path)
-        
-        document_file = AssasDocumentFile(document)
-        document_file = AssasDatasetHandler.update_meta_data(document_file)
-        
-        self.database_handler.update_file_document_path(archive_path, document_file.get_document())
-    
-    def process_archive(
-        self,
-        zipped_archive_path: str
-    ) -> bool:
-        
-        success = False
-        archive_dir = os.path.dirname(zipped_archive_path)
-        logger.info(f'start processing archive {archive_dir}')
-        
-        if self.astec_handler.unzip_archive(zipped_archive_path):
-            if self.astec_handler.convert_archive(archive_dir):
-                success = True       
-            
-        return success
-    
-    def process_unzipped_archive(
+    def get_database_entry_by_id(
         self, 
-        archive_path: str
-    ) -> bool:
+        id: str
+    ):
         
-        success = False
-        logger.info(f'start processing archive {archive_path}')
-        
-        success = self.astec_handler.convert_archive(archive_path)
-        
-        if success:
-            
-            system_uuid = uuid.uuid4()
-            system_date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-            system_path = archive_path
-            system_size = self.storage_handler.get_size_of_archive_in_bytes(archive_path)
-            system_user = 'User'
-            system_download = 'Download'
-            
-            document = AssasDocumentFile()
-            document.set_system_values(
-                system_uuid=str(system_uuid),
-                system_date=system_date,
-                system_path=system_path,
-                system_size=system_size,
-                system_user=system_user,
-                system_download=system_download,
-                system_status=AssasDocumentFileStatus.CONVERTED
-            )       
-            
-        return success
+        return self.database_handler.get_file_document(id)
     
-    def store_local_archive(
+    def get_database_entry_by_uuid(
         self, 
         uuid: str
-    ) -> None:
+    ):
         
-        logger.info("store dataset for uuid %s", uuid)
-        
-        archive_dir = self.storage_handler.local_archive + uuid + '/result/'
-        self.storage_handler.create_dataset_archive(archive_dir)
-        
-        dataset_file_document = AssasDocumentFile.get_test_document_file(uuid, archive_dir)
-        
-        self.database_handler.insert_file_document(dataset_file_document)
-        
-        dataset = AssasDataset('test', 1000)
-        
-        dataset_handler = AssasDatasetHandler(dataset_file_document, dataset)
-        dataset_handler.create_hdf5() 
+        return self.database_handler.get_file_document_uuid(uuid)
     
-    def synchronize_archive(
+    def get_database_entry_by_path(
         self, 
-        system_uuid: str
-    ) -> bool:
+        path: str
+    ):
         
-        success = False
-        
-        if self.storage_handler.store_archive_on_share(system_uuid):
-            if self.storage_handler.delete_local_archive(system_uuid):
-                success = True
-
-        return success
+        return self.database_handler.get_file_document_path(path)
     
-    def clear_archive(
-        self, 
-        system_uuid: str
-    ) -> bool:
-        
-        success = False
-        
-        if self.storage_handler.delete_local_archive(system_uuid):
-            success = True
-            
-        return success
-    
-    def add_test_database_entry(
-        self, 
-        system_uuid: str, 
-        system_path: str
-    ) -> None:
-        
-        dataset_file_document = AssasDocumentFile.get_test_document_file(system_uuid, system_path)
-        
-        logger.info(f'insert test document {dataset_file_document}')
-                                                    
-        self.database_handler.insert_file_document(dataset_file_document)
-        
-        logger.info(f'inserted test document {dataset_file_document}')
-        
-    def add_database_entry(
-        self, 
-        document: str
-    ) -> None:
-        
-        print(f'insert document {document}')
-        
-        self.database_handler.insert_file_document(document) 
-        
-    def get_database_entries(
+    def get_all_database_entries(
         self
     ) -> pandas.DataFrame:
         
@@ -233,23 +116,85 @@ class AssasDatabaseManager:
 
         return data_frame
     
-    def drop(
+    def add_internal_database_entry(
+        self, 
+        document: dict
+    ) -> None:
+        
+        logger.info(f'Insert document {document}')        
+        self.database_handler.insert_file_document(document)
+        
+    def empty_internal_database(
         self
     )-> None:
         
         self.database_handler.drop_file_collection()
-        
-    def get_database_entry(
-        self, 
-        id: str
-    ):
-        
-        return self.database_handler.get_file_document(id)
     
-    def get_database_entry_uuid(
-        self, 
-        uuid: str
-    ):
+    def register_archives(
+        self,
+        archive_list: List[AssasAstecArchive]
+    ) -> None:        
         
-        return self.database_handler.get_file_document_uuid(uuid)
-    
+        archive_path_list = [archive.archive_path for archive in archive_list]        
+        lists_of_saving_time = self.astec_handler.get_lists_of_saving_times(archive_path_list)
+        
+        for idx, archive in enumerate(archive_list):
+     
+            if len(lists_of_saving_time[idx]) == 1:
+                system_status=AssasDocumentFileStatus.CORRUPTED
+            else:
+                system_status=AssasDocumentFileStatus.UPLOADED
+                
+            document_file = AssasDocumentFile()
+            
+            document_file.set_system_values(
+                system_uuid=str(uuid.uuid4()),
+                system_date=datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
+                system_path=archive.archive_path,
+                system_result=archive.result_path,
+                system_size='{:.2f}'.format(AssasAstecHandler.get_size_of_archive_in_giga_bytes(len(lists_of_saving_time[idx]))),
+                system_user='User',
+                system_download='Download',
+                system_status=system_status
+            )
+            
+            document_file.set_general_meta_values(
+                meta_name=archive.name,
+                meta_group=archive.group,
+                meta_date=archive.date,
+                meta_creator=archive.creator,
+                meta_description=archive.description                                
+            )
+            
+            dataset = AssasDataset(archive.name, len(lists_of_saving_time[idx]))
+            document_file.set_meta_data_values(
+                meta_data_variables='[' + ' '.join(f'{variable}' for variable in dataset.get_variables()) + ']',
+                meta_data_channels=dataset.get_no_channels(),
+                meta_data_meshes=dataset.get_no_meshes(),
+                meta_data_samples=dataset.get_no_samples() 
+            )
+            
+            AssasDatasetHandler.write_meta_data_to_hdf5(document_file)
+                
+            self.add_internal_database_entry(document_file.get_document())
+            
+    def convert_archives(
+        self,
+        archive_list: List[AssasAstecArchive]
+    )-> None:
+        
+        for archive in archive_list:
+        
+            document = self.database_handler.get_file_document_path(archive.archive_path)
+            document_file = AssasDocumentFile(document)    
+            
+            if self.astec_handler.convert_to_hdf5(archive.archive_path, archive.result_path):
+                
+                document_file = AssasDatasetHandler.read_meta_data_from_hdf5(document_file)            
+                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)       
+           
+            else:
+                
+                document_file.set_value('system_status', AssasDocumentFileStatus.FAILED)
+                
+            self.database_handler.update_file_document_path(archive.archive_path, document_file.get_document())
