@@ -12,7 +12,7 @@ from typing import List, Tuple, Union
 from .assas_database_handler import AssasDatabaseHandler
 from .assas_database_storage import AssasStorageHandler
 from .assas_astec_handler import AssasAstecHandler
-from .assas_database_hdf5 import AssasDatasetHandler
+from .assas_database_hdf5 import AssasHdf5DatasetHandler
 from .assas_database_dataset import AssasDataset
 from .assas_database_handler import AssasDocumentFile, AssasDocumentFileStatus
 
@@ -167,34 +167,90 @@ class AssasDatabaseManager:
             )
             
             dataset = AssasDataset(archive.name, len(lists_of_saving_time[idx]))
+            
             document_file.set_meta_data_values(
                 meta_data_variables='[' + ' '.join(f'{variable}' for variable in dataset.get_variables()) + ']',
                 meta_data_channels=dataset.get_no_channels(),
                 meta_data_meshes=dataset.get_no_meshes(),
-                meta_data_samples=dataset.get_no_samples() 
+                meta_data_samples=dataset.get_no_samples()
             )
             
-            AssasDatasetHandler.write_meta_data_to_hdf5(document_file)
+            #AssasHdf5DatasetHandler.write_meta_data_to_hdf5(document_file)
                 
             self.add_internal_database_entry(document_file.get_document())
-            
-    def convert_archives(
+
+    def convert_archives_to_hdf(
         self,
         archive_list: List[AssasAstecArchive]
     )-> None:
         
-        for archive in archive_list:
+        success = False
         
-            document = self.database_handler.get_file_document_path(archive.archive_path)
-            document_file = AssasDocumentFile(document)    
+        try:
             
-            if self.astec_handler.convert_to_hdf5(archive.archive_path, archive.result_path):
+            archive_path_list = [archive.archive_path for archive in archive_list]
+            datasets = self.astec_handler.read_astec_archives(archive_path_list)
+            
+            for idx, archive in enumerate(archive_list):
                 
-                document_file = AssasDatasetHandler.read_meta_data_from_hdf5(document_file)            
-                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)       
-           
+                document = self.database_handler.get_file_document_path(archive.archive_path)
+                document_file = AssasDocumentFile(document)
+                
+                if document_file.get_value('system_status') == AssasDocumentFileStatus.UPLOADED:
+                
+                    logger.info(f'Create hdf5 file {archive.result_path}')                
+                    #AssasHdf5DatasetHandler.write_data_into_hdf5(archive.result_path, datasets[idx])
+                                
+                    document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)            
+                    self.database_handler.update_file_document_path(archive.archive_path, document_file.get_document())
+                
+                else:
+                    
+                    system_path = document_file.get_value('system_path')
+                    logger.warning(f'Astec archive under {system_path} is corrupt')
+            
+            success = True
+            
+        except:
+            
+            logger.exception(f'Exception occurred during conversion')
+        
+        return success
+  
+    def convert_archive_to_hdf5(
+        self,
+        archive: AssasAstecArchive
+    )-> None:
+        
+        success = False
+        
+        try:
+            
+            document = self.database_handler.get_file_document_path(archive.archive_path)
+            document_file = AssasDocumentFile(document)
+            
+            if document_file.get_value('system_status') == AssasDocumentFileStatus.UPLOADED:
+                
+                dataset = self.astec_handler.read_astec_archive(archive.archive_path)
+                
+                logger.info(f'Create hdf5 file {archive.result_path}')            
+                #AssasHdf5DatasetHandler.write_data_into_hdf5(archive.result_path, dataset)
+            
+                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)            
+                self.database_handler.update_file_document_path(archive.archive_path, document_file.get_document())
+                
+                success = True
+                
             else:
                 
-                document_file.set_value('system_status', AssasDocumentFileStatus.FAILED)
-                
-            self.database_handler.update_file_document_path(archive.archive_path, document_file.get_document())
+                system_path = document_file.get_value('system_path')
+                logger.warning(f'Astec archive under {system_path} is corrupt')
+            
+        except:
+
+            logger.exception(f'Exception occurred during conversion')
+        
+        return success
+            
+        
+

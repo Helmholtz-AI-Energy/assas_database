@@ -84,7 +84,6 @@ class AssasDatabaseHandler:
         post = {"$set": update}
         return self.file_collection.update_one({'system_path':path}, post)
     
-    
     def delete_file_document(
         self,
         id: str

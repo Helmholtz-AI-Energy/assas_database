@@ -56,7 +56,7 @@ class AssasAstecHandler:
             except:
                 result_list.append([-1])
        
-        pa.end()        
+        pa.end()       
         
         return result_list
     
@@ -69,27 +69,169 @@ class AssasAstecHandler:
         size_in_giga_bytes = (number_of_timesteps * size_of_saving) / 1000.0
         
         return size_in_giga_bytes
-
-    def write_data_into_hdf5(
+    
+    def read_astec_archives(
         self,
-        file_path: str,
-        dataset: AssasDataset
-    )-> None:
+        archive_path_list: List[str]      
+    )-> List[AssasDataset]:
         
-        logger.info(f'Write data values into {file_path}')
+        import pyastec as pa # pyastec can now be loadded
+        pa.astec_init()
         
-        with h5py.File(file_path, 'a') as h5file:
+        result_list = []
+        
+        for idx, archive_path in enumerate(archive_path_list):
             
-            data_group = h5file.create_group('data')
+            saved_instants = pa.tools.get_list_of_saving_time_from_path(archive_path)
+            logger.info(f'Time list {saved_instants}')
+                    
+            dataset = AssasDataset(archive_path, len(saved_instants))
+            
+            logger.info(f'Start data collection for {archive_path}')
+            
+            index = 0
+            for t, base in pa.tools.save_iterator(archive_path):
+                    
+                logger.info(f'Process index {str(index)}, time {t}')
                 
-            for variable in dataset.get_variables():
-                group = data_group.create_group(variable)
-                array = dataset.get_data_for_variable(variable)
-                group.create_dataset(variable, data = array)
+                #DATA1  
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):            
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core1:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('pressure', 1, row, index, value)
+            
+                #DATA2 
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core2:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('voidf', 2, row, index, value)            
+                
+                #DATA3  
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core3:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('temp', 3, row, index, value)      
+                
+                #DATA4  
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core0:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('sat_temp', 0, row, index, value)      
+                
+                #DATA5   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core1:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('pressure', 1, row, index, value)      
+                    
+                #DATA6   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core2:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('voidf', 2, row, index, value)      
+                    
+                #DATA7   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core3:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('temp', 3, row, index, value)      
+                    
+                #DATA8   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core0:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('sat_temp', 0, row, index, value)      
+                
+                #DATA9   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core1:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('pressure', 1, row, index, value)      
+                    
+                #DATA10   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core2:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('voidf', 2, row, index, value)      
+                    
+                #DATA11   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core3:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('temp', 3, row, index, value)      
+                    
+                #DATA12   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core0:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('sat_temp', 0, row, index, value)      
+                
+                #DATA13   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core1:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('pressure', 1, row, index, value)      
+                    
+                #DATA14   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core2:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('voidf', 2, row, index, value)      
+                    
+                #DATA15   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core3:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('temp', 3, row, index, value)      
+                    
+                #DATA16   
+                for row in range(len(base.get('VESSEL:DISC:AXIA')) - 1):
+                    if row == 0:
+                        value = base.get('LOADTIME')
+                    else: value = base.get('VESSEL:MESH '+str(base.get('VESSEL:CHANNEL core0:MESH '+str(row))-1)+':THER :P')[1]
+                    
+                    dataset.insert_data_point('sat_temp', 0, row, index, value)         
+                    
+                logger.info(f'Index number {str(index)} out of {str(len(saved_instants)-1)}')
+                index += 1
+            
+            result_list.append(dataset)
+        
+        pa.end()
+        
+        return result_list
 
-        h5file.close()       
-
-    def read_binary(
+    def read_astec_archive(
         self,
         astec_archive_path: str
     )-> AssasDataset:
@@ -246,30 +388,12 @@ class AssasAstecHandler:
            
         return dataset
         
-    def convert_to_hdf5(
-        self,
-        archive_path: str,
-        result_path: str,
-    )-> None:
-        
-        try:
-            logger.info(f'Convert archive in {archive_path} to hdf5 format')
-            
-            logger.info(f'Read binary archive in {archive_path}')
-            self.dataset = self.read_binary(archive_path)
-            
-            logger.info(f'Create hdf5 file {result_path}')
-            self.write_data_into_hdf5(result_path, self.dataset)
-        except:
-            logger.exception(f'Exception occurred during conversion')
-            return False
-        
-        return True
-    
-    def convert_archive(
+    def execute_parser_script(
         self,
         archive_dir: str
     ) -> bool:
+        
+        success = False
         
         try:
             current_dir = os.getcwd()
@@ -283,10 +407,13 @@ class AssasAstecHandler:
                             
             logger.info(f'Changed back to current_dir: {current_dir}')
             os.chdir(current_dir)
-        except:
-            return False
+            
+            success = True
         
-        return True
+        except:
+            logger.exception(f'Exception occurred during conversion')
+        
+        return success
         
     @staticmethod
     def unzip_archive(
@@ -294,6 +421,7 @@ class AssasAstecHandler:
     ) -> bool:
         
         unzipped_archive_dir = os.path.dirname(zipped_archive_path) + '/archive'
+        
         try:
             with zipfile.ZipFile(zipped_archive_path, 'r') as zip:
                 

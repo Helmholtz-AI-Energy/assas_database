@@ -7,7 +7,7 @@ from .assas_database_handler import AssasDocumentFile
 
 logger = logging.getLogger('assas_app')
 
-class AssasDatasetHandler:
+class AssasHdf5DatasetHandler:
     
     def __init__(
         self,
@@ -17,6 +17,26 @@ class AssasDatasetHandler:
         
         self.dataset = dataset
         self.document = document
+    
+    @staticmethod
+    def write_data_into_hdf5(
+        self,
+        file_path: str,
+        dataset: AssasDataset
+    )-> None:
+        
+        logger.info(f'Write data values into {file_path}')
+        
+        with h5py.File(file_path, 'a') as h5file:
+            
+            data_group = h5file.create_group('data')
+                
+            for variable in dataset.get_variables():
+                group = data_group.create_group(variable)
+                array = dataset.get_data_for_variable(variable)
+                group.create_dataset(variable, data = array)
+
+        h5file.close()
 
     @staticmethod
     def write_meta_data_to_hdf5(
@@ -58,11 +78,11 @@ class AssasDatasetHandler:
         
         with h5py.File(hdf5_path, 'r') as h5file:
             
-            document.set_value('meta_name', h5file['general_meta_data'].attrs['name'])
-            document.set_value('meta_group', h5file['general_meta_data'].attrs['group'])
-            document.set_value('meta_date', h5file['general_meta_data'].attrs['date'])
-            document.set_value('meta_creator', h5file['general_meta_data'].attrs['creator'])
-            document.set_value('meta_description', h5file['general_meta_data'].attrs['description'])
+            document.set_value('meta_name', h5file['meta_data'].attrs['name'])
+            document.set_value('meta_group', h5file['meta_data'].attrs['group'])
+            document.set_value('meta_date', h5file['meta_data'].attrs['date'])
+            document.set_value('meta_creator', h5file['meta_data'].attrs['creator'])
+            document.set_value('meta_description', h5file['meta_data'].attrs['description'])
             
             document.set_value('meta_data_variables', h5file['meta_data'].attrs['variables'])
             document.set_value('meta_data_channels', str(h5file['meta_data'].attrs['channels']))
