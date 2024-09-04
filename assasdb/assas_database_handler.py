@@ -38,7 +38,7 @@ class AssasDatabaseHandler:
         
         logger.info(f'Insert {file}')        
         self.file_collection.insert_one(file)
-
+        
     def drop_file_collection(
         self
     ):
@@ -52,21 +52,35 @@ class AssasDatabaseHandler:
         
         return self.file_collection.find_one(ObjectId(id))
     
-    def get_file_document_uuid(
+    def get_file_document_by_uuid(
         self,
         uuid: uuid4
     ):
         
         return self.file_collection.find_one({'system_uuid':str(uuid)})
     
-    def get_file_document_path(
+    def get_file_document_by_upload_uuid(
+        self,
+        upload_uuid: uuid4
+    ):
+        
+        return self.file_collection.find_one({'system_upload_uuid':str(upload_uuid)})
+    
+    def get_file_document_by_path(
         self,
         path: str
     ):
         
         return self.file_collection.find_one({'system_path':path})
     
-    def update_file_document_uuid(
+    def get_file_documents_by_status(
+        self,
+        status: str
+    ):
+        
+        return self.file_collection.find({'system_status':status})
+    
+    def update_file_document_by_uuid(
         self,
         uuid: uuid4,
         update: dict
@@ -75,7 +89,7 @@ class AssasDatabaseHandler:
         post = {"$set": update}
         return self.file_collection.update_one({'system_uuid':str(uuid)}, post)
     
-    def update_file_document_path(
+    def update_file_document_by_path(
         self,
         path: str,
         update: dict
@@ -91,7 +105,7 @@ class AssasDatabaseHandler:
         
         return self.file_collection.delete_one({'_id': ObjectId(id)})
     
-    def delete_file_document_uuid(
+    def delete_file_document_by_uuid(
         self,
         uuid: uuid4
     ):
@@ -141,16 +155,10 @@ class AssasDocumentFile:
     def set_general_meta_values(
         self,
         meta_name: str,
-        meta_group: str,
-        meta_date: str,
-        meta_creator: str,
         meta_description: str,
     ) -> None:
         
         self.document['meta_name'] = meta_name
-        self.document['meta_group'] = meta_group
-        self.document['meta_date'] = meta_date
-        self.document['meta_creator'] = meta_creator
         self.document['meta_description'] = meta_description
         
     def set_meta_data_values(
@@ -196,6 +204,7 @@ class AssasDocumentFile:
     def set_system_values(
         self,
         system_uuid: str,
+        system_upload_uuid: str,
         system_date: str,
         system_path: str,
         system_result: str,
@@ -206,6 +215,7 @@ class AssasDocumentFile:
     ) -> None:
         
         self.document['system_uuid'] = system_uuid
+        self.document['system_upload_uuid'] = system_upload_uuid
         self.document['system_date'] = system_date
         self.document['system_path'] = system_path
         self.document['system_result'] = system_result
@@ -231,9 +241,6 @@ class AssasDocumentFile:
                     "system_download": "Download",
                     "system_status": "complete",
                     "meta_name": "Name of Simulation X",
-                    "meta_group": "Group or Kind of Simulation",
-                    "meta_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                    "meta_creator": "Test User",
                     "meta_description": "'this is a test description!'",
                     "meta_data_variables": "['pressure', 'voidf', 'temp', 'sat_temp']",
                     "meta_data_channels": "4",
@@ -241,4 +248,4 @@ class AssasDocumentFile:
                     "meta_data_samples": "1000"
                 }
         
-        return document  
+        return document 

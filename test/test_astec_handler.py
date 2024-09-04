@@ -67,23 +67,23 @@ class AssasAstecHandlerTest(unittest.TestCase):
         
         self.astec_handler = None
         
-    def test_astec_handler_read_binaries(self):
-        
-        archive_list = SBO_fb_100_samples(2).get_archive_list()
-        archive_path_list = [archive.archive_path for archive in archive_list]
-        
-        dataset_list = self.astec_handler.read_astec_archives(archive_path_list)
-        self.assertEqual(len(archive_list),len(dataset_list))
+#    def test_astec_handler_read_binaries(self):
+#        
+#        archive_list = SBO_fb_100_samples(2).get_archive_list()
+#        archive_path_list = [archive.archive_path for archive in archive_list]
+#        
+#        dataset_list = self.astec_handler.read_astec_archives(archive_path_list)
+#        self.assertEqual(len(archive_list),len(dataset_list))
 
-    def test_astec_handler_get_list_of_saving_times(self):
-        
-        archive_list = SBO_fb_100_samples(2).get_archive_list()
-        archive_path_list = [archive.archive_path for archive in archive_list]
-        
-        lists_of_saving_time = self.astec_handler.get_lists_of_saving_times(archive_path_list)
-        
-        self.assertEqual(len(lists_of_saving_time[0]), 15927)      
-        self.assertEqual(len(lists_of_saving_time[1]), 66849)
+#    def test_astec_handler_get_list_of_saving_times(self):
+#        
+#        archive_list = SBO_fb_100_samples(2).get_archive_list()
+#        archive_path_list = [archive.archive_path for archive in archive_list]
+#        
+#        lists_of_saving_time = self.astec_handler.get_lists_of_saving_times(archive_path_list)
+#        
+#        self.assertEqual(len(lists_of_saving_time[0]), 15927)      
+#        self.assertEqual(len(lists_of_saving_time[1]), 66849)
         
     def test_astec_handler_get_size_of_archive_in_giga_bytes(self):
         

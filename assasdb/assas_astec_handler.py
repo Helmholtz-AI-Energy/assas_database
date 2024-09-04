@@ -8,6 +8,7 @@ import numpy
 import h5py
 
 from .assas_database_dataset import AssasDataset
+from .assas_database_hdf5 import AssasHdf5DatasetHandler
 
 from typing import List, Tuple, Union
 
@@ -20,8 +21,8 @@ class AssasAstecHandler:
         config: dict
     ) -> None:
         
-        self.command = [f'{config.PYTHON_VERSION}', f'{config.ASTEC_ROOT}', f'{config.ASTEC_PARSER}']
         self.config = config
+        self.command = [f'{config.PYTHON_VERSION}', f'{config.ASTEC_ROOT}', f'{config.ASTEC_PARSER}']
         
         astec_python_interface_location = os.path.join(config.ASTEC_ROOT, 'code', 'proc')
         if astec_python_interface_location not in sys.path:
@@ -41,7 +42,7 @@ class AssasAstecHandler:
     
     def get_lists_of_saving_times(
         self,
-        archive_dir_list: List[str],
+        archive_path_list: List[str],
     ) -> List[List[str]]:
         
         result_list = []
@@ -49,11 +50,13 @@ class AssasAstecHandler:
         import pyastec as pa # pyastec can now be loadded
         pa.astec_init()
         
-        for archive_dir in archive_dir_list:
+        for archive_path in archive_path_list:
+            
             try:
-                saved_instants = pa.tools.get_list_of_saving_time_from_path(archive_dir)
+                saved_instants = pa.tools.get_list_of_saving_time_from_path(archive_path)
                 result_list.append(saved_instants)
             except:
+                logger.error(f'Astec archive is not consistent {archive_path}')
                 result_list.append([-1])
        
         pa.end()       
@@ -72,8 +75,11 @@ class AssasAstecHandler:
     
     def read_astec_archives(
         self,
-        archive_path_list: List[str]      
-    )-> List[AssasDataset]:
+        archive_path_list: List[str],
+        result_path_list: List[str],
+    )-> List[str]:
+        
+        print(f'{len(archive_path_list)}, {len(result_path_list)}')
         
         import pyastec as pa # pyastec can now be loadded
         pa.astec_init()
@@ -82,12 +88,13 @@ class AssasAstecHandler:
         
         for idx, archive_path in enumerate(archive_path_list):
             
-            saved_instants = pa.tools.get_list_of_saving_time_from_path(archive_path)
+            saved_instants = pa.tools.get_list_of_saving_time_from_path(archive_path)    
+            
             logger.info(f'Time list {saved_instants}')
                     
             dataset = AssasDataset(archive_path, len(saved_instants))
             
-            logger.info(f'Start data collection for {archive_path}')
+            logger.info(f'Start data collection for {archive_path} {idx}')
             
             index = 0
             for t, base in pa.tools.save_iterator(archive_path):
@@ -225,9 +232,12 @@ class AssasAstecHandler:
                 logger.info(f'Index number {str(index)} out of {str(len(saved_instants)-1)}')
                 index += 1
             
-            result_list.append(dataset)
+            result_list.append(result_path_list[idx])
+            
+            logger.info(f'Create hdf5 file {result_path_list[idx]}')             
+            AssasHdf5DatasetHandler.write_data_into_hdf5(result_path_list[idx], dataset)
         
-        pa.end()
+        #pa.end()
         
         return result_list
 

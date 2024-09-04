@@ -5,12 +5,14 @@ import os
 import shutil
 import uuid
 import pathlib
+import pickle
+import threading
 
+from uuid import uuid4
 from datetime import datetime
 from typing import List, Tuple, Union
 
 from .assas_database_handler import AssasDatabaseHandler
-from .assas_database_storage import AssasStorageHandler
 from .assas_astec_handler import AssasAstecHandler
 from .assas_database_hdf5 import AssasHdf5DatasetHandler
 from .assas_database_dataset import AssasDataset
@@ -22,38 +24,38 @@ class AssasAstecArchive:
     
     def __init__(
         self,
+        upload_uuid: uuid4,
         name: str,
-        group: str,
         date: str,
-        creator: str,
+        user: str,
         description: str,
         archive_path: str,
-        result_path: str
+        result_path: str,
     ) -> None:
         
+        self._upload_uuid = upload_uuid
         self._name = name
-        self._group = group
         self._date = date
-        self._creator = creator
+        self._user = user
         self._description = description
         self._archive_path = archive_path
         self._result_path = result_path
-        
+
+    @property
+    def upload_uuid(self):
+        return self._upload_uuid
+ 
     @property
     def name(self):
         return self._name
-    
-    @property
-    def group(self):
-        return self._group
-    
+ 
     @property
     def date(self):
         return self._date
     
     @property
-    def creator(self):
-        return self._creator
+    def user(self):
+        return self._user
     
     @property
     def description(self):
@@ -67,6 +69,7 @@ class AssasAstecArchive:
     def result_path(self):
         return self._result_path
 
+
 class AssasDatabaseManager:
 
     def __init__(
@@ -74,8 +77,16 @@ class AssasDatabaseManager:
         config: dict
     ) -> None:
         
+        self.config = config
         self.database_handler = AssasDatabaseHandler(config)
         self.astec_handler = AssasAstecHandler(config)
+    
+    def get_database_entry_by_upload_uuid(
+        self,
+        upload_uuid: uuid4
+    ):
+        
+        return self.database_handler.get_file_document_by_upload_uuid(upload_uuid)
     
     def get_database_entry_by_id(
         self, 
@@ -86,17 +97,17 @@ class AssasDatabaseManager:
     
     def get_database_entry_by_uuid(
         self, 
-        uuid: str
+        uuid: uuid4
     ):
         
-        return self.database_handler.get_file_document_uuid(uuid)
+        return self.database_handler.get_file_document_by_uuid(uuid)
     
     def get_database_entry_by_path(
         self, 
         path: str
     ):
         
-        return self.database_handler.get_file_document_path(path)
+        return self.database_handler.get_file_document_by_path(path)
     
     def get_all_database_entries(
         self
@@ -130,40 +141,151 @@ class AssasDatabaseManager:
         
         self.database_handler.drop_file_collection()
     
+    @staticmethod
+    def get_upload_uuids(
+        upload_file: str
+    )-> List[uuid4]:
+    
+        lines = []
+        with open(upload_file, 'r') as file:
+            lines = [line.rstrip() for line in file]
+    
+        try:
+            upload_uuid_list = [uuid.UUID(line) for line in lines]
+        except ValueError:
+            logger.error('Received univalid uuid')
+        
+        logger.info(f'Read Upload uuids {upload_uuid_list}')
+        
+        return upload_uuid_list
+    
+    def start_conversion_to_hdf5_threaded(
+        self,
+        #archive_list: List[AssasAstecArchive]
+    )-> None:
+        
+        threading.Thread(
+            target=self.convert_archives_to_hdf5,
+            #args=(archive_list,)
+        ).start()        
+    
+    def get_uploaded_archives_to_process(
+        self
+    )-> List[AssasAstecArchive]:
+
+        registered_archive_list = []
+        upload_uuid_list = AssasDatabaseManager.get_upload_uuids(self.config.UPLOAD_FILE)
+        
+        for upload_uuid in upload_uuid_list:
+        
+                documents = self.database_handler.get_file_document_by_upload_uuid(upload_uuid)
+                    
+                if documents is None:
+                
+                    logger.info(f'Detect new upload with upload_uuid {str(upload_uuid)}')
+                    
+                    archive_list = self.read_upload_info(upload_uuid)                    
+                    registered_archive_list.extend(archive_list)
+            
+                else:
+                
+                    logger.info(f'Upload_uuid is already processed {str(upload_uuid)}')
+                    
+        return registered_archive_list
+    
+    def process_uploads(
+        self,       
+    )-> bool:
+        
+        success = False
+        
+        try:
+            
+            archive_list = self.get_uploaded_archives_to_process()
+            
+            if len(archive_list) == 0:
+                logger.info('No new archives present')
+            else:
+                self.register_archives(archive_list)
+            
+            success = True
+                   
+        except:
+            
+            logger.error('Error when processing uploads occured')
+                
+        return success
+    
+    def read_upload_info(
+        self,
+        upload_uuid: uuid4
+    )-> List[AssasAstecArchive]:
+        
+        archive_list = []
+        
+        upload_info = {}
+        upload_directory = self.config.LSDF_ARCHIVE + str(upload_uuid) + '/upload_info.pickle'
+        
+        with open(upload_directory, 'rb') as file:
+            upload_info = pickle.load(file)
+        
+        date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        name = upload_info['name']
+                
+        for idx, archive_path in enumerate(upload_info['archive_paths']):
+            archive_list.append(AssasAstecArchive(
+                upload_uuid=str(upload_uuid),
+                name=f'{name}_{idx}',
+                date=date,
+                user=upload_info['user'],
+                description=upload_info['description'],
+                archive_path=self.config.LSDF_ARCHIVE + str(upload_uuid) + archive_path,
+                result_path=self.config.LSDF_ARCHIVE + str(upload_uuid) + '/result/dataset.h5'
+            ))
+        
+        return archive_list
+    
     def register_archives(
         self,
         archive_list: List[AssasAstecArchive]
     ) -> None:        
         
+        print('register 1')
+        
         archive_path_list = [archive.archive_path for archive in archive_list]        
         lists_of_saving_time = self.astec_handler.get_lists_of_saving_times(archive_path_list)
+        
+        print('register 2')
         
         for idx, archive in enumerate(archive_list):
      
             if len(lists_of_saving_time[idx]) == 1:
+                
                 system_status=AssasDocumentFileStatus.CORRUPTED
+                logger.error(f'Archive is corrupted, set status to CORRUPTED {archive.archive_path}')
+            
             else:
+                
+                logger.info(f'Archive is consistent, set status to UPLOADED {archive.archive_path}')
                 system_status=AssasDocumentFileStatus.UPLOADED
                 
             document_file = AssasDocumentFile()
             
             document_file.set_system_values(
                 system_uuid=str(uuid.uuid4()),
+                system_upload_uuid=archive.upload_uuid,
                 system_date=datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                 system_path=archive.archive_path,
                 system_result=archive.result_path,
                 system_size='{:.2f}'.format(AssasAstecHandler.get_size_of_archive_in_giga_bytes(len(lists_of_saving_time[idx]))),
-                system_user='User',
+                system_user=archive.user,
                 system_download='Download',
                 system_status=system_status
             )
             
             document_file.set_general_meta_values(
                 meta_name=archive.name,
-                meta_group=archive.group,
-                meta_date=archive.date,
-                meta_creator=archive.creator,
-                meta_description=archive.description                                
+                meta_description=archive.description                       
             )
             
             dataset = AssasDataset(archive.name, len(lists_of_saving_time[idx]))
@@ -175,82 +297,51 @@ class AssasDatabaseManager:
                 meta_data_samples=dataset.get_no_samples()
             )
             
-            #AssasHdf5DatasetHandler.write_meta_data_to_hdf5(document_file)
+            AssasHdf5DatasetHandler.write_meta_data_to_hdf5(document_file)
+            
+            print('register 3')
                 
             self.add_internal_database_entry(document_file.get_document())
+            
+            print('register 4')
 
-    def convert_archives_to_hdf(
-        self,
-        archive_list: List[AssasAstecArchive]
-    )-> None:
+    def convert_archives_to_hdf5(
+        self
+    )-> bool:
         
         success = False
         
-        try:
+        print('convert 1')
+        
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.UPLOADED)
+        document_file_list = [AssasDocumentFile(document) for document in documents]
+        
+        archive_path_list = [document_file.get_value('system_path') for document_file in document_file_list]
+        result_path_list = [document_file.get_value('system_result') for document_file in document_file_list]
+        logger.info(f'Convert following archives: {archive_path_list}, result paths: {result_path_list}')
+        
+        try:            
             
-            archive_path_list = [archive.archive_path for archive in archive_list]
-            datasets = self.astec_handler.read_astec_archives(archive_path_list)
+            print('convert 2')
+            result_path_list_returned = self.astec_handler.read_astec_archives(
+                archive_path_list=archive_path_list,
+                result_path_list=result_path_list
+            )
+            print('convert 3')
+            logger.info(f'Start writing result files ({len(result_path_list_returned)})')
             
-            for idx, archive in enumerate(archive_list):
-                
-                document = self.database_handler.get_file_document_path(archive.archive_path)
-                document_file = AssasDocumentFile(document)
-                
-                if document_file.get_value('system_status') == AssasDocumentFileStatus.UPLOADED:
-                
-                    logger.info(f'Create hdf5 file {archive.result_path}')                
-                    #AssasHdf5DatasetHandler.write_data_into_hdf5(archive.result_path, datasets[idx])
-                                
-                    document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)            
-                    self.database_handler.update_file_document_path(archive.archive_path, document_file.get_document())
-                
-                else:
-                    
-                    system_path = document_file.get_value('system_path')
-                    logger.warning(f'Astec archive under {system_path} is corrupt')
+            for idx, document_file in enumerate(document_file_list):
+
+                logger.info(f'Update status to CONVERTED')        
+                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)
+                self.database_handler.update_file_document_by_path(archive_path_list[idx], document_file.get_document())
             
+            print('convert 4')
             success = True
             
         except:
             
-            logger.exception(f'Exception occurred during conversion')
-        
-        return success
-  
-    def convert_archive_to_hdf5(
-        self,
-        archive: AssasAstecArchive
-    )-> None:
-        
-        success = False
-        
-        try:
-            
-            document = self.database_handler.get_file_document_path(archive.archive_path)
-            document_file = AssasDocumentFile(document)
-            
-            if document_file.get_value('system_status') == AssasDocumentFileStatus.UPLOADED:
-                
-                dataset = self.astec_handler.read_astec_archive(archive.archive_path)
-                
-                logger.info(f'Create hdf5 file {archive.result_path}')            
-                #AssasHdf5DatasetHandler.write_data_into_hdf5(archive.result_path, dataset)
-            
-                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)            
-                self.database_handler.update_file_document_path(archive.archive_path, document_file.get_document())
-                
-                success = True
-                
-            else:
-                
-                system_path = document_file.get_value('system_path')
-                logger.warning(f'Astec archive under {system_path} is corrupt')
-            
-        except:
+            logger.error(f'Error during conversion occured 2')
 
-            logger.exception(f'Exception occurred during conversion')
-        
+        print('convert 5')
         return success
-            
-        
-

@@ -3,6 +3,8 @@ import logging
 import os
 import shutil
 import sys
+import uuid
+import pickle 
 
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -18,14 +20,16 @@ logging.basicConfig(
     level = logging.INFO,
     stream = sys.stdout)
 
-class SBO_fb_100_samples:
+class SBO_fb_test_samples:
     
     def __init__(
         self,
-        number_of_samples: int = 100
+        config: dict,        
     ) -> None:
         
-        self._archive_list = [SBO_fb_100_samples.archive_factory(sample) for sample in range(1, number_of_samples + 1)]
+        self._config = config
+        self._upload_uuids = [uuid.UUID('2bdd775d-442c-487f-a0a0-9aec7f47d796'),uuid.UUID('ce3b0594-c213-4339-a334-f4a099b17da9')]
+        self._archive_list = [SBO_fb_test_samples.archive_factory(upload_uuid) for upload_uuid in self._upload_uuids]
         
     def get_archive_list(
         self
@@ -35,17 +39,17 @@ class SBO_fb_100_samples:
     
     @staticmethod
     def archive_factory(
-        number: int
+        upload_uuid: uuid4
     )-> AssasAstecArchive:
         
         return AssasAstecArchive(
-            f'SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_{number}',
-            'SBO fb',
-            '08/05/2024, 23:25:37',
-            'Anastasia Stakhanova',
-            f'Station blackout scenario number, with 2 parameters {number}',
-            f'/mnt/ASSAS/upload_horeka/results/24b15f81-d4fd-4605-b324-0f85ab07917f/all_samples/sample_{number}/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin',
-            f'/mnt/ASSAS/upload_horeka/results/24b15f81-d4fd-4605-b324-0f85ab07917f/all_samples/sample_{number}/result/dataset.h5'
+            upload_uuid=f'{str(upload_uuid)}',
+            name='SBO fb',
+            date='08/05/2024, 23:25:37',
+            user='ke4920',
+            description=f'Station blackout scenario number, with 2 parameters',
+            archive_path=f'/mnt/ASSAS/upload_test/{str(upload_uuid)}/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin',
+            result_path=f'/mnt/ASSAS/upload_test/{str(upload_uuid)}/result/dataset.h5'
         )
     
 class TestConfig(object):
@@ -53,6 +57,8 @@ class TestConfig(object):
     DEBUG = True
     DEVELOPMENT = True
     LSDF_ARCHIVE = r'/mnt/ASSAS/upload_test/'
+    UPLOAD_DIRECTORY = r'/mnt/ASSAS/upload_test/uploads/'
+    UPLOAD_FILE = r'/mnt/ASSAS/upload_test/uploads/uploads.txt'
     LOCAL_ARCHIVE = r'/root/upload/'
     PYTHON_VERSION = r'/opt/python/3.11.8/bin/python3.11'
     ASTEC_ROOT = r'/root/astecV3.1.1_linux64/astecV3.1.1'
@@ -65,8 +71,8 @@ class AssasDatabaseManagerTest(unittest.TestCase):
     
     def setUp(self):
         
-        config = TestConfig()
-        self.database_manager = AssasDatabaseManager(config)
+        self.config = TestConfig()
+        self.database_manager = AssasDatabaseManager(self.config)
         
     def tearDown(self):
         
@@ -76,32 +82,41 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
         self.database_manager.empty_internal_database()
         
-    def test_database_manager_get_datasets(self):
+    #def test_database_manager_get_datasets(self):
         
-        self.database_manager.get_all_database_entries()
+    #    self.database_manager.get_all_database_entries()
         
-    def test_database_manager_SBO_fb_100_samples_register(self):
+    #def test_database_manager_SBO_fb_100_samples_register(self):
         
-        archives = SBO_fb_100_samples().get_archive_list()
+    #    self.database_manager.empty_internal_database()
+        
+    #    archives = SBO_fb_test_samples(self.config).get_archive_list()
+    #    logger.info(len(archives))
+        
+    #    self.database_manager.register_archives(archives)
+        
+    #    entries = self.database_manager.get_all_database_entries()
+    #    self.assertEqual(len(entries), len(archives))
+        
+    #def test_database_manager_process_upload(self):
+    #    
+    #    upload_uuid = uuid.UUID('e406d8aa-f370-4b58-9da1-3a896cd04a87')
+    #            
+    #    self.database_manager.process_upload(upload_uuid)
+    #    
+    #    document = self.database_manager.get_database_entry_by_upload_uuid(upload_uuid)
+    #    
+    #    self.assertEqual(str(upload_uuid), document['system_upload_uuid'])
+        
+    def test_database_manager_process_uploads(self):
+        
         self.database_manager.empty_internal_database()
         
-        self.database_manager.register_archives(archives)
+        self.assertTrue(self.database_manager.process_uploads())
         
-        entries = self.database_manager.get_all_database_entries()
-        self.assertEqual(len(entries), len(archives))
+    def test_database_manager_convert_archives_to_hdf5(self):
         
-    def test_database_manager_SBO_fb_100_samples_convert_archive_to_hdf5(self):
+        self.assertTrue(self.database_manager.convert_archives_to_hdf5())
         
-        archive_list = SBO_fb_100_samples(2).get_archive_list()
-        
-        self.assertTrue(self.database_manager.convert_archives_to_hdf(archive_list[0]))
-        
-    def test_database_manager_SBO_fb_100_samples_convert_archives_to_hdf5(self):
-        
-        archive_list = SBO_fb_100_samples(2).get_archive_list()
-        
-        self.assertTrue(self.database_manager.convert_archives_to_hdf(archive_list))
-        
-
 if __name__ == '__main__':
     unittest.main()

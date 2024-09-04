@@ -42,7 +42,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         
         self.database_handler.insert_file_document(document)
         
-        found_document = self.database_handler.get_file_document_uuid(uuid)
+        found_document = self.database_handler.get_file_document_by_uuid(uuid)
                 
         self.assertEqual(document, found_document)
         
@@ -53,7 +53,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         
         self.database_handler.insert_file_document(document)
         
-        found_document = self.database_handler.get_file_document_path(path)
+        found_document = self.database_handler.get_file_document_by_path(path)
                 
         self.assertEqual(document, found_document)
         
@@ -65,12 +65,12 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         
         self.database_handler.insert_file_document(document)
         
-        found_document = self.database_handler.get_file_document_uuid(uuid)
+        found_document = self.database_handler.get_file_document_by_uuid(uuid)
         self.assertEqual(document, found_document)        
         
-        self.database_handler.update_file_document_uuid(uuid, update)
+        self.database_handler.update_file_document_by_uuid(uuid, update)
         
-        found_document = self.database_handler.get_file_document_uuid(uuid)
+        found_document = self.database_handler.get_file_document_by_uuid(uuid)
                 
         self.assertEqual(update['system_result'], found_document['system_result'])
         
@@ -82,14 +82,18 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         
         self.database_handler.insert_file_document(document)
         
-        found_document = self.database_handler.get_file_document_path(path)
+        found_document = self.database_handler.get_file_document_by_path(path)
         self.assertEqual(document, found_document)        
         
-        self.database_handler.update_file_document_path(path, update)
+        self.database_handler.update_file_document_by_path(path, update)
         
-        found_document = self.database_handler.get_file_document_path(path)
+        found_document = self.database_handler.get_file_document_by_path(path)
                 
         self.assertEqual(update['system_result'], found_document['system_result'])
+        
+    def test_database_handler_empty_database(self):
+        
+        self.database_handler.drop_file_collection()
         
 if __name__ == '__main__':
     unittest.main()
