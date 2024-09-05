@@ -59,7 +59,7 @@ class AssasAstecHandler:
                 logger.error(f'Astec archive is not consistent {archive_path}')
                 result_list.append([-1])
        
-        pa.end()       
+        #pa.end()       
         
         return result_list
     
@@ -79,7 +79,7 @@ class AssasAstecHandler:
         result_path_list: List[str],
     )-> List[str]:
         
-        print(f'{len(archive_path_list)}, {len(result_path_list)}')
+        logger.info(f'Read astec archives ({len(archive_path_list)}, {len(result_path_list)})')
         
         import pyastec as pa # pyastec can now be loadded
         pa.astec_init()
@@ -88,13 +88,13 @@ class AssasAstecHandler:
         
         for idx, archive_path in enumerate(archive_path_list):
             
-            saved_instants = pa.tools.get_list_of_saving_time_from_path(archive_path)    
+            saved_instants = pa.tools.get_list_of_saving_time_from_path(archive_path)
             
             logger.info(f'Time list {saved_instants}')
                     
             dataset = AssasDataset(archive_path, len(saved_instants))
             
-            logger.info(f'Start data collection for {archive_path} {idx}')
+            logger.info(f'Start data collection for {archive_path} with index {idx}')
             
             index = 0
             for t, base in pa.tools.save_iterator(archive_path):
