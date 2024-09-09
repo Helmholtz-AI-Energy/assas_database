@@ -98,6 +98,15 @@ class AssasDatabaseHandler:
         post = {"$set": update}
         return self.file_collection.update_one({'system_path':path}, post)
     
+    def update_file_document_by_upload_uuid(
+        self,
+        upload_uuid: uuid4,
+        update: dict
+    ):
+        
+        post = {"$set": update}
+        return self.file_collection.update_one({'system_upload_uuid':str(upload_uuid)}, post)
+    
     def delete_file_document(
         self,
         id: str
@@ -114,7 +123,7 @@ class AssasDatabaseHandler:
 
 class AssasDocumentFileStatus:
     UPLOADED = 'Uploaded'
-    CONVERTED = 'Converted'
+    CONVERTING = 'Converting'
     VALIDATED = 'Validated'
     ARCHIVED = 'Archived'
     FAILED = 'Failed'
@@ -227,12 +236,14 @@ class AssasDocumentFile:
     @staticmethod
     def get_test_document_file(
         system_uuid: uuid4 =str(uuid4()),
+        system_upload_uuid: uuid4 = str(uuid4()),
         system_path: str = 'default_path',
         system_result: str = 'default_path'
     ) -> dict:
  
         document = {
                     "system_uuid": system_uuid,
+                    "system_upload_uuid": system_upload_uuid,
                     "system_date": datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
                     "system_path": system_path,
                     "system_result": system_result,

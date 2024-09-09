@@ -229,7 +229,7 @@ class AssasDatabaseManager:
         for upload_uuid in upload_uuid_list:
         
                 documents = self.database_handler.get_file_document_by_upload_uuid(upload_uuid)
-                    
+                                    
                 if documents is None:
                 
                     logger.info(f'Detect new upload with upload_uuid {str(upload_uuid)}')
@@ -300,12 +300,10 @@ class AssasDatabaseManager:
         archive_list: List[AssasAstecArchive]
     ) -> None:        
         
-        print('register 1')
+        logger.info('Start registering archives')
         
         archive_path_list = [archive.archive_path for archive in archive_list]      
         lists_of_saving_time = self.astec_handler.get_lists_of_saving_times(archive_path_list)
-        
-        print('register 2')
         
         for idx, archive in enumerate(archive_list):
      
@@ -356,17 +354,28 @@ class AssasDatabaseManager:
             self.add_internal_database_entry(document_file.get_document())
 
     def convert_archives_to_hdf5(
-        self
+        self,
+        number_of_archives_to_convert: int = -1 
     )-> bool:
         
         success = False
         
         documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.UPLOADED)
-        document_file_list = [AssasDocumentFile(document) for document in documents]
+        
+        if number_of_archives_to_convert >= 0:
+            logger.info(f'Update the first {number_of_archives_to_convert} archives in state UPLOADED')
+            document_file_list = [AssasDocumentFile(document) for document in documents[0:number_of_archives_to_convert]]
+        else:
+            logger.info(f'Update all archives in state UPLOADED')
+            document_file_list = [AssasDocumentFile(document) for document in documents]
         
         archive_path_list = [document_file.get_value('system_path') for document_file in document_file_list]
         result_path_list = [document_file.get_value('system_result') for document_file in document_file_list]
         logger.info(f'Convert following archives: {archive_path_list}, result paths: {result_path_list}')
+        
+        for document_file in document_file_list:
+            document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTING)
+            self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())       
         
         try:            
             
@@ -379,18 +388,16 @@ class AssasDatabaseManager:
             
             for idx, document_file in enumerate(document_file_list):
 
-                logger.info(f'Update status to CONVERTED')        
-                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)           
+                logger.info(f'Update status to VALIDATED')        
+                document_file.set_value('system_status', AssasDocumentFileStatus.VALIDATED)           
                 document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(result_path_list[idx]))
                 
                 self.database_handler.update_file_document_by_path(archive_path_list[idx], document_file.get_document())
             
-            print('convert 4')
             success = True
             
         except:
             
             logger.error(f'Error during conversion occured')
 
-        print('convert 5')
         return success

@@ -82,9 +82,9 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
         self.database_manager.empty_internal_database()
         
-    #def test_database_manager_get_datasets(self):
+    def test_database_manager_get_datasets(self):
         
-    #    self.database_manager.get_all_database_entries()
+        self.database_manager.get_all_database_entries()
         
     #def test_database_manager_SBO_fb_100_samples_register(self):
         
@@ -110,13 +110,11 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_database_manager_process_uploads(self):
         
-        self.database_manager.empty_internal_database()
-        
         self.assertTrue(self.database_manager.process_uploads())
         
     def test_database_manager_convert_archives_to_hdf5(self):
         
-        self.assertTrue(self.database_manager.convert_archives_to_hdf5())
+        self.assertTrue(self.database_manager.convert_archives_to_hdf5(number_of_archives_to_convert=2))
         
 if __name__ == '__main__':
     unittest.main()

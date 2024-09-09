@@ -91,6 +91,24 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
                 
         self.assertEqual(update['system_result'], found_document['system_result'])
         
+    def test_database_handler_insert_update_by_upload_uuid_and_find(self):
+        
+        new_upload_uuid = uuid4()
+        document = AssasDocumentFile.get_test_document_file(system_upload_uuid=str(new_upload_uuid))
+        print(document)
+        update = {'system_user':'usertochange'}
+        
+        self.database_handler.insert_file_document(document)
+        
+        found_document = self.database_handler.get_file_document_by_upload_uuid(new_upload_uuid)
+        self.assertEqual(document, found_document)        
+        
+        self.database_handler.update_file_document_by_upload_uuid(new_upload_uuid, update)
+        
+        found_document = self.database_handler.get_file_document_by_upload_uuid(new_upload_uuid)
+                
+        self.assertEqual(update['system_user'], found_document['system_user'])
+        
     def test_database_handler_empty_database(self):
         
         self.database_handler.drop_file_collection()
