@@ -118,7 +118,7 @@ class AssasDatabaseManager:
         
         data_frame = pandas.DataFrame(list(file_collection.find()))
         
-        logger.info(f'load data frame with size {str(data_frame.size), str(data_frame.shape)}')
+        logger.info(f'Load data frame with size {str(data_frame.size), str(data_frame.shape)}')
         
         if data_frame.size == 0:
             return data_frame
@@ -181,7 +181,7 @@ class AssasDatabaseManager:
         
         if len(document_file_list) == 0:
             
-            logger.info(f'No new uploaded archives present')
+            logger.info(f'No archives in state CONVERTED present')
         
         try:       
             
@@ -380,7 +380,9 @@ class AssasDatabaseManager:
     )-> bool:
         
         documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.CONVERTING)
-        return documents is not None
+        document_files = [AssasDocumentFile(document) for document in documents]
+        
+        return len(document_files) > 0
     
     def convert_archives_to_hdf5(
         self,
@@ -395,17 +397,18 @@ class AssasDatabaseManager:
             return success
             
         documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.UPLOADED)
+        document_files = [AssasDocumentFile(document) for document in documents]
         
-        if number_of_archives_to_convert > len(documents):
+        if number_of_archives_to_convert > len(document_files):
             logger.error('Request more archives than present')
             return success
         
         if number_of_archives_to_convert >= 0:
             logger.info(f'Update the first {number_of_archives_to_convert} archives in state UPLOADED')
-            document_file_list = [AssasDocumentFile(document) for document in documents[0:number_of_archives_to_convert]]
+            document_file_list = document_files[0:number_of_archives_to_convert]
         else:
             logger.info(f'Update all archives in state UPLOADED')
-            document_file_list = [AssasDocumentFile(document) for document in documents]
+            document_file_list = document_files
         
         archive_path_list = [document_file.get_value('system_path') for document_file in document_file_list]
         result_path_list = [document_file.get_value('system_result') for document_file in document_file_list]

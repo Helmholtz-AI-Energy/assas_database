@@ -84,7 +84,8 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_database_manager_get_datasets(self):
         
-        self.database_manager.get_all_database_entries()
+        frames = self.database_manager.get_all_database_entries()
+        print(set(frames['system_status']))
         
     #def test_database_manager_SBO_fb_100_samples_register(self):
         
@@ -114,7 +115,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_database_manager_convert_archives_to_hdf5(self):
         
-        self.assertTrue(self.database_manager.convert_archives_to_hdf5(number_of_archives_to_convert=2))
+        self.assertTrue(self.database_manager.convert_archives_to_hdf5(number_of_archives_to_convert=1))
         
     def test_database_manager_get_size(self):
         
@@ -130,6 +131,10 @@ class AssasDatabaseManagerTest(unittest.TestCase):
     def test_database_manager_update_archive_sizes(self):
         
         self.assertTrue(self.database_manager.update_archive_sizes())
+        
+    def test_database_manager_conversion_in_progress(self):
+        
+        self.assertTrue(self.database_manager.conversion_in_progress())
         
 if __name__ == '__main__':
     unittest.main()
