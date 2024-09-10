@@ -116,5 +116,20 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         self.assertTrue(self.database_manager.convert_archives_to_hdf5(number_of_archives_to_convert=2))
         
+    def test_database_manager_get_size(self):
+        
+        size_bytes = AssasDatabaseManager.get_size_of_directory_in_bytes('/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin')
+        size = AssasDatabaseManager.convert_from_bytes(size_bytes)
+        print(f'size {size}')
+        
+    def test_database_manager_file_size(self):
+        
+        size = AssasDatabaseManager.file_size('/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/result/dataset.h5')
+        print(f'size {size}')
+        
+    def test_database_manager_update_archive_sizes(self):
+        
+        self.assertTrue(self.database_manager.update_archive_sizes())
+        
 if __name__ == '__main__':
     unittest.main()

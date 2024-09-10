@@ -123,11 +123,11 @@ class AssasDatabaseHandler:
 
 class AssasDocumentFileStatus:
     UPLOADED = 'Uploaded'
-    CONVERTING = 'Converting'
-    VALIDATED = 'Validated'
-    ARCHIVED = 'Archived'
-    FAILED = 'Failed'
     CORRUPTED = 'Corrupted'
+    CONVERTING = 'Converting'
+    CONVERTED = 'Converted'
+    FAILED = 'Failed'
+    VALIDATED = 'Validated'
 
 class AssasDocumentFile:
     

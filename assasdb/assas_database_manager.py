@@ -7,6 +7,7 @@ import uuid
 import pathlib
 import pickle
 import threading
+import subprocess
 
 from uuid import uuid4
 from datetime import datetime
@@ -142,6 +143,66 @@ class AssasDatabaseManager:
         self.database_handler.drop_file_collection()
     
     @staticmethod
+    def convert_from_bytes(
+        num: float,
+        blocksize: float = 1024.0
+    )-> str:
+        """
+        This function will convert kilobytes to MB, GB, and TB.
+        """
+        
+        logger.info(f'Num {num}')
+        
+        for x in ['B', 'KB', 'MB', 'GB', 'TB']:
+            
+            if num < blocksize:
+                
+                converted_string = f'{round(num, 2)} {x}'
+                logger.info(f'Converted into {converted_string}')
+                return converted_string
+            
+            num /= blocksize
+    
+    @staticmethod
+    def get_size_of_directory_in_bytes(
+        directory: str
+    )-> float:
+        logger.info(f'Get size of {directory}')
+        return float(subprocess.check_output(['du', '-sb', directory]).split()[0])
+    
+    def update_archive_sizes(
+        self
+    )-> bool:
+        
+        success = False
+        
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.CONVERTED)
+        document_file_list = [AssasDocumentFile(document) for document in documents]
+        
+        if len(document_file_list) == 0:
+            
+            logger.info(f'No new uploaded archives present')
+        
+        try:       
+            
+            for document_file in document_file_list:
+            
+                archive_size = AssasDatabaseManager.get_size_of_directory_in_bytes(document_file.get_value('system_path'))
+                converted_size = AssasDatabaseManager.convert_from_bytes(archive_size)
+            
+                document_file.set_value('system_size', converted_size)
+                document_file.set_value('system_status', AssasDocumentFileStatus.VALIDATED)
+                self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+                
+            success = True
+        
+        except Exception as exception:
+            
+            logger.error(f'Error during update of archive sizes occured: {exception}')
+            
+        return success
+            
+    @staticmethod
     def get_upload_uuids(
         upload_file: str
     )-> List[uuid4]:
@@ -160,26 +221,6 @@ class AssasDatabaseManager:
         return upload_uuid_list
     
     @staticmethod
-    def convert_bytes(
-        num: float
-    )-> str:
-        """
-        this function will convert bytes to MB.... GB... etc
-        """
-        
-        logger.info(f'Num {num}')
-        
-        for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
-            
-            if num < 1024.0:
-                
-                converted_string = f'{round(num, 2)} {x}'
-                logger.info(f'Converted into {converted_string}')
-                return converted_string
-            
-            num /= 1024.0
-
-    @staticmethod
     def file_size(
         file_path: str
     )-> str:
@@ -191,33 +232,14 @@ class AssasDatabaseManager:
             file_info = os.stat(file_path)
             logger.info(f'File size: {file_info.st_size} Os.path.getsize: {os.path.getsize(file_path)}')
             
-            converted_in_bytes = AssasDatabaseManager.convert_bytes(file_info.st_size)
+            converted_in_bytes = AssasDatabaseManager.convert_from_bytes(file_info.st_size)
             logger.info(f'Converted in bytes {converted_in_bytes}')
             
             return converted_in_bytes
         
         if os.path.isdir(file_path):
             
-            logger.info(f'File_path: {file_path}')
-            
-            nbytes = sum(d.stat().st_size for d in os.scandir('.') if d.is_file())
-            logger.info(f'Nbytes {nbytes}')
-            
-            #size = ''
-            #for path, dirs, files in os.walk(file_path):
-            #    for f in files:
-                    
-            #        fp = os.path.join(path, f)
-            #        size += os.path.getsize(fp)
- 
-            # display size
-            #logger.info("Folder size: " + str(size))
-            #logger.info(f'Nbytes {nbytes}')
-            
-            converted_in_bytes = AssasDatabaseManager.convert_bytes(nbytes)
-            logger.info(f'Converted in bytes {converted_in_bytes}')
-            
-            return converted_in_bytes
+            raise NotImplementedError(f'Path {file_path} points to a directory')
     
     def get_uploaded_archives_to_process(
         self
@@ -353,14 +375,30 @@ class AssasDatabaseManager:
             document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(archive.result_path))
             self.add_internal_database_entry(document_file.get_document())
 
+    def conversion_in_progress(
+        self
+    )-> bool:
+        
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.CONVERTING)
+        return documents is not None
+    
     def convert_archives_to_hdf5(
         self,
-        number_of_archives_to_convert: int = -1 
+        number_of_archives_to_convert: int = -1
     )-> bool:
         
         success = False
         
+        if self.conversion_in_progress():
+            
+            logger.warning('Conversion is in progess')
+            return success
+            
         documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.UPLOADED)
+        
+        if number_of_archives_to_convert > len(documents):
+            logger.error('Request more archives than present')
+            return success
         
         if number_of_archives_to_convert >= 0:
             logger.info(f'Update the first {number_of_archives_to_convert} archives in state UPLOADED')
@@ -374,6 +412,7 @@ class AssasDatabaseManager:
         logger.info(f'Convert following archives: {archive_path_list}, result paths: {result_path_list}')
         
         for document_file in document_file_list:
+            logger.info(f'Update status to CONVERTING')
             document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTING)
             self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())       
         
@@ -388,16 +427,22 @@ class AssasDatabaseManager:
             
             for idx, document_file in enumerate(document_file_list):
 
-                logger.info(f'Update status to VALIDATED')        
-                document_file.set_value('system_status', AssasDocumentFileStatus.VALIDATED)           
+                logger.info(f'Update status to CONVERTED')        
+                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)           
                 document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(result_path_list[idx]))
                 
                 self.database_handler.update_file_document_by_path(archive_path_list[idx], document_file.get_document())
             
             success = True
             
-        except:
+        except Exception as exception:
             
-            logger.error(f'Error during conversion occured')
+            for document_file in document_file_list:
+                
+                logger.info(f'Update status to FAILED')
+                document_file.set_value('system_status', AssasDocumentFileStatus.FAILED)
+                self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document()) 
+            
+            logger.error(f'Error during conversion occured: {exception}')
 
         return success

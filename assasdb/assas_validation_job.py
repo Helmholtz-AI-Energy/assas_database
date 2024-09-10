@@ -1,10 +1,18 @@
 import datetime
+import logging
+import sys
+
 from assasdb import AssasDatabaseManager
 
-number_of_archives_to_convert = 1
+logger = logging.getLogger('assas_app')
+
+logging.basicConfig(
+    format = '%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s',
+    level = logging.INFO,
+    stream = sys.stdout)
 
 now = datetime.datetime.now()
-print(f'Start conversion as cron job at {now}')
+logger.info(f'Start update of archive sizes as cron job at {now}')
 
 class CronConfig(object):
     
@@ -24,7 +32,7 @@ class CronConfig(object):
 config = CronConfig()
 
 manager = AssasDatabaseManager(config)
-manager.convert_archives_to_hdf5(number_of_archives_to_convert)
+manager.update_archive_sizes()
 
 now = datetime.datetime.now()
-print(f'Finished conversion at {now}')
+logger.info(f'Finished update of archives sizes at {now}')
