@@ -1,6 +1,7 @@
 import h5py
 import logging
 import os 
+import numpy as np
 
 from .assas_database_dataset import AssasDataset
 from .assas_database_handler import AssasDocumentFile
@@ -38,7 +39,24 @@ class AssasHdf5DatasetHandler:
                 logger.info(f'Create dataset for variable {variable}')
                 group.create_dataset(variable, data=array)
 
-        h5file.close()
+        #h5file.close()
+        
+    @staticmethod
+    def get_variable_data_from_hdf5(
+        file_path: str,
+        variable: str
+    ):
+        
+        logger.info(f'Read dataset from {file_path} for variable {variable}')
+        
+        with h5py.File(file_path, 'r') as h5file:            
+            try:
+                array = h5file['data'][variable][variable][:]
+                logger.info(f'Shape of dataset {np.shape(array)}')
+                
+                return array
+            except:
+                logger.error(f'Wrong variable name {variable}')
 
     @staticmethod
     def write_meta_data_to_hdf5(
@@ -65,7 +83,7 @@ class AssasHdf5DatasetHandler:
             h5file['meta_data'].attrs['meshes'] = document.get_value('meta_data_meshes')
             h5file['meta_data'].attrs['samples'] = document.get_value('meta_data_samples')
         
-        h5file.close()
+        #h5file.close()
         
     @staticmethod
     def read_meta_data_from_hdf5(
@@ -85,7 +103,7 @@ class AssasHdf5DatasetHandler:
             document.set_value('meta_data_meshes', str(h5file['meta_data'].attrs['meshes']))
             document.set_value('meta_data_samples', str(h5file['meta_data'].attrs['samples']))
             
-        h5file.close()
+        #h5file.close()
         
         return document
         

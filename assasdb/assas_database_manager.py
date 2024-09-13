@@ -312,7 +312,7 @@ class AssasDatabaseManager:
                 user=upload_info['user'],
                 description=upload_info['description'],
                 archive_path=self.config.LSDF_ARCHIVE + str(upload_uuid) + archive_path,
-                result_path=self.config.LSDF_ARCHIVE + str(upload_uuid) + '/result/dataset.h5'
+                result_path=self.config.LSDF_ARCHIVE + str(upload_uuid) + archive_path + '/../result/dataset.h5'
             ))
         
         return archive_list
