@@ -282,9 +282,9 @@ class AssasDatabaseManager:
             
             success = True
                    
-        except:
+        except Exception as exception:
             
-            logger.error('Error when processing uploads occured')
+            logger.error(f'Error when processing uploads occured: {exception}')
                 
         return success
     

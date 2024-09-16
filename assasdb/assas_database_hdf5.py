@@ -39,8 +39,6 @@ class AssasHdf5DatasetHandler:
                 logger.info(f'Create dataset for variable {variable}')
                 group.create_dataset(variable, data=array)
 
-        #h5file.close()
-        
     @staticmethod
     def get_variable_data_from_hdf5(
         file_path: str,
@@ -83,8 +81,6 @@ class AssasHdf5DatasetHandler:
             h5file['meta_data'].attrs['meshes'] = document.get_value('meta_data_meshes')
             h5file['meta_data'].attrs['samples'] = document.get_value('meta_data_samples')
         
-        #h5file.close()
-        
     @staticmethod
     def read_meta_data_from_hdf5(
         document: AssasDocumentFile
@@ -103,8 +99,6 @@ class AssasHdf5DatasetHandler:
             document.set_value('meta_data_meshes', str(h5file['meta_data'].attrs['meshes']))
             document.set_value('meta_data_samples', str(h5file['meta_data'].attrs['samples']))
             
-        #h5file.close()
-        
         return document
         
              
