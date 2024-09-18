@@ -234,7 +234,7 @@ class AssasAstecHandler:
             
             result_list.append(result_path_list[idx])
             
-            logger.info(f'Create hdf5 file {result_path_list[idx]}')             
+            logger.info(f'Append data value to hdf5 file {result_path_list[idx]}')             
             AssasHdf5DatasetHandler.write_data_into_hdf5(result_path_list[idx], dataset)
         
         #pa.end()

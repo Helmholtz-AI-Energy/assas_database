@@ -29,11 +29,11 @@ class AssasHdf5DatasetHandler:
         
         with h5py.File(file_path, 'a') as h5file:
             
-            data_group = h5file.create_group('data')
+            data_group = h5file.require_group('data')
                 
             for variable in dataset.get_variables():
                 
-                group = data_group.create_group(variable)
+                group = data_group.require_group(variable)
                 array = dataset.get_data_for_variable(variable)
                 
                 logger.info(f'Create dataset for variable {variable}')

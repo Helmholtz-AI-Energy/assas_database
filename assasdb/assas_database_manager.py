@@ -176,12 +176,12 @@ class AssasDatabaseManager:
         
         success = False
         
-        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.CONVERTED)
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.UPLOADED)
         document_file_list = [AssasDocumentFile(document) for document in documents]
         
         if len(document_file_list) == 0:
             
-            logger.info(f'No archives in state CONVERTED present')
+            logger.info(f'No archives in state UPLOADED present')
         
         try:       
             
@@ -396,7 +396,7 @@ class AssasDatabaseManager:
             logger.warning('Conversion is in progess')
             return success
             
-        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.UPLOADED)
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.VALIDATED)
         document_files = [AssasDocumentFile(document) for document in documents]
         
         if number_of_archives_to_convert > len(document_files):
@@ -404,10 +404,10 @@ class AssasDatabaseManager:
             return success
         
         if number_of_archives_to_convert >= 0:
-            logger.info(f'Update the first {number_of_archives_to_convert} archives in state UPLOADED')
+            logger.info(f'Update the first {number_of_archives_to_convert} archives in state VALIDATED')
             document_file_list = document_files[0:number_of_archives_to_convert]
         else:
-            logger.info(f'Update all archives in state UPLOADED')
+            logger.info(f'Update all archives in state VALIDATED')
             document_file_list = document_files
         
         archive_path_list = [document_file.get_value('system_path') for document_file in document_file_list]
@@ -417,7 +417,7 @@ class AssasDatabaseManager:
         for document_file in document_file_list:
             logger.info(f'Update status to CONVERTING')
             document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTING)
-            self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())       
+            self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())      
         
         try:            
             

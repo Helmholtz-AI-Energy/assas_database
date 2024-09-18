@@ -8,7 +8,7 @@ logger = logging.getLogger('assas_app')
 
 logging.basicConfig(
     format = '%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s',
-    level = logging.ERROR,
+    level = logging.INFO,
     stream = sys.stdout)
 
 now = datetime.datetime.now()
@@ -32,6 +32,8 @@ class CronConfig(object):
 config = CronConfig()
 
 manager = AssasDatabaseManager(config)
+
+manager.process_uploads()
 manager.update_archive_sizes()
 
 now = datetime.datetime.now()
