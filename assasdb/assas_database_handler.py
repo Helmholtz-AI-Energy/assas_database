@@ -120,6 +120,13 @@ class AssasDatabaseHandler:
     ):
         
         return self.file_collection.delete_one({'system_uuid':str(uuid)})
+    
+    def delete_file_document_by_upload_uuid(
+        self,
+        upload_uuid: uuid4
+    ):
+        
+        return self.file_collection.delete_one({'system_upload_uuid':str(upload_uuid)})
 
 class AssasDocumentFileStatus:
     UPLOADED = 'Uploaded'

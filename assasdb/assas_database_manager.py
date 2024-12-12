@@ -128,6 +128,22 @@ class AssasDatabaseManager:
 
         return data_frame
     
+    def set_document_status_by_uuid(
+        self,
+        uuid: uuid4,
+        status: AssasDocumentFileStatus
+    )-> None:
+        
+        update = {f'system_status': f'{str(status)}'}
+        logger.info(f'Update file document with uuid {uuid} with update string {update}')
+        
+        document = self.database_handler.get_file_document_by_uuid(uuid)
+        system_uuid = document['system_uuid']
+        logger.info(f'Found document with uuid {system_uuid}')
+                
+        self.database_handler.update_file_document_by_uuid(uuid, update)
+        logger.info(f'Update file document with uuid {uuid} and set status to {status}')
+    
     def add_internal_database_entry(
         self, 
         document: dict
@@ -221,6 +237,26 @@ class AssasDatabaseManager:
         return upload_uuid_list
     
     @staticmethod
+    def get_upload_uuids2(
+        upload_directory: str
+    )-> List[uuid4]:
+        
+        upload_uuid_list = []
+        
+        for directory in os.listdir(upload_directory):
+            if os.path.isdir(os.path.join(upload_directory, directory)):
+                if os.path.isfile(os.path.join(upload_directory, directory, directory)):
+                    logger.debug(f'Detected complete uploaded archive {os.path.join(upload_directory, directory)}')
+                    try:
+                        upload_uuid_list.append(uuid.UUID(directory))        
+                    except ValueError:
+                        logger.error('Received univalid uuid')
+        
+        logger.debug(f'Read {len(upload_uuid_list)} upload uuids {upload_uuid_list} in {upload_directory}')
+      
+        return upload_uuid_list
+    
+    @staticmethod
     def file_size(
         file_path: str
     )-> str:
@@ -246,7 +282,8 @@ class AssasDatabaseManager:
     )-> List[AssasAstecArchive]:
 
         registered_archive_list = []
-        upload_uuid_list = AssasDatabaseManager.get_upload_uuids(self.config.UPLOAD_FILE)
+        upload_uuid_list = AssasDatabaseManager.get_upload_uuids2(self.config.UPLOAD_DIRECTORY)
+        #upload_uuid_list = AssasDatabaseManager.get_upload_uuids(self.config.UPLOAD_FILE)
         
         for upload_uuid in upload_uuid_list:
         
@@ -285,6 +322,43 @@ class AssasDatabaseManager:
         except Exception as exception:
             
             logger.error(f'Error when processing uploads occured: {exception}')
+                
+        return success
+    
+    def update_upload_info(
+        self,
+        upload_uuid: uuid4,
+        key: str,
+        value_list: List[str]
+    )-> bool:
+    
+        success = False
+        
+        try:
+            
+            upload_info = {}
+            upload_info_file = self.config.LSDF_ARCHIVE + str(upload_uuid) + '/upload_info.pickle'
+        
+            with open(upload_info_file, 'rb') as file:
+                upload_info = pickle.load(file)
+            
+            logger.info(f'Upload information:')
+            for key, value in upload_info.items():
+                logger.info(f'{key}: {value}')
+            
+            logger.info(f'Update key {key} with value {value}')
+            upload_info[key] = value_list
+        
+            with open(upload_info_file, 'wb+') as file:
+                pickle.dump(upload_info, file)
+            
+            logger.info(f'Updated upload information:')
+            for key, value in upload_info.items():
+                logger.info(f'{key}: {value}')
+            
+        except Exception as exception:
+            
+            logger.error(f'Error when updating upload information in file {upload_info_file} occured: {exception}')
                 
         return success
     

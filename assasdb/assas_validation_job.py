@@ -19,7 +19,7 @@ class CronConfig(object):
     DEBUG = True
     DEVELOPMENT = True
     LSDF_ARCHIVE = r'/mnt/ASSAS/upload_test/'
-    UPLOAD_DIRECTORY = r'/mnt/ASSAS/upload_test/uploads/'
+    UPLOAD_DIRECTORY = r'/mnt/ASSAS/upload_test/'
     UPLOAD_FILE = r'/mnt/ASSAS/upload_test/uploads/uploads.txt'
     LOCAL_ARCHIVE = r'/root/upload/'
     PYTHON_VERSION = r'/opt/python/3.11.8/bin/python3.11'

@@ -2,6 +2,7 @@ import unittest
 import logging
 import os
 import shutil
+import uuid
 
 from uuid import uuid4
 from assasdb import AssasDatabaseHandler
@@ -112,6 +113,16 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
     def test_database_handler_empty_database(self):
         
         self.database_handler.drop_file_collection()
+        
+    def test_database_handler_delete_one_by_upload_uuid(self):
+        
+        upload_uuid = uuid.UUID('b6279ecb-0580-4ee9-862a-6754c62ff89c')
+        self.database_handler.delete_file_document_by_upload_uuid(upload_uuid)
+        
+        upload_uuid = uuid.UUID('66045178-aac4-414d-8353-3e3db44f36cc')
+        self.database_handler.delete_file_document_by_upload_uuid(upload_uuid)
+        
+        
         
 if __name__ == '__main__':
     unittest.main()
