@@ -12,7 +12,7 @@ from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserver, PollingObserverVFS
 from watchdog.events import FileSystemEventHandler, LoggingEventHandler, FileSystemEvent
 
-from .assas_database_manager import AssasDatabaseManager
+from assasdb.assas_database_manager import AssasDatabaseManager
 
 logger = logging.getLogger('assas_app')
 
@@ -48,7 +48,7 @@ class AssasUploadWatchdog:
         self.config = config
         self.directory = self.config.UPLOAD_DIRECTORY
         
-        self.observer = PollingObserver()        
+        self.observer = PollingObserver()
     
     def stop(
         self

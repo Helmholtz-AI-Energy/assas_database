@@ -6,7 +6,7 @@ import logging
 import pyodessa as pyod
 import pyastec as pa
 
-import assas_database_dataset as add
+import assasdb.assas_database_dataset as add
 
 from pathlib import Path
 from datetime import datetime

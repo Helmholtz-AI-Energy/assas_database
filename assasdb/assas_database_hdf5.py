@@ -3,8 +3,8 @@ import logging
 import os 
 import numpy as np
 
-from .assas_database_dataset import AssasDataset
-from .assas_database_handler import AssasDocumentFile
+from assasdb.assas_database_dataset import AssasDataset
+from assasdb.assas_database_handler import AssasDocumentFile
 
 logger = logging.getLogger('assas_app')
 

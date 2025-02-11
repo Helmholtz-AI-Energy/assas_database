@@ -7,8 +7,8 @@ import subprocess
 import numpy
 import h5py
 
-from .assas_database_dataset import AssasDataset
-from .assas_database_hdf5 import AssasHdf5DatasetHandler
+from assasdb.assas_database_dataset import AssasDataset
+from assasdb.assas_database_hdf5 import AssasHdf5DatasetHandler
 
 from typing import List, Tuple, Union
 

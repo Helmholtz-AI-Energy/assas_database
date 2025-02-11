@@ -4,14 +4,14 @@ import sys
 
 from assasdb import AssasDatabaseManager
 
+# TODO: Refactor this
+
 logger = logging.getLogger('assas_app')
 
 logging.basicConfig(
     format = '%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s',
     level = logging.INFO,
     stream = sys.stdout)
-
-number_of_archives_to_convert = 1
 
 now = datetime.datetime.now()
 logger.info(f'Start conversion as cron job at {now}')
@@ -31,10 +31,11 @@ class CronConfig(object):
     ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'
     CONNECTIONSTRING = r'mongodb://localhost:27017/'
 
-config = CronConfig()
+cron_config = CronConfig()
 
-manager = AssasDatabaseManager(config)
-manager.convert_archives_to_hdf5(number_of_archives_to_convert)
+AssasDatabaseManager(
+    config = cron_config
+).convert_next_validated_archive()
 
 now = datetime.datetime.now()
 logger.info(f'Finished conversion at {now}')
