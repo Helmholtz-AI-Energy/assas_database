@@ -27,9 +27,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
     
     def setUp(self):
         
-        config = TestConfig()
-        self.database_handler = AssasDatabaseHandler(config)
-        
+        self.database_handler = AssasDatabaseHandler('mongodb://localhost:27017/')
         self.database_handler.drop_file_collection()
         
     def tearDown(self):

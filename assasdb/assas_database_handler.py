@@ -11,10 +11,10 @@ class AssasDatabaseHandler:
 
     def __init__(
         self,
-        config: dict
+        connection_string: str
     )-> None:
         
-        self.client = MongoClient(config.CONNECTIONSTRING)
+        self.client = MongoClient(connection_string)
 
         self.db_handle = self.client['assas']
         self.file_collection = self.db_handle['files']
@@ -36,7 +36,7 @@ class AssasDatabaseHandler:
         file: dict
     ):
         
-        logger.info(f'Insert {file}')        
+        logger.info(f'Insert {file}')
         self.file_collection.insert_one(file)
         
     def drop_file_collection(

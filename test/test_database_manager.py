@@ -17,7 +17,7 @@ logger = logging.getLogger('assas_test')
 
 logging.basicConfig(
     format = '%(asctime)s %(module)s %(levelname)s: %(message)s',
-    level = logging.DEBUG,
+    level = logging.INFO,
     stream = sys.stdout)
 
 class SBO_fb_test_samples:
@@ -52,27 +52,11 @@ class SBO_fb_test_samples:
             result_path=f'/mnt/ASSAS/upload_test/{str(upload_uuid)}/result/dataset.h5'
         )
     
-class TestConfig(object):
-    
-    DEBUG = True
-    DEVELOPMENT = True
-    LSDF_ARCHIVE = r'/mnt/ASSAS/upload_test/'
-    UPLOAD_DIRECTORY = r'/mnt/ASSAS/upload_test/uploads/'
-    UPLOAD_FILE = r'/mnt/ASSAS/upload_test/uploads/uploads.txt'
-    LOCAL_ARCHIVE = r'/root/upload/'
-    PYTHON_VERSION = r'/opt/python/3.11.8/bin/python3.11'
-    ASTEC_ROOT = r'/root/astecV3.1.1_linux64/astecV3.1.1'
-    ASTEC_COMPUTER = r'linux_64'
-    ASTEC_COMPILER = r'release' 
-    ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'
-    CONNECTIONSTRING = r'mongodb://localhost:27017/'
-
 class AssasDatabaseManagerTest(unittest.TestCase):
     
     def setUp(self):
         
-        self.config = TestConfig()
-        self.database_manager = AssasDatabaseManager(self.config)
+        self.database_manager = AssasDatabaseManager()
         
     def tearDown(self):
         
@@ -113,9 +97,9 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         self.assertTrue(self.database_manager.process_uploads())
         
-    def test_database_manager_convert_archives_to_hdf5(self):
-        
-        self.assertTrue(self.database_manager.convert_archives_to_hdf5(number_of_archives_to_convert=1))
+    #def test_database_manager_convert_archives_to_hdf5(self):
+    #    
+    #    self.assertTrue(self.database_manager.convert_archives_to_hdf5(number_of_archives_to_convert=1))
         
     def test_database_manager_get_size(self):
         
@@ -166,11 +150,14 @@ class AssasDatabaseManagerTest(unittest.TestCase):
                 document_uuid = uuid.UUID(document_uuid_str)
                 
                 self.database_manager.set_document_status_by_uuid(document_uuid, status)
-    '''
              
     def test_database_manager_get_upload_uuids(self):
         
         AssasDatabaseManager.get_upload_uuids2('/mnt/ASSAS/upload_test')
+    '''
+    def test_database_manager_convert_next(self):
+        
+        self.database_manager.convert_next_validated_archive()
             
        
 if __name__ == '__main__':

@@ -15,7 +15,6 @@ from typing import List, Union
 from os.path import join, dirname, abspath
 from pathlib import Path
 
-#from .assas_utils import get_duration
 from assasdb.assas_utils import get_duration
 
 logger = logging.getLogger('assas_app')
@@ -24,9 +23,9 @@ ROOT = '/root/astecV3.1.2'
 COMPUTER = 'linux_64'
 
 astec_python_location = os.path.join(ROOT, "odessa", "bin", COMPUTER + "-release", "wrap_python")
-print(f'{astec_python_location}')
 
 if astec_python_location not in sys.path:
+    logger.info(f'Append path to odessa to environment: {astec_python_location}')
     sys.path.append(astec_python_location)
 
 import pyodessa as pyod
@@ -61,13 +60,13 @@ class AssasOdessaNetCDF4Converter:
 
         self.input_path = input_path
         self.output_path = Path(output_path)
+        logger.info(f'Output path {str(self.output_path)}')
         if os.path.exists(self.output_path.parent.absolute()):
             shutil.rmtree(self.output_path.parent.absolute())
-        self.output_path.mkdir(parents = True, exist_ok = True)
+            logger.info(f'removed: {str(self.output_path)}')
+        self.output_path.parent.mkdir(parents = True, exist_ok = True)
         
-        time_points = pyod.get_saving_times(input_path)
-        time_points = time_points[0:10]
-        self.time_points = time_points
+        self.time_points = pyod.get_saving_times(input_path)
         
         self.variable_index = AssasOdessaNetCDF4Converter.read_astec_variable_index(
             filename = astec_variable_index_file
@@ -213,7 +212,7 @@ class AssasOdessaNetCDF4Converter:
         logger.info(f'Parse ASTEC data from binary with path {self.input_path}.')
         logger.info(f'Read following time_points from ASTEC archive: {self.time_points}.')
 
-        with netCDF4.Dataset(f'{self.output_path}/{output_file}', 'w', format='NETCDF4') as ncfile:
+        with netCDF4.Dataset(f'{self.output_path}', 'w', format='NETCDF4') as ncfile:
 
             variable_datasets = {}
             
