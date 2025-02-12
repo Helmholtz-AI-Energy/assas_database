@@ -60,17 +60,21 @@ class AssasOdessaNetCDF4Converter:
 
         self.input_path = input_path
         self.output_path = Path(output_path)
-        logger.info(f'Output path {str(self.output_path)}')
-        if os.path.exists(self.output_path.parent.absolute()):
-            shutil.rmtree(self.output_path.parent.absolute())
-            logger.info(f'removed: {str(self.output_path)}')
+        logger.info(f'Output path of hdf5 file is {str(self.output_path)}.')
+
+        #if os.path.exists(self.output_path.parent.absolute()):
+        #    shutil.rmtree(self.output_path.parent.absolute())
+        #    logger.info(f'Removed existing output path: {str(self.output_path)}.')
+
         self.output_path.parent.mkdir(parents = True, exist_ok = True)
-        
+
         self.time_points = pyod.get_saving_times(input_path)
-        
+        self.time_points = self.time_points[0:10]
+
         self.variable_index = AssasOdessaNetCDF4Converter.read_astec_variable_index(
             filename = astec_variable_index_file
         )
+
         self.variable_strategy_mapping = { # TODO: Implement all other types
             'vessel': AssasOdessaNetCDF4Converter.parse_variable_from_odessa_in_vessel,
             'other': AssasOdessaNetCDF4Converter.parse_variable_from_odessa_in_other,
@@ -193,6 +197,25 @@ class AssasOdessaNetCDF4Converter:
         
         return np.zeros((2, 5))
 
+    @staticmethod
+    def set_general_meta_data(
+        output_path: str,
+        archive_name: str,
+        archive_description: str,
+    ) -> None:
+        
+        output_path_object = Path(output_path)
+        logger.info(f'Output path of hdf5 file is {str(output_path_object)}.')
+
+        output_path_object.parent.mkdir(parents = True, exist_ok = True)
+        
+        with netCDF4.Dataset(f'{output_path_object}', 'w', format='NETCDF4') as ncfile:
+            
+            ncfile.title = archive_name
+            
+            ncfile.setncattr('name', archive_name)
+            ncfile.setncattr('description', archive_description)
+    
     def convert_astec_variables_to_netcdf4(
         self,
         output_file: str = 'dataset.h5'
@@ -212,7 +235,7 @@ class AssasOdessaNetCDF4Converter:
         logger.info(f'Parse ASTEC data from binary with path {self.input_path}.')
         logger.info(f'Read following time_points from ASTEC archive: {self.time_points}.')
 
-        with netCDF4.Dataset(f'{self.output_path}', 'w', format='NETCDF4') as ncfile:
+        with netCDF4.Dataset(f'{self.output_path}', 'a', format='NETCDF4') as ncfile:
 
             variable_datasets = {}
             

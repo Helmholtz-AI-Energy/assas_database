@@ -379,7 +379,7 @@ class AssasDatabaseManager:
                 user = upload_info['user'],
                 description = upload_info['description'],
                 archive_path = str(archive_path) + archive_sub_path,
-                result_path = str(archive_path) + archive_sub_path + '/../result/dataset.h5',
+                result_path = str(archive_path) + archive_sub_path + '/../result/dataset.h5', # Put result next to binary
             ))
         
         return archive_list
@@ -388,27 +388,27 @@ class AssasDatabaseManager:
         self,
         archive_list: List[AssasAstecArchive]
     ) -> None:
-        
+
         logger.info('Start registering archives')
-        
+
         archive_path_list = [archive.archive_path for archive in archive_list]
         lists_of_saving_time = AssasOdessaNetCDF4Converter.get_lists_of_saving_times(archive_path_list)
-        
+
         for idx, archive in enumerate(archive_list):
-     
+
             if len(lists_of_saving_time[idx]) == 1:
-                
+
                 system_status=AssasDocumentFileStatus.CORRUPTED
                 logger.error(f'Archive is corrupted, set status to CORRUPTED {archive.archive_path}')
-            
+
             else:
-                
+
                 logger.info(f'Archive is consistent, set status to UPLOADED {archive.archive_path}')
                 system_status=AssasDocumentFileStatus.UPLOADED
-                
+
             document_file = AssasDocumentFile()
             number_of_samples = len(lists_of_saving_time[idx])
-            
+
             document_file.set_system_values(
                 system_uuid = str(uuid.uuid4()),
                 system_upload_uuid = archive.upload_uuid,
@@ -417,29 +417,22 @@ class AssasDatabaseManager:
                 system_result = archive.result_path,
                 system_size = f'{str(round(AssasOdessaNetCDF4Converter.get_size_of_archive_in_giga_bytes(number_of_samples), 2))} GB',
                 system_user = archive.user,
-                system_download = 'Download',
+                system_download = 'hdf5 file',
                 system_status = system_status
             )
-            
+
             document_file.set_general_meta_values(
                 meta_name = archive.name,
                 meta_description = archive.description
             )
-            
-            #dataset = AssasDataset(archive.name, number_of_samples)
-            
-            #document_file.set_meta_data_values(
-            #    meta_data_variables='[' + ' '.join(f'{variable}' for variable in dataset.get_variables()) + ']',
-            #    meta_data_channels=dataset.get_no_channels(),
-            #    meta_data_meshes=dataset.get_no_meshes(),
-            #    meta_data_samples=dataset.get_no_samples()
-            #)
-            
-            #AssasHdf5DatasetHandler.write_meta_data_to_hdf5(
-            #    document=document_file
-            #)
-            
-            #document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(archive.result_path))
+
+            AssasOdessaNetCDF4Converter.set_general_meta_data(
+                output_path = archive.result_path,
+                archive_name = archive.name,
+                archive_description = archive.description
+            )
+
+            document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(archive.result_path))
             self.add_internal_database_entry(document_file.get_document())
 
     def conversion_in_progress(
