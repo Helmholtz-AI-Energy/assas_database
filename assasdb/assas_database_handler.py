@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from uuid import uuid4
 from datetime import datetime
+from typing import List
 
 logger = logging.getLogger('assas_app')
 
@@ -183,17 +184,11 @@ class AssasDocumentFile:
         
     def set_meta_data_values(
         self,
-        meta_data_variables: str,
-        meta_data_channels: int,
-        meta_data_meshes: int,
-        meta_data_samples: int
+        meta_data_variables: List[dict],
     ) -> None:
-        
+
         self.document['meta_data_variables'] = meta_data_variables
-        self.document['meta_data_channels'] = meta_data_channels
-        self.document['meta_data_meshes'] = meta_data_meshes
-        self.document['meta_data_samples'] = meta_data_samples
-        
+
     def set_value(
         self,
         key: str,

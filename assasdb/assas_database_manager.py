@@ -447,6 +447,7 @@ class AssasDatabaseManager:
 
     def convert_next_validated_archive(
         self,
+        explicit_times: List[int] = None,
     )-> None:
         
         documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.VALIDATED)
@@ -466,7 +467,9 @@ class AssasDatabaseManager:
             AssasOdessaNetCDF4Converter(
                 input_path = document_file.get_value('system_path'),
                 output_path = document_file.get_value('system_result'),
-            ).convert_astec_variables_to_netcdf4()
+            ).convert_astec_variables_to_netcdf4(
+                explicit_times = explicit_times
+            )
             
             document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)
             document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(document_file.get_value('system_result')))
@@ -479,3 +482,35 @@ class AssasDatabaseManager:
             
             document_file.set_value('system_status', AssasDocumentFileStatus.FAILED)
             self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+            
+    def collect_meta_data_after_conversion(
+        self
+    )-> None:
+        
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.CONVERTED)
+        document_files = [AssasDocumentFile(document) for document in documents]
+        
+        if len(document_files) == 0:
+            logger.info(f'Found no new archive to convert')
+            return
+        
+        try:
+            
+            for document_file in document_files:
+                
+                logger.info(f"Collect meta info from file {document_file.get_value('system_result')}")
+                
+                meta_info = AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4(
+                    netcdf4_file = document_file.get_value('system_result')
+                )
+                
+                document_file.set_meta_data_values(
+                    meta_data_variables = meta_info
+                )
+                
+                self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+                
+        except Exception as exception:
+            
+            logger.error(f'Update meta info failed to FAILED due to exception: {exception}')
+

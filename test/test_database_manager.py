@@ -158,7 +158,11 @@ class AssasDatabaseManagerTest(unittest.TestCase):
     def test_database_manager_convert_next(self):
         
         self.database_manager.convert_next_validated_archive()
-            
-       
+        
+    def test_database_manager_collect_meta(self):
+        
+        self.database_manager.collect_meta_data_after_conversion()
+        
+
 if __name__ == '__main__':
     unittest.main()

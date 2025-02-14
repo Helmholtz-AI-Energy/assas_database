@@ -63,6 +63,7 @@ class AssasOdessaNetCDF4Converter:
         self.output_path.parent.mkdir(parents = True, exist_ok = True)
 
         self.time_points = pyod.get_saving_times(input_path)
+        logger.info(f'Read following time points from ASTEC archive: {self.time_points}.')
 
         self.variable_index = self.read_astec_variable_index(
             variable_index_file = astec_variable_index_file
@@ -72,12 +73,37 @@ class AssasOdessaNetCDF4Converter:
             'vessel': AssasOdessaNetCDF4Converter.parse_variable_from_odessa_in_vessel,
             'other': AssasOdessaNetCDF4Converter.parse_variable_from_odessa_in_other,
         }
+        
+    def get_time_points(
+        self
+    ) -> List[int]:
+        
+        return self.time_points
+    
+    def get_variable_index(
+        self
+    ) -> pd.DataFrame:
+        
+        return self.variable_index
 
     @staticmethod
     def get_size_of_archive_in_giga_bytes(
         number_of_timesteps: int,
         size_of_saving: float = 1.68
     ) -> float:
+        '''
+        Function to estimate the size of the ASTEC archive.
+        
+        Parameters
+        ----------
+        number_of_timesteps: int
+            Number of timesteps assumed in the ASTEC archive.
+        
+        Returns
+        ----------
+        float 
+            Estimation of the size in giga bytes.
+        '''
         
         size_in_giga_bytes = (number_of_timesteps * size_of_saving) / 1000.0
         
@@ -86,7 +112,21 @@ class AssasOdessaNetCDF4Converter:
     @staticmethod
     def get_lists_of_saving_times(
         archive_path_list: List[str],
-    ) -> List[List[str]]:
+    ) -> List[List[int]]:
+        '''
+        Get the time points for a list of ASTEC archives.
+        
+        Parameters
+        ----------
+        archive_path_list: List[str]
+            List of the ASTEC binary archives.
+        
+        Returns
+        ----------
+        List[List[int]] 
+            List of List of integers containing all time points 
+            of the ASTEC archives.
+        '''
 
         result_list = []
 
@@ -120,8 +160,6 @@ class AssasOdessaNetCDF4Converter:
             List of strings representing the ASTEC variable names.
         '''
 
-        #csv_path = dirname(abspath(__file__))
-        #csv_path = join(csv_path, filename)
         csv_path = pkg_resources.resource_stream(__name__, variable_index_file)
         logger.info(f'Read variable index file {csv_path}')
         
@@ -211,9 +249,41 @@ class AssasOdessaNetCDF4Converter:
             ncfile.setncattr('name', archive_name)
             ncfile.setncattr('description', archive_description)
     
+    @staticmethod
+    def read_meta_values_from_netcdf4(
+        netcdf4_file: str,
+    )-> List[dict]:
+
+        result = []
+
+        with netCDF4.Dataset(f'{netcdf4_file}', 'r', format='NETCDF4') as ncfile:
+
+            for variable_name in ncfile.variables.keys():
+
+                variable_dict = {}
+
+                variable_dict['Name'] = variable_name
+                logger.info(f'Read variable {variable_name}.')
+
+                dimensions = ncfile.variables[variable_name].dimensions
+                
+                dimension_string = ' '.join(str(dimension) for dimension in dimensions)
+                variable_dict['Dimensions'] = ' '.join(str(dimension) for dimension in dimensions)
+                logger.debug(f'Dimension string {dimension_string}.')
+                
+                shapes = ncfile.variables[variable_name].shape
+                
+                shape_string = ' '.join(str(shape) for shape in shapes)
+                variable_dict['Shape'] = ' '.join(str(shape) for shape in shapes)
+                logger.debug(f'Shape string {shape_string}.')
+                
+                result.append(variable_dict)
+        
+        return result
+    
     def convert_astec_variables_to_netcdf4(
         self,
-        output_file: str = 'dataset.h5'
+        explicit_times: List[int] = None,
     ) -> None:
         '''
         Convert the data for given ASTEC variables from odessa into hdf5.
@@ -228,7 +298,6 @@ class AssasOdessaNetCDF4Converter:
         '''
     
         logger.info(f'Parse ASTEC data from binary with path {self.input_path}.')
-        logger.info(f'Read following time_points from ASTEC archive: {self.time_points}.')
 
         with netCDF4.Dataset(f'{self.output_path}', 'a', format='NETCDF4') as ncfile:
 
@@ -246,8 +315,14 @@ class AssasOdessaNetCDF4Converter:
                     dimensions = ('time', 'channel', 'mesh'),
                 )
                 variable_datasets[variable['name']].units = variable['unit']
-            
-            for idx, time_point in enumerate(self.time_points):
+
+            time_points = self.time_points
+            if explicit_times is not None:
+                time_points = time_points[explicit_times[0]:explicit_times[1]]
+                
+            logger.info(f'Parse following time points from ASTEC archive: {time_points}.')
+
+            for idx, time_point in enumerate(time_points):
 
                 logger.info(f'Restore odessa base for time point {time_point}.')
                 odessa_base = pyod.restore(self.input_path, time_point)

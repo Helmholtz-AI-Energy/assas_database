@@ -18,7 +18,9 @@ logger.info(f'Start conversion as cron job at {now}')
 
 manager = AssasDatabaseManager()
 
-manager.convert_next_validated_archive()
+manager.convert_next_validated_archive(
+    explicit_times = [0,10] 
+)
 
 now = datetime.datetime.now()
 logger.info(f'Finished conversion at {now}')
