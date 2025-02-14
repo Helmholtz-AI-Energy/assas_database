@@ -10,6 +10,7 @@ import logging.handlers
 import numpy as np
 import pandas as pd
 import shutil
+import pkg_resources
 
 from typing import List, Union
 from os.path import join, dirname, abspath
@@ -62,14 +63,9 @@ class AssasOdessaNetCDF4Converter:
         self.output_path = Path(output_path)
         logger.info(f'Output path of hdf5 file is {str(self.output_path)}.')
 
-        #if os.path.exists(self.output_path.parent.absolute()):
-        #    shutil.rmtree(self.output_path.parent.absolute())
-        #    logger.info(f'Removed existing output path: {str(self.output_path)}.')
-
         self.output_path.parent.mkdir(parents = True, exist_ok = True)
 
         self.time_points = pyod.get_saving_times(input_path)
-        self.time_points = self.time_points[0:10]
 
         self.variable_index = AssasOdessaNetCDF4Converter.read_astec_variable_index(
             filename = astec_variable_index_file
@@ -127,9 +123,11 @@ class AssasOdessaNetCDF4Converter:
             List of strings representing the ASTEC variable names.
         '''
 
-        csv_path = dirname(abspath(__file__))
-        csv_path = join(csv_path, filename)
-
+        #csv_path = dirname(abspath(__file__))
+        #csv_path = join(csv_path, filename)
+        csv_path = pkg_resources.resource_stream(__name__, 'data/astec_vessel_ther_variables_inr.csv')
+        logger.info(f'Read variable index file {csv_path}')
+        
         dataframe = pd.read_csv(csv_path)
 
         logger.debug(f'Read ASTEC variables to process from file {filename}.')
