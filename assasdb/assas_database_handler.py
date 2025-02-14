@@ -11,13 +11,17 @@ class AssasDatabaseHandler:
 
     def __init__(
         self,
-        connection_string: str
+        connection_string: str = 'mongodb://localhost:27017/',
+        database_name: str = 'assas',
+        file_collection_name: str = 'files'
     )-> None:
         
-        self.client = MongoClient(connection_string)
+        self.client = MongoClient(
+            host = connection_string
+        )
 
-        self.db_handle = self.client['assas']
-        self.file_collection = self.db_handle['files']
+        self.db_handle = self.client[database_name]
+        self.file_collection = self.db_handle[file_collection_name]
 
     def get_db_handle(
         self

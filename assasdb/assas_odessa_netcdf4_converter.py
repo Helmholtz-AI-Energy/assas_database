@@ -37,8 +37,7 @@ class AssasOdessaNetCDF4Converter:
         self,
         input_path: str,
         output_path: Union[str, Path],
-        #time_points: List[float],
-        astec_variable_index_file: str = 'astec_vessel_ther_variables_inr.csv',
+        astec_variable_index_file: str = 'data/astec_vessel_ther_variables_inr.csv',
     ) -> None:
         '''
         Initialize AssasOdessaNetCDF4Converter class.
@@ -49,8 +48,6 @@ class AssasOdessaNetCDF4Converter:
             Input path of ASTEC binary archive to convert.
         output_path: str
             Output path of resulting netCDF4 dataset.
-        time_points: List[float]
-            List of time points to convert.
         astec_variable_index_file: str, optional
             CSV file containing hte information about the ASTEc varibales to extract.
         
@@ -67,8 +64,8 @@ class AssasOdessaNetCDF4Converter:
 
         self.time_points = pyod.get_saving_times(input_path)
 
-        self.variable_index = AssasOdessaNetCDF4Converter.read_astec_variable_index(
-            filename = astec_variable_index_file
+        self.variable_index = self.read_astec_variable_index(
+            variable_index_file = astec_variable_index_file
         )
 
         self.variable_strategy_mapping = { # TODO: Implement all other types
@@ -105,9 +102,9 @@ class AssasOdessaNetCDF4Converter:
 
         return result_list
     
-    @staticmethod
     def read_astec_variable_index(
-        filename: str = 'astec_variables.csv'
+        self,
+        variable_index_file: str = 'data/astec_vessel_ther_variables_inr.csv'
     )-> pd.DataFrame:
         '''
         Read names of the ASTEC variables into a dataframe.
@@ -125,12 +122,12 @@ class AssasOdessaNetCDF4Converter:
 
         #csv_path = dirname(abspath(__file__))
         #csv_path = join(csv_path, filename)
-        csv_path = pkg_resources.resource_stream(__name__, 'data/astec_vessel_ther_variables_inr.csv')
+        csv_path = pkg_resources.resource_stream(__name__, variable_index_file)
         logger.info(f'Read variable index file {csv_path}')
         
         dataframe = pd.read_csv(csv_path)
 
-        logger.debug(f'Read ASTEC variables to process from file {filename}.')
+        logger.debug(f'Read ASTEC variables to process from file {variable_index_file}.')
         logger.debug(f'{dataframe}')
 
         return dataframe
@@ -268,34 +265,3 @@ class AssasOdessaNetCDF4Converter:
                     logger.debug(f'Resize dataset to ({len(self.time_points)},{data_per_timestep.shape[0]},{data_per_timestep.shape[1]}).')
 
                     variable_datasets[variable['name']][idx,:,:] = data_per_timestep
-                    
-if __name__ == '__main__':
-
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    start_time = time.time()
-    
-    INPUT = '/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin'
-    OUTPUT = '/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/result'
-
-    logging.basicConfig(
-        level = logging.INFO,
-        format = '%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s',
-        handlers = [
-            logging.StreamHandler(),
-            logging.FileHandler(f'{OUTPUT}/{timestamp}_{Path(__file__).stem}.log', 'w')
-        ]
-    )
-
-    time_points = pyod.get_saving_times(INPUT)
-    time_points = time_points[0:2]
-
-    AssasOdessaNetCDF4Converter(
-        input_path = INPUT,
-        output_path = OUTPUT,
-        #time_points = time_points
-    ).convert_astec_variables_to_netcdf4()
-    
-    end_time = time.time()
-    duration_in_seconds = end_time - start_time
-    duration_string = get_duration(duration_in_seconds)
-    logger.info(f'Conversion from odessa to hdf5 took {duration_string}.')

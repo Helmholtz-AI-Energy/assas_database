@@ -81,8 +81,9 @@ class AssasDatabaseManager:
         self.lsdf_archive = Path(lsdf_archive)
         self.upload_directory = Path(upload_directory)
 
-        self.database_handler = AssasDatabaseHandler(connection_string)
-
+        self.database_handler = AssasDatabaseHandler(
+            connection_string = connection_string
+        )
 
     def get_database_entry_by_upload_uuid(
         self,
