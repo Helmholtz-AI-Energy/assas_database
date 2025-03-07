@@ -81,6 +81,8 @@ class AssasOdessaNetCDF4Converter:
             'systems_pump': AssasOdessaNetCDF4Converter.parse_variable_from_systems_pump,
             'systems_valve': AssasOdessaNetCDF4Converter.parse_variable_from_systems_valve,
             'sensor': AssasOdessaNetCDF4Converter.parse_variable_from_sensor,
+            'containment_dome': AssasOdessaNetCDF4Converter.parse_variable_from_containment_dome,
+            'containment_pool': AssasOdessaNetCDF4Converter.parse_variable_from_containment_pool,
         }
         
     def get_time_points(
@@ -516,6 +518,42 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f'Sensor value: {sensor_value}.')
         
         return np.asarray([sensor_value])
+    
+    @staticmethod
+    def parse_variable_from_containment_dome(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable from sensor {variable_name}, type containment_dome.')
+
+        containment = odessa_base.get('CONTAINM')
+        zone_10 = containment.get('ZONE 10')
+        variable_structure = zone_10.get(f'THER: {variable_name}')
+
+        array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
+            variable_structure
+        )
+        
+        return array
+    
+    @staticmethod
+    def parse_variable_from_containment_pool(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable from sensor {variable_name}, type containment_pool.')
+
+        containment = odessa_base.get('CONTAINM')
+        zone_10 = containment.get('ZONE 11')
+        variable_structure = zone_10.get(f'THER: {variable_name}')
+
+        array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
+            variable_structure
+        )
+        
+        return array
 
     @staticmethod
     def set_general_meta_data(
