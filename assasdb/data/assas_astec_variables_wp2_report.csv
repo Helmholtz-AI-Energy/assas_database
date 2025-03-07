@@ -1,0 +1,37 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+delta_v,none,delta_v,none,vessel,vessel_face_ther,face
+q_m_liq,none,q_m_liq,none,vessel,vessel_face_ther,face
+v_gas_face,gas velocity in face of vessel,v_gas,none,vessel,vessel_face_ther,face
+v_liq_face,liquid velocity in face of vessel,v_liq,none,vessel,vessel_face_ther,face
+CUMAFP,none,CUMAFP,none,vessel,vessel_general,general
+CUMAGFP,none,CUMAGFP,none,vessel,vessel_general,general
+CUMAGSM,none,CUMAGSM,none,vessel,vessel_general,general
+CUMASM,none,CUMASM,none,vessel,vessel_general,general
+FRACFP,none,FRACFP,none,vessel,vessel_general,general
+FRACSM,none,FRACSM,none,vessel,vessel_general,general
+PRODH2,none,PRODH2,none,vessel,vessel_general,general
+SATUMX,none,SATUMX,none,vessel,vessel_general,general
+TOTMAMAG,none,TOTMAMAG,none,vessel,vessel_general,general
+TOTMADEB,none,TOTMADEB,none,vessel,vessel_general,general
+P,pressure in the vessel,P,bar,vessel,vessel_mesh_ther,channel;mesh
+P_h2,pressure of hydrogen in the vessel,P_h2,bar,vessel,vessel_mesh_ther,channel;mesh
+P_steam,pressure of steam in the vessel,P_steam,bar,vessel,vessel_mesh_ther,channel;mesh
+T_gas,none,T_gas,none,vessel,vessel_mesh_ther,channel;mesh
+T_liq,none,T_liq,none,vessel,vessel_mesh_ther,channel;mesh
+T_sat,none,T_sat,none,vessel,vessel_mesh_ther,channel;mesh
+VG_bar,none,VG_bar,none,vessel,vessel_mesh_ther,channel;mesh
+VL_bar,none,VL_bar,none,vessel,vessel_mesh_ther,channel;mesh
+m_gas,none,m_gas,none,vessel,vessel_mesh_ther,channel;mesh
+m_liq,none,m_liq,none,vessel,vessel_mesh_ther,channel;mesh
+q_m_list,none,q_m_list,none,vessel,vessel_mesh_ther,channel;mesh
+rho_gas,none,rho_gas,none,vessel,vessel_mesh_ther,channel;mesh
+rho_liq,none,rho_liq,none,vessel,vessel_mesh_ther,channel;mesh
+x_alfa,none,x_alfa,none,vessel,vessel_mesh_ther,channel;mesh
+POROSITY,none,POROSITY,none,vessel,vessel_mesh,channel;mesh
+VOLFDEB,none,VOLFDEB,none,vessel,vessel_mesh,channel;mesh
+VOLFMAG,none,VOLFMAG,none,vessel,vessel_mesh,channel;mesh
+v_gas_primary,gas velocity in the primary,v_gas,none,primary,primary_junction_ther,junction
+v_gas_secondar,gas velocity in the secondar,v_gas,none,secondar,secondar_junction_ther,junction
+T_wall_primary,wall temperature in primary,T_wall,bar,primary,primary_wall_ther,wall
+T_wall_secondar,wall temperature in secondar,T_wall,bar,secondar,secondar_wall_ther,wall
+MH2_reco,mass of recombined H2,269,none,containment,sensor,sensor

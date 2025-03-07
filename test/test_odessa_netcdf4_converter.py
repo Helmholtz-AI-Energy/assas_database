@@ -1,17 +1,11 @@
 import unittest
 import logging
 import sys
-
-logger = logging.getLogger('assas_app')
+import os
 
 from assasdb import AssasOdessaNetCDF4Converter
 
-logger = logging.getLogger('assas_test')
-
-logging.basicConfig(
-    format = '%(asctime)s %(module)s %(levelname)s: %(message)s',
-    level = logging.DEBUG,
-    stream = sys.stdout)
+logger = logging.getLogger('assas_app')
 
 class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
     
@@ -19,10 +13,13 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         
         self.input_path = '/root/assas-data-hub/assas_database/test/data/archive/LOCA_12P_CL_1300_LIKE.bin'
         self.output_path = '/root/assas-data-hub/assas_database/test/data/result/loca_12p_cl_1300_like.h5'
+        if os.path.exists(self.output_path):
+            os.remove(self.output_path)
         
         self.odessa_converter = AssasOdessaNetCDF4Converter(
             input_path = self.input_path,
             output_path = self.output_path,
+            astec_variable_index_file = 'data/assas_astec_variables_wp2_report.csv'
         )
 
     def tearDown(self):
@@ -38,7 +35,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         )
     
     def test_convert_netcdf4(self):
-        
+
         self.odessa_converter.convert_astec_variables_to_netcdf4()
         
     def test_get_meta_info(self):
