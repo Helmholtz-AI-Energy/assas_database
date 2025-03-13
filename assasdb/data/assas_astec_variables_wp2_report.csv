@@ -101,3 +101,11 @@ v_gas_primary,gas velocity in the primary,v_gas,none,primary,primary_junction_th
 v_gas_secondar,gas velocity in the secondar,v_gas,none,secondar,secondar_junction_ther,junction
 T_wall_primary,wall temperature in primary,T_wall,bar,primary,primary_wall_ther,wall
 T_wall_secondar,wall temperature in secondar,T_wall,bar,secondar,secondar_wall_ther,wall
+P_primary_pipes,pressure in primary pipes,P,bar,primary,primary_pipe_ther,pipe
+T_gas_primary_pipes,gas temperature,T_gas,bar,primary,primary_pipe_ther,pipe
+T_liq_primary_pipes,liquid temperature in primary pipes,T_liq,bar,primary,primary_pipe_ther,pipe
+v_gas_primary_pipes,gas velocity in primary pipes,v_gas,bar,primary,primary_pipe_ther,pipe
+x_alfa_primary_pipes,void fraction in primary pipes,x_alfa,bar,primary,primary_pipe_ther,pipe
+v_gas_junction_ther,none,v_gas,none,primary,primary_junction_ther,junction
+v_liq_junction_ther,none,v_liq,none,primary,primary_junction_ther,junction
+v_mean_junction_ther,none,v_mean,none,primary,primary_junction_ther,junction

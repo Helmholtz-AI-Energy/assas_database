@@ -70,10 +70,20 @@ class AssasOdessaNetCDF4Converter:
         )
 
         self.variable_strategy_mapping = { # TODO: Implement all other types
+            'primary_pipe_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther,
+            'primary_pipe_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_geom,
             'primary_junction_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_junction_ther,
+            'primary_junction_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_junction_geom,
+            'primary_wall': AssasOdessaNetCDF4Converter.parse_variable_from_primary_wall,
             'primary_wall_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_wall_ther,
+            'primary_wall_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_wall_geom,
+            'secondar_pipe_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther,
+            'secondar_pipe_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_geom,
             'secondar_junction_ther': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_junction_ther,
+            'secondar_junction_geom': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_junction_geom,
+            'secondar_wall': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_wall,
             'secondar_wall_ther': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_wall_ther,
+            'secondar_wall_geom': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_wall_geom,
             'vessel_face_ther': AssasOdessaNetCDF4Converter.parse_variable_from_vessel_face_ther,
             'vessel_mesh_ther': AssasOdessaNetCDF4Converter.parse_variable_from_vessel_mesh_ther,
             'vessel_mesh': AssasOdessaNetCDF4Converter.parse_variable_from_vessel_mesh,
@@ -337,13 +347,8 @@ class AssasOdessaNetCDF4Converter:
         general_object = vessel.get('GENERAL')
         variable_structure = general_object.get(f'{variable_name}')
         
-        logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure}.')
+        logger.debug(f'Collect variable structure {variable_structure}.')
 
-        #keys = list(variable_structure.keys())
-        #array = np.zeros((len(keys)))
-        
-        #for idx, key in enumerate(keys):
-        #    array[idx] = variable_structure[key]
         array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
             odessa_structure = variable_structure
         )
@@ -375,6 +380,85 @@ class AssasOdessaNetCDF4Converter:
             array[junction_number] = variable_structure[2]
             
         return array
+    
+    @staticmethod
+    def parse_variable_from_primary_junction_geom(
+        odessa_base,
+        variable_name: str
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type primary_junction_geom.')
+
+        primary = odessa_base.get('PRIMARY')
+        number_of_junctions = primary.len('JUNCTION')
+        
+        logger.debug(f'Number of junctions in primary: {number_of_junctions}.')
+        
+        array = np.zeros((number_of_junctions))
+        
+        for junction_number in range(number_of_junctions):
+            
+            junction_object = primary.get(f'JUNCTION {junction_number}')
+            geom_object = junction_object.get(f'GEOM')
+            variable_structure = geom_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array[junction_number] = variable_structure
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_primary_pipe_ther(
+        odessa_base,
+        variable_name: str
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type primary_pipe_ther.')
+
+        primary = odessa_base.get('PRIMARY')
+        number_of_pipes = primary.len('PIPE')
+        
+        logger.debug(f'Number of pipes in primary: {number_of_pipes}.')
+        
+        array = np.zeros((number_of_pipes))
+        
+        for pipe_number in range(number_of_pipes):
+            
+            pipe_object = primary.get(f'PIPE {pipe_number}')
+            ther_object = pipe_object.get(f'THER')
+            variable_structure = ther_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array[pipe_number] = variable_structure
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_primary_pipe_geom(
+        odessa_base,
+        variable_name: str
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type primary_pipe_geom.')
+
+        primary = odessa_base.get('PRIMARY')
+        number_of_pipes = primary.len('PIPE')
+        variable_structure = primary.get(f'PIPE 1: GEOM 1: {variable_name} 1')
+        
+        logger.info(f'Number of pipes in primary: {number_of_pipes}. {len(variable_structure)} {variable_structure}')
+        
+        array = np.zeros((number_of_pipes, len(variable_structure)))
+        
+        for pipe_number in range(1, number_of_pipes):
+            
+            pipe_object = primary.get(f'PIPE {pipe_number}')
+            geom_object = pipe_object.get(f'GEOM')
+            variable_structure = primary.get(f'PIPE {pipe_number}: GEOM 1: {variable_name} 1')
+            
+            logger.info(f'Collect variable structure {variable_structure}. {pipe_number}')
+            array[pipe_number] = variable_structure
+            
+        return array
         
     @staticmethod
     def parse_variable_from_secondar_junction_ther(
@@ -403,6 +487,57 @@ class AssasOdessaNetCDF4Converter:
         return array
     
     @staticmethod
+    def parse_variable_from_secondar_junction_geom(
+        odessa_base,
+        variable_name: str
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type secondar_junction_geom.')
+
+        secondar = odessa_base.get('SECONDAR')
+        number_of_junctions = secondar.len('JUNCTION')
+        
+        logger.debug(f'Number of junctions in secondar: {number_of_junctions}.')
+        
+        array = np.zeros((number_of_junctions))
+        
+        for junction_number in range(number_of_junctions):
+            
+            junction_object = secondar.get(f'JUNCTION {junction_number}')
+            geom_object = junction_object.get(f'GEOM')
+            variable_structure = geom_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array[junction_number] = variable_structure
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_primary_wall(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type primary_wall.')
+
+        primary = odessa_base.get('PRIMARY')
+        number_of_walls = primary.len('WALL')
+        
+        logger.debug(f'Number of walls in primary: {number_of_walls}.')
+        
+        array = np.zeros((number_of_walls))
+        
+        for wall_number in range(number_of_walls):
+            
+            wall_object = primary.get(f'WALL {wall_number}')
+            variable_structure = wall_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array[wall_number] = variable_structure
+            
+        return array
+    
+    @staticmethod
     def parse_variable_from_primary_wall_ther(
         odessa_base,# TODO: fix type hint
         variable_name: str,
@@ -425,6 +560,57 @@ class AssasOdessaNetCDF4Converter:
             
             logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
             array[wall_number] = variable_structure[2]
+            
+        return array
+
+    @staticmethod
+    def parse_variable_from_primary_wall_geom(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type primary_wall_geom.')
+
+        primary = odessa_base.get('PRIMARY')
+        number_of_walls = primary.len('WALL')
+        
+        logger.debug(f'Number of walls in primary: {number_of_walls}.')
+        
+        array = np.zeros((number_of_walls))
+        
+        for wall_number in range(number_of_walls):
+            
+            wall_object = primary.get(f'WALL {wall_number}')
+            geom_object = wall_object.get(f'GEOM')
+            variable_structure = geom_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure}.')
+            array[wall_number] = variable_structure
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_secondar_wall(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type secondar_wall.')
+
+        secondar = odessa_base.get('SECONDAR')
+        number_of_walls = secondar.len('WALL')
+        
+        logger.debug(f'Number of walls in secondar: {number_of_walls}.')
+        
+        array = np.zeros((number_of_walls))
+        
+        for wall_number in range(number_of_walls):
+            
+            wall_object = secondar.get(f'WALL {wall_number}')
+            variable_structure = wall_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array[wall_number] = variable_structure
             
         return array
     
@@ -451,6 +637,32 @@ class AssasOdessaNetCDF4Converter:
             
             logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
             array[wall_number] = variable_structure[2]
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_secondar_wall_geom(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type secondar_wall_geom.')
+
+        secondar = odessa_base.get('SECONDAR')
+        number_of_walls = secondar.len('WALL')
+        
+        logger.debug(f'Number of walls in secondar: {number_of_walls}.')
+        
+        array = np.zeros((number_of_walls))
+        
+        for wall_number in range(number_of_walls):
+            
+            wall_object = secondar.get(f'WALL {wall_number}')
+            geom_object = wall_object.get(f'GEOM')
+            variable_structure = geom_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array[wall_number] = variable_structure
             
         return array
     
@@ -588,19 +800,19 @@ class AssasOdessaNetCDF4Converter:
 
                 variable_dict = {}
 
-                variable_dict['Name'] = variable_name
+                variable_dict['name'] = variable_name
                 logger.info(f'Read variable {variable_name}.')
 
                 dimensions = ncfile.variables[variable_name].dimensions
                 
                 dimension_string = ' '.join(str(dimension) for dimension in dimensions)
-                variable_dict['Dimensions'] = ' '.join(str(dimension) for dimension in dimensions)
+                variable_dict['dimensions'] = ' '.join(str(dimension) for dimension in dimensions)
                 logger.debug(f'Dimension string {dimension_string}.')
                 
                 shapes = ncfile.variables[variable_name].shape
                 
                 shape_string = ' '.join(str(shape) for shape in shapes)
-                variable_dict['Shape'] = ' '.join(str(shape) for shape in shapes)
+                variable_dict['shape'] = ' '.join(str(shape) for shape in shapes)
                 logger.debug(f'Shape string {shape_string}.')
                 
                 result.append(variable_dict)
@@ -632,12 +844,26 @@ class AssasOdessaNetCDF4Converter:
             ncfile.createDimension('time', len(self.time_points))
             ncfile.createDimension('channel', None)
             ncfile.createDimension('mesh', None)
+            ncfile.createDimension('pipe', None)
             ncfile.createDimension('junction', None)
             ncfile.createDimension('face', None)
             ncfile.createDimension('wall', None)
             ncfile.createDimension('general', None)
             ncfile.createDimension('pump', None)
             ncfile.createDimension('sensor', None)
+            
+            time_points = self.time_points
+            if explicit_times is not None:
+                time_points = time_points[explicit_times[0]:explicit_times[1]]
+
+            logger.info(f'Parse following time points from ASTEC archive: {time_points}.')
+            
+            time_dataset = ncfile.createVariable(
+                varname = 'time_points',
+                datatype = np.float32,
+                dimensions = 'time'
+            )
+            time_dataset[:] = time_points
 
             for idx, variable in self.variable_index.iterrows():
 
@@ -655,12 +881,6 @@ class AssasOdessaNetCDF4Converter:
                 variable_datasets[variable['name']].units = variable['unit']
                 variable_datasets[variable['name']].domain = variable['domain']
                 variable_datasets[variable['name']].strategy = variable['strategy']
-
-            time_points = self.time_points
-            if explicit_times is not None:
-                time_points = time_points[explicit_times[0]:explicit_times[1]]
-
-            logger.info(f'Parse following time points from ASTEC archive: {time_points}.')
 
             for idx, time_point in enumerate(time_points):
 
