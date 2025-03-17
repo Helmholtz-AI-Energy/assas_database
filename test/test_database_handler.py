@@ -10,26 +10,15 @@ from assasdb import AssasDocumentFile
 
 logger = logging.getLogger('assas_app')
 
-class TestConfig(object):
-    
-    DEBUG = True
-    DEVELOPMENT = True
-    LSDF_ARCHIVE = r'/mnt/ASSAS/upload_test/'
-    LOCAL_ARCHIVE = r'/root/upload/'
-    PYTHON_VERSION = r'/opt/python/3.11.8/bin/python3.11'
-    ASTEC_ROOT = r'/root/astecV3.1.1_linux64/astecV3.1.1'
-    ASTEC_COMPUTER = r'linux_64'
-    ASTEC_COMPILER = r'release' 
-    ASTEC_PARSER = r'/root/assas-data-hub/assas_database/assasdb/assas_astec_parser.py'
-    CONNECTIONSTRING = r'mongodb://localhost:27017/'
-
 class AssasDatabaseHandlerTest(unittest.TestCase):
     
     def setUp(self):
         
-        config = TestConfig()
-        self.database_handler = AssasDatabaseHandler(config)
-        
+        self.database_handler = AssasDatabaseHandler(
+            connection_string = 'mongodb://localhost:27017/',
+            database_name = 'test_assas',
+            file_collection_name = 'test_files'
+        )
         self.database_handler.drop_file_collection()
         
     def tearDown(self):
@@ -67,7 +56,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.database_handler.insert_file_document(document)
         
         found_document = self.database_handler.get_file_document_by_uuid(uuid)
-        self.assertEqual(document, found_document)        
+        self.assertEqual(document, found_document)
         
         self.database_handler.update_file_document_by_uuid(uuid, update)
         
@@ -102,7 +91,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.database_handler.insert_file_document(document)
         
         found_document = self.database_handler.get_file_document_by_upload_uuid(new_upload_uuid)
-        self.assertEqual(document, found_document)        
+        self.assertEqual(document, found_document)
         
         self.database_handler.update_file_document_by_upload_uuid(new_upload_uuid, update)
         
@@ -121,8 +110,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         
         upload_uuid = uuid.UUID('66045178-aac4-414d-8353-3e3db44f36cc')
         self.database_handler.delete_file_document_by_upload_uuid(upload_uuid)
-        
-        
-        
+
+
 if __name__ == '__main__':
     unittest.main()

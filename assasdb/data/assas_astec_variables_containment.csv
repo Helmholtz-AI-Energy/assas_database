@@ -1,0 +1,11 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+PRES,pressure,PRES,none,containment_dome,containment_dome,sensor
+TFLU,temperature,TFLU,none,containment_dome,containment_dome,sensor
+XCO,concentration CO,XCO,none,containment_dome,containment_dome,sensor
+XC02,concentration C02,XC02,none,containment_dome,containment_dome,sensor
+XH2,concentration H2,XH2,none,containment_dome,containment_dome,sensor
+XH20,concentration H20,XH20,none,containment_dome,containment_dome,sensor
+XN2,concentration N2,XN2,none,containment_dome,containment_dome,sensor
+XO2,concentration O2,XO2,none,containment_dome,containment_dome,sensor
+TLIQ,temperature,TLIQ,none,containment_pool,containment_dome,sensor
+WLEV,water level,WLEV,none,containment_pool,containment_dome,sensor

@@ -1,0 +1,6 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+ELEV_primary_pipes,none,ELEV,none,primary,primary_pipe_geom,pipe
+FRICTION_primary_pipes,none,FRICTION,none,primary,primary_pipe_geom,pipe
+MESH_primary_pipes,none,MESH,none,primary,primary_pipe_geom,pipe
+PERI_primary_pipes,none,PERI,none,primary,primary_pipe_geom,pipe
+SECT_primary_pipes,none,SECT,none,primary,primary_pipe_geom,pipe

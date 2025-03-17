@@ -1,23 +1,21 @@
+
+import os 
 import pandas
 import logging
-import numpy
-import os
-import shutil
 import uuid
 import pathlib
 import pickle
-import threading
 import subprocess
 
 from uuid import uuid4
 from datetime import datetime
+from pathlib import Path
 from typing import List, Tuple, Union
 
-from .assas_database_handler import AssasDatabaseHandler
-from .assas_astec_handler import AssasAstecHandler
-from .assas_database_hdf5 import AssasHdf5DatasetHandler
-from .assas_database_dataset import AssasDataset
-from .assas_database_handler import AssasDocumentFile, AssasDocumentFileStatus
+
+from assasdb.assas_database_handler import AssasDatabaseHandler
+from assasdb.assas_database_handler import AssasDocumentFile, AssasDocumentFileStatus
+from assasdb.assas_odessa_netcdf4_converter import AssasOdessaNetCDF4Converter
 
 logger = logging.getLogger('assas_app')
 
@@ -75,13 +73,18 @@ class AssasDatabaseManager:
 
     def __init__(
         self,
-        config: dict
+        lsdf_archive: str = '/mnt/ASSAS/upload_test',
+        upload_directory: str = '/mnt/ASSAS/upload_test',
+        connection_string: str = 'mongodb://localhost:27017/',
     ) -> None:
-        
-        self.config = config
-        self.database_handler = AssasDatabaseHandler(config)
-        self.astec_handler = AssasAstecHandler(config)
-    
+
+        self.lsdf_archive = Path(lsdf_archive)
+        self.upload_directory = Path(upload_directory)
+
+        self.database_handler = AssasDatabaseHandler(
+            connection_string = connection_string
+        )
+
     def get_database_entry_by_upload_uuid(
         self,
         upload_uuid: uuid4
@@ -123,7 +126,7 @@ class AssasDatabaseManager:
         if data_frame.size == 0:
             return data_frame
         
-        data_frame['system_index'] = range(1, len(data_frame) + 1)    
+        data_frame['system_index'] = range(1, len(data_frame) + 1)
         data_frame['_id'] = data_frame['_id'].astype(str)
 
         return data_frame
@@ -149,7 +152,7 @@ class AssasDatabaseManager:
         document: dict
     ) -> None:
         
-        logger.info(f'Insert document {document}')        
+        logger.info(f'Insert document {document}')
         self.database_handler.insert_file_document(document)
         
     def empty_internal_database(
@@ -163,9 +166,9 @@ class AssasDatabaseManager:
         num: float,
         blocksize: float = 1024.0
     )-> str:
-        """
+        '''
         This function will convert kilobytes to MB, GB, and TB.
-        """
+        '''
         
         logger.info(f'Num {num}')
         
@@ -175,6 +178,7 @@ class AssasDatabaseManager:
                 
                 converted_string = f'{round(num, 2)} {x}'
                 logger.info(f'Converted into {converted_string}')
+                
                 return converted_string
             
             num /= blocksize
@@ -199,10 +203,13 @@ class AssasDatabaseManager:
             
             logger.info(f'No archives in state UPLOADED present')
         
-        try:       
+        try:
             
             for document_file in document_file_list:
-            
+                
+                document_file.set_value('system_status', AssasDocumentFileStatus.VALIDATING)
+                self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+                
                 archive_size = AssasDatabaseManager.get_size_of_directory_in_bytes(document_file.get_value('system_path'))
                 converted_size = AssasDatabaseManager.convert_from_bytes(archive_size)
             
@@ -214,45 +221,50 @@ class AssasDatabaseManager:
         
         except Exception as exception:
             
-            logger.error(f'Error during update of archive sizes occured: {exception}')
+            logger.error(f'Error during update of archive sizes occured: {exception}.')
             
         return success
-            
-    @staticmethod
-    def get_upload_uuids(
-        upload_file: str
+
+    def get_new_upload_uuids_to_process(
+        self,
     )-> List[uuid4]:
-    
-        lines = []
-        with open(upload_file, 'r') as file:
-            lines = [line.rstrip() for line in file]
-    
-        try:
-            upload_uuid_list = [uuid.UUID(line) for line in lines]
-        except ValueError:
-            logger.error('Received univalid uuid')
         
-        logger.info(f'Read Upload uuids {upload_uuid_list}')
+        upload_uuid_list = []
+
+        for directory in os.listdir(self.upload_directory):
+
+            if os.path.isdir(Path.joinpath(self.upload_directory, directory)):
+                if os.path.isfile(Path.joinpath(self.upload_directory, directory, directory)):
+                    logger.debug(f'Detected complete uploaded archive {Path.joinpath(self.upload_directory, directory)}.')
+                    try:
+                        upload_uuid_list.append(uuid.UUID(directory))
+                    except ValueError:
+                        logger.error('Received univalid uuid')
         
+        logger.debug(f'Read {len(upload_uuid_list)} upload uuids {upload_uuid_list} in {self.upload_directory}.')
+      
         return upload_uuid_list
     
-    @staticmethod
-    def get_upload_uuids2(
-        upload_directory: str
+    def get_upload_uuids_to_reload(
+        self,
     )-> List[uuid4]:
         
         upload_uuid_list = []
         
-        for directory in os.listdir(upload_directory):
-            if os.path.isdir(os.path.join(upload_directory, directory)):
-                if os.path.isfile(os.path.join(upload_directory, directory, directory)):
-                    logger.debug(f'Detected complete uploaded archive {os.path.join(upload_directory, directory)}')
+        for directory in os.listdir(self.upload_directory):
+
+            if os.path.isdir(Path.joinpath(self.upload_directory, directory)):
+                reload_file = Path.joinpath(self.upload_directory, directory, directory + '_reload')
+                if os.path.isfile(reload_file):
+                    logger.debug(f'Detected reload file in archive {Path.joinpath(self.upload_directory, directory)}.')
                     try:
-                        upload_uuid_list.append(uuid.UUID(directory))        
+                        upload_uuid_list.append(uuid.UUID(directory))
+                        logger.info(f'Remove file with path {reload_file}.')
+                        os.remove(reload_file)
                     except ValueError:
-                        logger.error('Received univalid uuid')
+                        logger.error('Received univalid uuid.')
         
-        logger.debug(f'Read {len(upload_uuid_list)} upload uuids {upload_uuid_list} in {upload_directory}')
+        logger.debug(f'Read {len(upload_uuid_list)} upload uuids {upload_uuid_list} in {self.upload_directory} to reload.')
       
         return upload_uuid_list
     
@@ -266,46 +278,75 @@ class AssasDatabaseManager:
         if os.path.isfile(file_path):
             
             file_info = os.stat(file_path)
-            logger.info(f'File size: {file_info.st_size} Os.path.getsize: {os.path.getsize(file_path)}')
+            logger.info(f'File size: {file_info.st_size} Os.path.getsize: {os.path.getsize(file_path)}.')
             
             converted_in_bytes = AssasDatabaseManager.convert_from_bytes(file_info.st_size)
-            logger.info(f'Converted in bytes {converted_in_bytes}')
+            logger.info(f'Converted in bytes {converted_in_bytes}.')
             
             return converted_in_bytes
         
         if os.path.isdir(file_path):
             
-            raise NotImplementedError(f'Path {file_path} points to a directory')
+            raise NotImplementedError(f'Path {file_path} points to a directory.')
     
     def get_uploaded_archives_to_process(
         self
     )-> List[AssasAstecArchive]:
 
-        registered_archive_list = []
-        upload_uuid_list = AssasDatabaseManager.get_upload_uuids2(self.config.UPLOAD_DIRECTORY)
-        #upload_uuid_list = AssasDatabaseManager.get_upload_uuids(self.config.UPLOAD_FILE)
+        uploaded_archives_to_process = []
         
+        upload_uuid_list = self.get_new_upload_uuids_to_process()
+
         for upload_uuid in upload_uuid_list:
         
-                documents = self.database_handler.get_file_document_by_upload_uuid(upload_uuid)
-                                    
-                if documents is None:
+            documents = self.database_handler.get_file_document_by_upload_uuid(upload_uuid)
+
+            if documents is None:
                 
-                    logger.info(f'Detect new upload with upload_uuid {str(upload_uuid)}')
+                logger.info(f'Detect new upload with upload_uuid {str(upload_uuid)}.')
                     
-                    archive_list = self.read_upload_info(upload_uuid)                    
-                    registered_archive_list.extend(archive_list)
+                archive_list = self.read_upload_info(upload_uuid)
+                uploaded_archives_to_process.extend(archive_list)
             
-                else:
+            else:
                 
-                    logger.info(f'Upload_uuid is already processed {str(upload_uuid)}')
+                logger.info(f'Upload_uuid is already processed {str(upload_uuid)}.')
+                        
+        return uploaded_archives_to_process
+    
+    def get_uploaded_archives_to_reload(
+        self
+    )-> List[AssasAstecArchive]:
+
+        uploaded_archives_to_reload = []
+        
+        upload_uuid_list = self.get_upload_uuids_to_reload()
+
+        for upload_uuid in upload_uuid_list:
+        
+            self.database_handler.delete_file_documents_by_upload_uuid(upload_uuid)
+                
+            logger.info(f'Delete existing archives archive with upoad_uuid {str(upload_uuid)}.')
+
+            document = self.database_handler.get_file_document_by_upload_uuid(upload_uuid)
+
+            if document is None:
+                
+                logger.info(f'Read upload info of existing archive with upload_uuid {str(upload_uuid)}.')
                     
-        return registered_archive_list
+                archive_list = self.read_upload_info(upload_uuid)
+                uploaded_archives_to_reload.extend(archive_list)
+            
+            else:
+                
+                logger.info(f'Deleting the old archive was not succesful {str(upload_uuid)}.')
+                    
+        return uploaded_archives_to_reload
     
     def process_uploads(
-        self,       
+        self,
     )-> bool:
-        
+
         success = False
         
         try:
@@ -313,7 +354,7 @@ class AssasDatabaseManager:
             archive_list = self.get_uploaded_archives_to_process()
             
             if len(archive_list) == 0:
-                logger.info('No new archives present')
+                logger.info('No new archives present.')
             else:
                 self.register_archives(archive_list)
             
@@ -321,7 +362,30 @@ class AssasDatabaseManager:
                    
         except Exception as exception:
             
-            logger.error(f'Error when processing uploads occured: {exception}')
+            logger.error(f'Error when processing uploads occured: {exception}.')
+                
+        return success
+    
+    def process_uploads_with_reload_flag(
+        self,
+    )-> bool:
+        
+        success = False
+        
+        try:
+            
+            archive_list = self.get_uploaded_archives_to_reload()
+            
+            if len(archive_list) == 0:
+                logger.info('No new archives present.')
+            else:
+                self.register_archives(archive_list)
+            
+            success = True
+                   
+        except Exception as exception:
+            
+            logger.error(f'Error when processing uploads occured: {exception}.')
                 
         return success
     
@@ -329,7 +393,8 @@ class AssasDatabaseManager:
         self,
         upload_uuid: uuid4,
         key: str,
-        value_list: List[str]
+        value_list: List[str],
+        upload_info_file_name: str = 'upload_info.pickle'
     )-> bool:
     
         success = False
@@ -337,7 +402,8 @@ class AssasDatabaseManager:
         try:
             
             upload_info = {}
-            upload_info_file = self.config.LSDF_ARCHIVE + str(upload_uuid) + '/upload_info.pickle'
+            upload_info_file = Path.joinpath(self.lsdf_archive, str(upload_uuid), upload_info_file_name)
+            logger.info(f'Update upload info from file {str(upload_info_file)}')
         
             with open(upload_info_file, 'rb') as file:
                 upload_info = pickle.load(file)
@@ -355,97 +421,109 @@ class AssasDatabaseManager:
             logger.info(f'Updated upload information:')
             for key, value in upload_info.items():
                 logger.info(f'{key}: {value}')
+                
+            success = True
             
         except Exception as exception:
             
-            logger.error(f'Error when updating upload information in file {upload_info_file} occured: {exception}')
+            logger.error(f'Error when updating upload information in file {str(upload_info_file)} occured: {exception}')
                 
         return success
     
     def read_upload_info(
         self,
-        upload_uuid: uuid4
+        upload_uuid: uuid4,
+        upload_info_file_name: str = 'upload_info.pickle'
     )-> List[AssasAstecArchive]:
         
         archive_list = []
         
         upload_info = {}
-        upload_directory = self.config.LSDF_ARCHIVE + str(upload_uuid) + '/upload_info.pickle'
+        upload_info_file = Path.joinpath(self.lsdf_archive, str(upload_uuid), upload_info_file_name)
+        logger.info(f'Update upload info from file {str(upload_info_file)}')
         
-        with open(upload_directory, 'rb') as file:
+        with open(upload_info_file, 'rb') as file:
             upload_info = pickle.load(file)
-        
+
         date = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
         name = upload_info['name']
-                
-        for idx, archive_path in enumerate(upload_info['archive_paths']):
+        
+        archive_path = Path.joinpath(self.lsdf_archive, str(upload_uuid))
+        logger.info(f'Upload location for this archive: {str(archive_path)}')
+        
+        if len(upload_info['archive_paths']) == 1:
+            archive_sub_path = upload_info['archive_paths'][0]
             archive_list.append(AssasAstecArchive(
-                upload_uuid=str(upload_uuid),
-                name=f'{name}_{idx}',
-                date=date,
-                user=upload_info['user'],
-                description=upload_info['description'],
-                archive_path=self.config.LSDF_ARCHIVE + str(upload_uuid) + archive_path,
-                result_path=self.config.LSDF_ARCHIVE + str(upload_uuid) + archive_path + '/../result/dataset.h5'
+                upload_uuid = str(upload_uuid),
+                name = name,
+                date = date,
+                user = upload_info['user'],
+                description = upload_info['description'],
+                archive_path = str(archive_path) + archive_sub_path,
+                result_path = str(archive_path) + archive_sub_path + '/../result/dataset.h5', # Put result next to binary
             ))
+        else:
+            for idx, archive_sub_path in enumerate(upload_info['archive_paths']):
+                archive_list.append(AssasAstecArchive(
+                    upload_uuid = str(upload_uuid),
+                    name = f'{name}_{idx}',
+                    date = date,
+                    user = upload_info['user'],
+                    description = upload_info['description'],
+                    archive_path = str(archive_path) + archive_sub_path,
+                    result_path = str(archive_path) + archive_sub_path + '/../result/dataset.h5', # Put result next to binary
+                ))
         
         return archive_list
     
     def register_archives(
         self,
         archive_list: List[AssasAstecArchive]
-    ) -> None:        
-        
+    ) -> None:
+
         logger.info('Start registering archives')
-        
-        archive_path_list = [archive.archive_path for archive in archive_list]      
-        lists_of_saving_time = self.astec_handler.get_lists_of_saving_times(archive_path_list)
-        
+
+        archive_path_list = [archive.archive_path for archive in archive_list]
+        lists_of_saving_time = AssasOdessaNetCDF4Converter.get_lists_of_saving_times(archive_path_list)
+
         for idx, archive in enumerate(archive_list):
-     
+
             if len(lists_of_saving_time[idx]) == 1:
-                
-                system_status=AssasDocumentFileStatus.CORRUPTED
-                logger.error(f'Archive is corrupted, set status to CORRUPTED {archive.archive_path}')
-            
+
+                system_status=AssasDocumentFileStatus.INVALID
+                logger.error(f'Archive is corrupted, set status to INVALID {archive.archive_path}')
+
             else:
-                
+
                 logger.info(f'Archive is consistent, set status to UPLOADED {archive.archive_path}')
                 system_status=AssasDocumentFileStatus.UPLOADED
-                
+
             document_file = AssasDocumentFile()
             number_of_samples = len(lists_of_saving_time[idx])
-            
+
             document_file.set_system_values(
-                system_uuid=str(uuid.uuid4()),
-                system_upload_uuid=archive.upload_uuid,
-                system_date=datetime.now().strftime("%m/%d/%Y, %H:%M:%S"),
-                system_path=archive.archive_path,
-                system_result=archive.result_path,
-                system_size=f'{str(round(AssasAstecHandler.get_size_of_archive_in_giga_bytes(number_of_samples), 2))} GB',
-                system_user=archive.user,
-                system_download='Download',
-                system_status=system_status
+                system_uuid = str(uuid.uuid4()),
+                system_upload_uuid = archive.upload_uuid,
+                system_date = archive.date,
+                system_path = archive.archive_path,
+                system_result = archive.result_path,
+                system_size = f'{str(round(AssasOdessaNetCDF4Converter.get_size_of_archive_in_giga_bytes(number_of_samples), 2))} GB',
+                system_user = archive.user,
+                system_download = 'hdf5 file',
+                system_status = system_status
             )
-            
+
             document_file.set_general_meta_values(
-                meta_name=archive.name,
-                meta_description=archive.description                       
+                meta_name = archive.name,
+                meta_description = archive.description
             )
-            
-            dataset = AssasDataset(archive.name, number_of_samples)
-            
-            document_file.set_meta_data_values(
-                meta_data_variables='[' + ' '.join(f'{variable}' for variable in dataset.get_variables()) + ']',
-                meta_data_channels=dataset.get_no_channels(),
-                meta_data_meshes=dataset.get_no_meshes(),
-                meta_data_samples=dataset.get_no_samples()
+
+            AssasOdessaNetCDF4Converter.set_general_meta_data(
+                output_path = archive.result_path,
+                archive_name = archive.name,
+                archive_description = archive.description
             )
-            
-            AssasHdf5DatasetHandler.write_meta_data_to_hdf5(
-                document=document_file
-            )
-            
+
             document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(archive.result_path))
             self.add_internal_database_entry(document_file.get_document())
 
@@ -457,69 +535,73 @@ class AssasDatabaseManager:
         document_files = [AssasDocumentFile(document) for document in documents]
         
         return len(document_files) > 0
-    
-    def convert_archives_to_hdf5(
+
+    def convert_next_validated_archive(
         self,
-        number_of_archives_to_convert: int = -1
-    )-> bool:
+        explicit_times: List[int] = None,
+    )-> None:
         
-        success = False
-        
-        if self.conversion_in_progress():
-            
-            logger.warning('Conversion is in progess')
-            return success
-            
         documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.VALIDATED)
         document_files = [AssasDocumentFile(document) for document in documents]
         
-        if number_of_archives_to_convert > len(document_files):
-            logger.error('Request more archives than present')
-            return success
+        if len(document_files) == 0:
+            logger.info(f'Found no new archive to convert')
+            return
         
-        if number_of_archives_to_convert >= 0:
-            logger.info(f'Update the first {number_of_archives_to_convert} archives in state VALIDATED')
-            document_file_list = document_files[0:number_of_archives_to_convert]
-        else:
-            logger.info(f'Update all archives in state VALIDATED')
-            document_file_list = document_files
+        document_file = document_files[0] # take first in list
         
-        archive_path_list = [document_file.get_value('system_path') for document_file in document_file_list]
-        result_path_list = [document_file.get_value('system_result') for document_file in document_file_list]
-        logger.info(f'Convert following archives: {archive_path_list}, result paths: {result_path_list}')
+        document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTING)
+        self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
         
-        for document_file in document_file_list:
-            logger.info(f'Update status to CONVERTING')
-            document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTING)
-            self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())      
+        try:
         
-        try:            
-            
-            result_path_list_returned = self.astec_handler.read_astec_archives(
-                archive_path_list=archive_path_list,
-                result_path_list=result_path_list
+            AssasOdessaNetCDF4Converter(
+                input_path = document_file.get_value('system_path'),
+                output_path = document_file.get_value('system_result'),
+            ).convert_astec_variables_to_netcdf4(
+                explicit_times = explicit_times
             )
-
-            logger.info(f'Start writing result files ({result_path_list_returned}, {len(result_path_list_returned)})')
             
-            for idx, document_file in enumerate(document_file_list):
-
-                logger.info(f'Update status to CONVERTED')        
-                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)           
-                document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(result_path_list[idx]))
-                
-                self.database_handler.update_file_document_by_path(archive_path_list[idx], document_file.get_document())
+            document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTED)
+            document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(document_file.get_value('system_result')))
             
-            success = True
+            self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
             
         except Exception as exception:
             
-            for document_file in document_file_list:
-                
-                logger.info(f'Update status to FAILED')
-                document_file.set_value('system_status', AssasDocumentFileStatus.FAILED)
-                self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document()) 
+            logger.error(f'Update status to FAILED due to exception: {exception}')
             
-            logger.error(f'Error during conversion occured: {exception}')
+            document_file.set_value('system_status', AssasDocumentFileStatus.FAILED)
+            self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+            
+    def collect_meta_data_after_conversion(
+        self
+    )-> None:
+        
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.CONVERTED)
+        document_files = [AssasDocumentFile(document) for document in documents]
+        
+        if len(document_files) == 0:
+            logger.info(f'Found no new archive to convert')
+            return
+        
+        try:
+            
+            for document_file in document_files:
+                
+                logger.info(f"Collect meta info from file {document_file.get_value('system_result')}")
+                
+                meta_info = AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4(
+                    netcdf4_file = document_file.get_value('system_result')
+                )
+                
+                document_file.set_meta_data_values(
+                    meta_data_variables = meta_info
+                )
+                
+                self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+                
+        except Exception as exception:
+            
+            logger.error(f'Update meta info failed to FAILED due to exception: {exception}')
 
-        return success
