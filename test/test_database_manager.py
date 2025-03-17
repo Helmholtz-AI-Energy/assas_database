@@ -17,7 +17,7 @@ logger = logging.getLogger('assas_test')
 
 logging.basicConfig(
     format = '%(asctime)s %(module)s %(levelname)s: %(message)s',
-    level = logging.INFO,
+    level = logging.DEBUG,
     stream = sys.stdout)
 
 class SBO_fb_test_samples:
@@ -96,6 +96,10 @@ class AssasDatabaseManagerTest(unittest.TestCase):
     def test_database_manager_process_uploads(self):
         
         self.assertTrue(self.database_manager.process_uploads())
+        
+    def test_database_manager_process_uploads_reload(self):
+        
+        self.assertTrue(self.database_manager.process_uploads_with_reload_flag())
         
     #def test_database_manager_convert_archives_to_hdf5(self):
     #    

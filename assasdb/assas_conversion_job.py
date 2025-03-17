@@ -16,12 +16,12 @@ logging.basicConfig(
 now = datetime.datetime.now()
 logger.info(f'Start conversion as cron job at {now}')
 
-manager = AssasDatabaseManager()
+#manager = AssasDatabaseManager()
 
-manager.convert_next_validated_archive(
-    explicit_times = [0,10]
-)
-manager.collect_meta_data_after_conversion()
+#manager.convert_next_validated_archive(
+#    explicit_times = [0,10]
+#)
+#manager.collect_meta_data_after_conversion()
 
 now = datetime.datetime.now()
 logger.info(f'Finished conversion at {now}')
