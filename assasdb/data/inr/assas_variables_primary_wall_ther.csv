@@ -1,0 +1,10 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+phi_wtog_wall_primary,heat flux exchanged from wall to gas,phi_wtog,[W],primary,primary_wall_ther,wall
+T_wall_primary,wall temperature versus time,T_wall,[K],primary,primary_wall_ther,wall
+hexch_wg_wall_primary,heat exchange coefficient from wall to the gas phase,hexch_wg,[W/m2/K],primary,primary_wall_ther,wall
+phi_wtol_wall_primary,heat flux exchanged from wall to liquid,phi_wtol,[W],primary,primary_wall_ther,wall
+Ts_wall_primary,wall surface temperature,Ts_wall,[K],primary,primary_wall_ther,wall
+hexch_wi_wall_primary,heat exchange coefficient from wall to the interface phase,hexch_wi,[W/m2/K],primary,primary_wall_ther,wall
+q_m_cond_wall_primary,table of steam condensation mass flow rate,q_m_cond,[kg/s],primary,primary_wall_ther,wall
+hexch_wl_wall_primary,heat exchange coefficient from wall to the liquid phase,hexch_wl,[W/m2/K],primary,primary_wall_ther,wall
+phi_wtoi_wall_primary,heat flux exchanged from wall to interface,phi_wtoi,[W],primary,primary_wall_ther,wall

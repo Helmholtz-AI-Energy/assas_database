@@ -1,0 +1,18 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+P,pressure in the vessel,P,bar,vessel,vessel_mesh_ther,channel;mesh
+P_h2,pressure of hydrogen in the vessel,P_h2,bar,vessel,vessel_mesh_ther,channel;mesh
+P_steam,pressure of steam in the vessel,P_steam,bar,vessel,vessel_mesh_ther,channel;mesh
+T_gas,none,T_gas,none,vessel,vessel_mesh_ther,channel;mesh
+T_liq,none,T_liq,none,vessel,vessel_mesh_ther,channel;mesh
+T_sat,none,T_sat,none,vessel,vessel_mesh_ther,channel;mesh
+VG_bar,none,VG_bar,none,vessel,vessel_mesh_ther,channel;mesh
+VL_bar,none,VL_bar,none,vessel,vessel_mesh_ther,channel;mesh
+m_gas,none,m_gas,none,vessel,vessel_mesh_ther,channel;mesh
+m_liq,none,m_liq,none,vessel,vessel_mesh_ther,channel;mesh
+q_m_list,none,q_m_list,none,vessel,vessel_mesh_ther,channel;mesh
+rho_gas,none,rho_gas,none,vessel,vessel_mesh_ther,channel;mesh
+rho_liq,none,rho_liq,none,vessel,vessel_mesh_ther,channel;mesh
+x_alfa,none,x_alfa,none,vessel,vessel_mesh_ther,channel;mesh
+POROSITY,none,POROSITY,none,vessel,vessel_mesh,channel;mesh
+VOLFDEB,none,VOLFDEB,none,vessel,vessel_mesh,channel;mesh
+VOLFMAG,none,VOLFMAG,none,vessel,vessel_mesh,channel;mesh

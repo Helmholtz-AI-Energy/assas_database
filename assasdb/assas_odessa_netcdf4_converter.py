@@ -65,13 +65,16 @@ class AssasOdessaNetCDF4Converter:
         self.time_points = pyod.get_saving_times(input_path)
         logger.info(f'Read following time points from ASTEC archive: {self.time_points}.')
 
-        self.variable_index = self.read_astec_variable_index(
-            variable_index_file = astec_variable_index_file
-        )
+        #self.variable_index = self.read_astec_variable_index(
+        #    variable_index_file = astec_variable_index_file
+        #)
+        self.variable_index = self.read_astec_variable_index_files()
 
         self.variable_strategy_mapping = { # TODO: Implement all other types
             'primary_pipe_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther,
             'primary_pipe_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_geom,
+            'primary_volume_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_volume_ther,
+            'primary_volume_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_volume_geom,
             'primary_junction_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_junction_ther,
             'primary_junction_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_junction_geom,
             'primary_wall': AssasOdessaNetCDF4Converter.parse_variable_from_primary_wall,
@@ -162,6 +165,29 @@ class AssasOdessaNetCDF4Converter:
                 result_list.append([-1])
 
         return result_list
+    
+    def read_astec_variable_index_files(
+        self
+    )-> pd.DataFrame:
+
+        file_list = [
+            'data/inr/assas_variables_primary_junction_ther.csv',
+            'data/inr/assas_variables_primary_pipe_ther.csv',
+            'data/inr/assas_variables_primary_volume_ther.csv',
+            'data/inr/assas_variables_primary_wall_ther.csv',
+            'data/inr/assas_variables_sensor.csv',
+            'data/inr/assas_variables_vessel_face_ther.csv',
+            'data/inr/assas_variables_vessel_general.csv',
+            'data/inr/assas_variables_vessel_mesh.csv',
+        ]
+        
+        dataframe_list = []
+        for file in file_list:
+            csv_path = pkg_resources.resource_stream(__name__, file)
+            dataframe = pd.read_csv(csv_path)
+            dataframe_list.append(dataframe)
+        
+        return pd.concat(dataframe_list)
     
     def read_astec_variable_index(
         self,
@@ -404,6 +430,58 @@ class AssasOdessaNetCDF4Converter:
             
             logger.debug(f'Collect variable structure {variable_structure}.')
             array[junction_number] = variable_structure
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_primary_volume_ther(
+        odessa_base,
+        variable_name: str
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type primary_volume_ther.')
+
+        primary = odessa_base.get('PRIMARY')
+        number_of_volumes = primary.len('VOLUME')
+        
+        logger.debug(f'Number of volumes in primary: {number_of_volumes}.')
+        
+        array = np.zeros((number_of_volumes))
+        
+        for volume_number in range(number_of_volumes):
+            
+            volume_object = primary.get(f'VOLUME {volume_number}')
+            ther_object = volume_object.get(f'THER')
+            variable_structure = ther_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
+            array[volume_number] = variable_structure[2]
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_primary_volume_geom(
+        odessa_base,
+        variable_name: str
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type primary_volume_geom.')
+
+        primary = odessa_base.get('PRIMARY')
+        number_of_volumes = primary.len('VOLUME')
+        
+        logger.debug(f'Number of volumes in primary: {number_of_volumes}.')
+        
+        array = np.zeros((number_of_volumes))
+        
+        for volume_number in range(number_of_volumes):
+            
+            volume_object = primary.get(f'VOLUME {volume_number}')
+            geom_object = volume_object.get(f'GEOM')
+            variable_structure = geom_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure} {volume_number}.')
+            array[volume_number] = variable_structure
             
         return array
     
@@ -766,6 +844,22 @@ class AssasOdessaNetCDF4Converter:
         )
         
         return array
+    
+    @staticmethod
+    def get_general_meta_data(
+        netcdf4_file_path: str,
+        attribute_name: str,
+    ) -> str:
+        
+        netcdf4_path_object = Path(netcdf4_file_path)
+        logger.info(f'Path of hdf5 file is {str(netcdf4_path_object)}.')
+        
+        value = None
+        with netCDF4.Dataset(f'{netcdf4_path_object}', 'r', format='NETCDF4') as ncfile:
+            value = ncfile.getncattr(attribute_name)
+            
+        return value
+
 
     @staticmethod
     def set_general_meta_data(
@@ -837,27 +931,28 @@ class AssasOdessaNetCDF4Converter:
     
         logger.info(f'Parse ASTEC data from binary with path {self.input_path}.')
 
+        time_points = self.time_points
+        if explicit_times is not None:
+            time_points = time_points[explicit_times[0]:explicit_times[1]]
+
+        logger.info(f'Parse following time points from ASTEC archive: {time_points}.')
+        
         with netCDF4.Dataset(f'{self.output_path}', 'a', format='NETCDF4') as ncfile:
 
             variable_datasets = {}
             
-            ncfile.createDimension('time', len(self.time_points))
+            ncfile.createDimension('time', len(time_points))
             ncfile.createDimension('channel', None)
             ncfile.createDimension('mesh', None)
             ncfile.createDimension('pipe', None)
             ncfile.createDimension('junction', None)
+            ncfile.createDimension('volume', None)
             ncfile.createDimension('face', None)
             ncfile.createDimension('wall', None)
             ncfile.createDimension('general', None)
             ncfile.createDimension('pump', None)
             ncfile.createDimension('sensor', None)
-            
-            time_points = self.time_points
-            if explicit_times is not None:
-                time_points = time_points[explicit_times[0]:explicit_times[1]]
 
-            logger.info(f'Parse following time points from ASTEC archive: {time_points}.')
-            
             time_dataset = ncfile.createVariable(
                 varname = 'time_points',
                 datatype = np.float32,

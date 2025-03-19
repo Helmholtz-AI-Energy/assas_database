@@ -1,0 +1,37 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+h_bho2_primary_volume,enthalpy of BHO2,h_bho2,[J/kg],primary,primary_volume_ther,volume
+P_primary_volume,total pressure,P,[Pa],primary,primary_volume_ther,volume
+rho_gas_primary_volume,gaseous mixture density,rho_gas,[kg/m3],primary,primary_volume_ther,volume
+rho_co2_primary_volume,CO2 density,rho_co2,[kg/m3],primary,primary_volume_ther,volume
+m_liq_primary_volume,liquid mass,m_liq,[kg],primary,primary_volume_ther,volume
+m_h2_primary_volume,hydrogen mass,m_h2,[kg],primary,primary_volume_ther,volume
+T_liq_primary_volume,liquid temperature,T_liq,[K],primary,primary_volume_ther,volume
+x_alfa_primary_volume,void fraction,x_alfa,[],primary,primary_volume_ther,volume
+q_m_list_primary_volume,liquid to vapor flowrate,q_m_list,[kg/s],primary,primary_volume_ther,volume
+h_h2_primary_volume,enthalpy of hydrogen,h_h2,[J/kg],primary,primary_volume_ther,volume
+phi_wtol_primary_volume,heat flux exchanged from wall to liquid,phi_wtol,[W],primary,primary_volume_ther,volume
+rho_stea_primary_volume,vapor density,rho_stea,[kg/m3],primary,primary_volume_ther,volume
+m_steam_primary_volume,steam mass,m_steam,[kg],primary,primary_volume_ther,volume
+phi_wtog_primary_volume,heat flux exchanged from wall to gas,phi_wtog,[W],primary,primary_volume_ther,volume
+T_sat_primary_volume,saturation temperature,T_sat,[K],primary,primary_volume_ther,volume
+phi_wtoi_primary_volume,heat flux exchanged from wall to interface,phi_wtoi,[W],primary,primary_volume_ther,volume
+T_gas_primary_volume,gas temperature,T_gas,[K],primary,primary_volume_ther,volume
+P_steam_primary_volume,steam partial pressure,P_steam,[Pa],primary,primary_volume_ther,volume
+x_steam_primary_volume,void fraction of steam water,x_steam,[],primary,primary_volume_ther,volume
+rho_h2_primary_volume,hydrogen density,rho_h2,[kg/m3],primary,primary_volume_ther,volume
+PPI_primary_volume,incondensible partial pressure,PPI,[Pa],primary,primary_volume_ther,volume
+h_co2_primary_volume,enthalpy of CO2,h_co2,[J/kg],primary,primary_volume_ther,volume
+rho_liq_primary_volume,liquid density,rho_liq,[kg/m3],primary,primary_volume_ther,volume
+m_gas_primary_volume,gas mass,m_gas,[kg],primary,primary_volume_ther,volume
+x_bho2_primary_volume,void fraction of BHO2,x_bho2,[],primary,primary_volume_ther,volume
+P_h2_primary_volume,hydrogen partial pressure,P_h2,[Pa],primary,primary_volume_ther,volume
+m_bho2_primary_volume,BHO2 mass,m_bho2,[kg],primary,primary_volume_ther,volume
+h_gas_primary_volume,enthalpy of gaseous mixture,h_gas,[J/kg],primary,primary_volume_ther,volume
+rho_bho2_primary_volume,BHO2 density,rho_bho2,[kg/m3],primary,primary_volume_ther,volume
+h_liq_sa_primary_volume,enthalpy of liquid at saturation state,h_liq_sa,[J/kg],primary,primary_volume_ther,volume
+P_co2_primary_volume,CO2 partial pressure,P_co2,[Pa],primary,primary_volume_ther,volume
+x_co2_primary_volume,void fraction of CO2,x_co2,[],primary,primary_volume_ther,volume
+h_ste_sa_primary_volume,enthalpy of steam at saturation state,h_ste_sa,[J/kg],primary,primary_volume_ther,volume
+x_h2_primary_volume,void fraction of hydrogen,x_h2,[],primary,primary_volume_ther,volume
+m_co2_primary_volume,CO2 mass,m_co2,[kg],primary,primary_volume_ther,volume
+P_bho2_primary_volume,BHO2 partial pressure,P_bho2,[Pa],primary,primary_volume_ther,volume
