@@ -96,6 +96,7 @@ class AssasOdessaNetCDF4Converter:
             'sensor': AssasOdessaNetCDF4Converter.parse_variable_from_sensor,
             'containment_dome': AssasOdessaNetCDF4Converter.parse_variable_from_containment_dome,
             'containment_pool': AssasOdessaNetCDF4Converter.parse_variable_from_containment_pool,
+            'connecti': AssasOdessaNetCDF4Converter.parse_variable_from_connecti,
         }
         
     def get_time_points(
@@ -846,6 +847,30 @@ class AssasOdessaNetCDF4Converter:
         return array
     
     @staticmethod
+    def parse_variable_from_connecti(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type connecti.')
+
+        number_of_connectis = odessa_base.len('CONNECTI')
+        
+        logger.info(f'Number of valves in systems: {number_of_connectis}.')
+        
+        array = np.zeros((number_of_connectis))
+        
+        for connecti_number in range(1, number_of_connectis):
+            
+            connecti_object = odessa_base.get(f'CONNECTI {connecti_number}')
+            variable_structure = connecti_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array[connecti_number] = variable_structure
+            
+        return array
+    
+    @staticmethod
     def get_general_meta_data(
         netcdf4_file_path: str,
         attribute_name: str,
@@ -952,6 +977,7 @@ class AssasOdessaNetCDF4Converter:
             ncfile.createDimension('general', None)
             ncfile.createDimension('pump', None)
             ncfile.createDimension('sensor', None)
+            ncfile.createDimension('connecti', None)
 
             time_dataset = ncfile.createVariable(
                 varname = 'time_points',

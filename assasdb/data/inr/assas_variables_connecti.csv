@@ -1,0 +1,4 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+T,mass flow rate,T,[kg/s],connecti,connecti,connecti
+Qgas,mass flow rate,Qgas,[kg/s],connecti,connecti,connecti
+CURVI,curvilinear positions of the connecti in both in primary and secondary circuit pipes,CURVI,[],connecti,connecti,connecti
