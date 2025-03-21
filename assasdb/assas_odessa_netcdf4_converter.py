@@ -82,6 +82,7 @@ class AssasOdessaNetCDF4Converter:
             'primary_wall_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_wall_geom,
             'secondar_pipe_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther,
             'secondar_pipe_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_geom,
+            'secondar_volume_ther': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_volume_ther,
             'secondar_junction_ther': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_junction_ther,
             'secondar_junction_geom': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_junction_geom,
             'secondar_wall': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_wall,
@@ -180,6 +181,8 @@ class AssasOdessaNetCDF4Converter:
             'data/inr/assas_variables_vessel_face_ther.csv',
             'data/inr/assas_variables_vessel_general.csv',
             'data/inr/assas_variables_vessel_mesh.csv',
+            'data/inr/assas_variables_secondar_junction_ther.csv',
+            'data/inr/assas_variables_secondar_volume_ther.csv',
         ]
         
         dataframe_list = []
@@ -588,6 +591,32 @@ class AssasOdessaNetCDF4Converter:
             
             logger.debug(f'Collect variable structure {variable_structure}.')
             array[junction_number] = variable_structure
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_secondar_volume_ther(
+        odessa_base,
+        variable_name: str
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type secondar_volume_ther.')
+
+        secondar = odessa_base.get('SECONDAR')
+        number_of_volumes = secondar.len('VOLUME')
+        
+        logger.debug(f'Number of volumes in secondar: {number_of_volumes}.')
+        
+        array = np.zeros((number_of_volumes))
+        
+        for volume_number in range(number_of_volumes):
+            
+            volume_object = secondar.get(f'VOLUME {volume_number}')
+            ther_object = volume_object.get(f'THER')
+            variable_structure = ther_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
+            array[volume_number] = variable_structure[2]
             
         return array
     
