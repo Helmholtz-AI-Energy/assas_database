@@ -1,18 +1,18 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-P,pressure in the vessel,P,bar,vessel,vessel_mesh_ther,channel;mesh
-P_h2,pressure of hydrogen in the vessel,P_h2,bar,vessel,vessel_mesh_ther,channel;mesh
-P_steam,pressure of steam in the vessel,P_steam,bar,vessel,vessel_mesh_ther,channel;mesh
-T_gas,none,T_gas,none,vessel,vessel_mesh_ther,channel;mesh
-T_liq,none,T_liq,none,vessel,vessel_mesh_ther,channel;mesh
-T_sat,none,T_sat,none,vessel,vessel_mesh_ther,channel;mesh
-VG_bar,none,VG_bar,none,vessel,vessel_mesh_ther,channel;mesh
-VL_bar,none,VL_bar,none,vessel,vessel_mesh_ther,channel;mesh
-m_gas,none,m_gas,none,vessel,vessel_mesh_ther,channel;mesh
-m_liq,none,m_liq,none,vessel,vessel_mesh_ther,channel;mesh
-q_m_list,none,q_m_list,none,vessel,vessel_mesh_ther,channel;mesh
-rho_gas,none,rho_gas,none,vessel,vessel_mesh_ther,channel;mesh
-rho_liq,none,rho_liq,none,vessel,vessel_mesh_ther,channel;mesh
-x_alfa,none,x_alfa,none,vessel,vessel_mesh_ther,channel;mesh
-POROSITY,none,POROSITY,none,vessel,vessel_mesh,channel;mesh
-VOLFDEB,none,VOLFDEB,none,vessel,vessel_mesh,channel;mesh
-VOLFMAG,none,VOLFMAG,none,vessel,vessel_mesh,channel;mesh
+P,pressure in the vessel,P,[Pa],vessel,vessel_mesh_ther,channel;mesh
+P_h2,pressure of hydrogen in the vessel,P_h2,[Pa],vessel,vessel_mesh_ther,channel;mesh
+P_steam,pressure of steam in the vessel,P_steam,[Pa],vessel,vessel_mesh_ther,channel;mesh
+T_gas,gaseous phase temperature,T_gas,[K],vessel,vessel_mesh_ther,channel;mesh
+T_liq,liquid phase temperature,T_liq,[K],vessel,vessel_mesh_ther,channel;mesh
+T_sat,saturation temperature,T_sat,[K],vessel,vessel_mesh_ther,channel;mesh
+VG_bar,unkown,VG_bar,[],vessel,vessel_mesh_ther,channel;mesh
+VL_bar,unkown,VL_bar,[],vessel,vessel_mesh_ther,channel;mesh
+m_gas,mass of gaseous phase in the volume,m_gas,[kg],vessel,vessel_mesh_ther,channel;mesh
+m_liq,mass of liquid phase in the volume,m_liq,[kg],vessel,vessel_mesh_ther,channel;mesh
+q_m_list,liquid to vapor flowrate,q_m_list,[kg/s],vessel,vessel_mesh_ther,channel;mesh
+rho_gas,density of the gaseous phase in the volume,rho_gas,[kg/m3],vessel,vessel_mesh_ther,channel;mesh
+rho_liq,density of the liquid phase in the volume,rho_liq,[kg/m3],vessel,vessel_mesh_ther,channel;mesh
+x_alfa,void fraction,x_alfa,[],vessel,vessel_mesh_ther,channel;mesh
+POROSITY,porosity of the mesh with rods (without debris components),POROSITY,[],vessel,vessel_mesh,channel;mesh
+VOLFDEB,volume proportion of the 3 debris classes,VOLFDEB,[],vessel,vessel_mesh,channel;mesh
+VOLFMAG,volume proportion of the magma,VOLFMAG,[],vessel,vessel_mesh,channel;mesh

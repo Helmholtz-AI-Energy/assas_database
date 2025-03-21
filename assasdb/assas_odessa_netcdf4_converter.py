@@ -87,6 +87,7 @@ class AssasOdessaNetCDF4Converter:
             'secondar_junction_geom': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_junction_geom,
             'secondar_wall': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_wall,
             'secondar_wall_ther': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_wall_ther,
+            'secondar_wall_ther_2': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_wall_ther_2,
             'secondar_wall_geom': AssasOdessaNetCDF4Converter.parse_variable_from_secondar_wall_geom,
             'vessel_face_ther': AssasOdessaNetCDF4Converter.parse_variable_from_vessel_face_ther,
             'vessel_mesh_ther': AssasOdessaNetCDF4Converter.parse_variable_from_vessel_mesh_ther,
@@ -173,16 +174,21 @@ class AssasOdessaNetCDF4Converter:
     )-> pd.DataFrame:
 
         file_list = [
+            'data/inr/assas_variables_cavity.csv',
+            'data/inr/assas_variables_containment.csv',
+            'data/inr/assas_variables_lower_plenum.csv',
+            'data/inr/assas_variables_vessel.csv',
+            'data/inr/assas_variables_vessel_face_ther.csv',
+            'data/inr/assas_variables_vessel_general.csv',
+            'data/inr/assas_variables_vessel_mesh.csv',
             'data/inr/assas_variables_primary_junction_ther.csv',
             'data/inr/assas_variables_primary_pipe_ther.csv',
             'data/inr/assas_variables_primary_volume_ther.csv',
             'data/inr/assas_variables_primary_wall_ther.csv',
-            'data/inr/assas_variables_sensor.csv',
-            'data/inr/assas_variables_vessel_face_ther.csv',
-            'data/inr/assas_variables_vessel_general.csv',
-            'data/inr/assas_variables_vessel_mesh.csv',
             'data/inr/assas_variables_secondar_junction_ther.csv',
             'data/inr/assas_variables_secondar_volume_ther.csv',
+            'data/inr/assas_variables_secondar_wall.csv',
+            'data/inr/assas_variables_secondar_wall_ther.csv',
         ]
         
         dataframe_list = []
@@ -252,11 +258,11 @@ class AssasOdessaNetCDF4Converter:
         array = np.zeros((number_of_channels, number_of_meshes))
         logger.debug(f'Initialized array with shape {array.shape}.')
 
-        for channel_number in range(vessel.len('CHANNEL')):
+        for channel_number in range(1, vessel.len('CHANNEL')):
 
             channel = vessel.get(f'CHANNEL {channel_number}')
 
-            for mesh_number in range(channel.len('MESH')):
+            for mesh_number in range(1, channel.len('MESH')):
 
                 logger.debug(f'Channel number {channel_number}, Mesh number {mesh_number}.')
                 mesh_identifier = channel.get(f'MESH {mesh_number}')
@@ -335,7 +341,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_faces))
         
-        for face_number in range(number_of_faces):
+        for face_number in range(1, number_of_faces):
             
             junction_object = vessel.get(f'FACE {face_number}')
             ther_object = junction_object.get(f'THER')
@@ -400,7 +406,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_junctions))
         
-        for junction_number in range(number_of_junctions):
+        for junction_number in range(1, number_of_junctions):
             
             junction_object = primary.get(f'JUNCTION {junction_number}')
             ther_object = junction_object.get(f'THER')
@@ -426,7 +432,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_junctions))
         
-        for junction_number in range(number_of_junctions):
+        for junction_number in range(1, number_of_junctions):
             
             junction_object = primary.get(f'JUNCTION {junction_number}')
             geom_object = junction_object.get(f'GEOM')
@@ -452,7 +458,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_volumes))
         
-        for volume_number in range(number_of_volumes):
+        for volume_number in range(1, number_of_volumes):
             
             volume_object = primary.get(f'VOLUME {volume_number}')
             ther_object = volume_object.get(f'THER')
@@ -478,7 +484,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_volumes))
         
-        for volume_number in range(number_of_volumes):
+        for volume_number in range(1, number_of_volumes):
             
             volume_object = primary.get(f'VOLUME {volume_number}')
             geom_object = volume_object.get(f'GEOM')
@@ -504,7 +510,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_pipes))
         
-        for pipe_number in range(number_of_pipes):
+        for pipe_number in range(1, number_of_pipes):
             
             pipe_object = primary.get(f'PIPE {pipe_number}')
             ther_object = pipe_object.get(f'THER')
@@ -527,7 +533,7 @@ class AssasOdessaNetCDF4Converter:
         number_of_pipes = primary.len('PIPE')
         variable_structure = primary.get(f'PIPE 1: GEOM 1: {variable_name} 1')
         
-        logger.info(f'Number of pipes in primary: {number_of_pipes}. {len(variable_structure)} {variable_structure}')
+        logger.debug(f'Number of pipes in primary: {number_of_pipes}. {len(variable_structure)} {variable_structure}')
         
         array = np.zeros((number_of_pipes, len(variable_structure)))
         
@@ -537,7 +543,7 @@ class AssasOdessaNetCDF4Converter:
             geom_object = pipe_object.get(f'GEOM')
             variable_structure = primary.get(f'PIPE {pipe_number}: GEOM 1: {variable_name} 1')
             
-            logger.info(f'Collect variable structure {variable_structure}. {pipe_number}')
+            logger.debug(f'Collect variable structure {variable_structure}.')
             array[pipe_number] = variable_structure
             
         return array
@@ -557,7 +563,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_junctions))
         
-        for junction_number in range(number_of_junctions):
+        for junction_number in range(1, number_of_junctions):
             
             junction_object = secondar.get(f'JUNCTION {junction_number}')
             ther_object = junction_object.get(f'THER')
@@ -583,7 +589,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_junctions))
         
-        for junction_number in range(number_of_junctions):
+        for junction_number in range(1, number_of_junctions):
             
             junction_object = secondar.get(f'JUNCTION {junction_number}')
             geom_object = junction_object.get(f'GEOM')
@@ -609,7 +615,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_volumes))
         
-        for volume_number in range(number_of_volumes):
+        for volume_number in range(1, number_of_volumes):
             
             volume_object = secondar.get(f'VOLUME {volume_number}')
             ther_object = volume_object.get(f'THER')
@@ -635,7 +641,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_walls))
         
-        for wall_number in range(number_of_walls):
+        for wall_number in range(1, number_of_walls):
             
             wall_object = primary.get(f'WALL {wall_number}')
             variable_structure = wall_object.get(f'{variable_name}')
@@ -660,7 +666,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_walls))
         
-        for wall_number in range(number_of_walls):
+        for wall_number in range(1, number_of_walls):
             
             wall_object = primary.get(f'WALL {wall_number}')
             ther_object = wall_object.get(f'THER')
@@ -686,7 +692,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_walls))
         
-        for wall_number in range(number_of_walls):
+        for wall_number in range(1, number_of_walls):
             
             wall_object = primary.get(f'WALL {wall_number}')
             geom_object = wall_object.get(f'GEOM')
@@ -712,7 +718,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_walls))
         
-        for wall_number in range(number_of_walls):
+        for wall_number in range(1, number_of_walls):
             
             wall_object = secondar.get(f'WALL {wall_number}')
             variable_structure = wall_object.get(f'{variable_name}')
@@ -737,10 +743,36 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_walls))
         
-        for wall_number in range(number_of_walls):
-            
+        for wall_number in range(1, number_of_walls):
+
             wall_object = secondar.get(f'WALL {wall_number}')
-            ther_object = wall_object.get(f'THER')
+            ther_object = wall_object.get(f'THER 1')
+            variable_structure = ther_object.get(f'{variable_name}')
+            
+            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
+            array[wall_number] = variable_structure[2]
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_secondar_wall_ther_2(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type secondar_wall_ther.')
+
+        secondar = odessa_base.get('SECONDAR')
+        number_of_walls = secondar.len('WALL')
+        
+        logger.debug(f'Number of walls in secondar: {number_of_walls}.')
+        
+        array = np.zeros((number_of_walls))
+        
+        for wall_number in range(1, number_of_walls):
+
+            wall_object = secondar.get(f'WALL {wall_number}')
+            ther_object = wall_object.get(f'THER 2')
             variable_structure = ther_object.get(f'{variable_name}')
             
             logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
@@ -763,7 +795,7 @@ class AssasOdessaNetCDF4Converter:
         
         array = np.zeros((number_of_walls))
         
-        for wall_number in range(number_of_walls):
+        for wall_number in range(1, number_of_walls):
             
             wall_object = secondar.get(f'WALL {wall_number}')
             geom_object = wall_object.get(f'GEOM')
@@ -1047,6 +1079,5 @@ class AssasOdessaNetCDF4Converter:
                     )
 
                     logger.debug(f"Read data for {variable['name_odessa']} with shape {data_per_timestep.shape}.")
-                    #logger.debug(f'Resize dataset to ({len(self.time_points)},{data_per_timestep.shape[0]},{data_per_timestep.shape[1]}).')
 
                     variable_datasets[variable['name']][idx] = data_per_timestep

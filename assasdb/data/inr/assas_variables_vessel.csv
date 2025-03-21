@@ -1,0 +1,10 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+Q_DC,vessel downcomer liquid mass flowrate,4,[kg/s],vessel,sensor,sensor
+LVL_CORE,vessel level,15,[m],vessel,sensor,sensor
+ML_CUVE,vessel liquid mass,16,[kg],vessel,sensor,sensor
+MV_CUVE,vessel steam mass,17,[kg],vessel,sensor,sensor
+QH2_CORE,vessel H2 mass production,19,[kg],vessel,sensor,sensor
+MH2_CORE,vessel H2 mass cumulated mass,20,[kg],vessel,sensor,sensor
+MMAGCORE,total mass of magma located in core vessel,353,[kg],vessel,sensor,sensor
+MDEBCORE,total mass of debris located in core vessel,354,[kg],vessel,sensor,sensor
+QACORPRI,activity release rate from VESSEL to RCS,364,[],vessel,sensor,sensor
