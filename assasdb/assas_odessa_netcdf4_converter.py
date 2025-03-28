@@ -195,6 +195,7 @@ class AssasOdessaNetCDF4Converter:
             'data/inr/assas_variables_secondar_volume_ther.csv',
             'data/inr/assas_variables_secondar_wall.csv',
             'data/inr/assas_variables_secondar_wall_ther.csv',
+            'data/inr/assas_variables_connecti.csv',
         ]
         
         dataframe_list = []
@@ -1122,14 +1123,14 @@ class AssasOdessaNetCDF4Converter:
         
         for connecti_number in range(1, number_of_connectis):
             
-            odessa_path = f'CONNECTI {number_of_connectis}: {variable_name} 1'
+            odessa_path = f'CONNECTI {connecti_number}: {variable_name} 1'
             if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
                     odessa_base = odessa_base,
                     odessa_path = odessa_path
             ):  
                 variable_structure = odessa_base.get(odessa_path)
                 logger.debug(f'Collect variable structure {variable_structure}.')
-                array[connecti_number] = variable_structure[0]
+                array[connecti_number] = variable_structure
             else:
                 logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
                 array[connecti_number] = np.nan

@@ -1,4 +1,6 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-T,mass flow rate,T,[kg/s],connecti,connecti,connecti
-Qgas,mass flow rate,Qgas,[kg/s],connecti,connecti,connecti
-CURVI,curvilinear positions of the connecti in both in primary and secondary circuit pipes,CURVI,[],connecti,connecti,connecti
+Qsteam_connecti,Instantenous value of steam mass flow,Qsteam,[kg/s],connecti,connecti,connecti
+Qwater_connecti,Instantenous value of water flow,Qwater,[kg/s],connecti,connecti,connecti
+Mwater_connecti,Cumulative total mass of water,Mwater,[kg],connecti,connecti,connecti
+T_connecti,Temperature,T,[K],connecti,connecti,connecti
+P_connecti,Total pressure [Pa] it may be given constant or function of time. It represent the back pressure,T,[Pa],connecti,connecti,connecti
