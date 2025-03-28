@@ -37,7 +37,6 @@ class AssasOdessaNetCDF4Converter:
         self,
         input_path: str,
         output_path: Union[str, Path],
-        astec_variable_index_file: str = 'data/astec_vessel_ther_variables_inr.csv',
     ) -> None:
         '''
         Initialize AssasOdessaNetCDF4Converter class.
@@ -65,10 +64,9 @@ class AssasOdessaNetCDF4Converter:
         self.time_points = pyod.get_saving_times(input_path)
         logger.info(f'Read following time points from ASTEC archive: {self.time_points}.')
 
-        #self.variable_index = self.read_astec_variable_index(
-        #    variable_index_file = astec_variable_index_file
-        #)
-        self.variable_index = self.read_astec_variable_index_files()
+        self.variable_index = self.read_astec_variable_index_files(
+            report = False
+        )
 
         self.variable_strategy_mapping = { # TODO: Implement all other types
             'primary_pipe_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther,
@@ -106,6 +104,13 @@ class AssasOdessaNetCDF4Converter:
     ) -> List[int]:
         
         return self.time_points
+    
+    def get_odessa_base_from_index(
+        self,
+        index: int
+    ):
+        time_point = self.time_points[index]
+        return pyod.restore(self.input_path, time_point)
     
     def get_variable_index(
         self
@@ -170,7 +175,8 @@ class AssasOdessaNetCDF4Converter:
         return result_list
     
     def read_astec_variable_index_files(
-        self
+        self,
+        report: bool = False
     )-> pd.DataFrame:
 
         file_list = [
@@ -193,11 +199,69 @@ class AssasOdessaNetCDF4Converter:
         
         dataframe_list = []
         for file in file_list:
-            csv_path = pkg_resources.resource_stream(__name__, file)
-            dataframe = pd.read_csv(csv_path)
-            dataframe_list.append(dataframe)
+            with pkg_resources.resource_stream(__name__, file) as csv_file:
+                dataframe = pd.read_csv(csv_file)
+                dataframe_list.append(dataframe)
         
-        return pd.concat(dataframe_list)
+        dataframe = pd.concat(dataframe_list)
+        logger.info(f'Shape of variable index is {dataframe.shape}.')
+        
+        if report:
+            output_file = os.path.dirname(os.path.realpath(__file__)) + '/assas_variables_wp2_report.csv'
+            dataframe.to_csv(output_file)
+        
+        return dataframe
+    
+    @staticmethod
+    def check_if_odessa_path_exists(
+        odessa_base,
+        odessa_path,
+    )-> bool:
+        
+        keys = odessa_path.split(":")
+        nkeys = len(keys)
+        is_valid_path = True
+        
+        logger.debug(f'Keys of odessa_path: {keys}. Depth of path: {nkeys}.')
+        
+        for count, var in enumerate(keys, start = 1):
+            
+            logger.debug('------------------------------------')
+            var = var.strip()
+            logger.debug(f'Handle key {var}.')
+            num_stru = 1
+            
+            if " " in var:
+                name_stru = var.split(" ")[0]
+                num_stru = var.split(" ")[1]
+            elif "[" in var:
+                name_stru = var.split("[")[0]
+
+            logger.debug(f'Name of the structure: {name_stru}.')
+            logger.debug(f'Number of the structure: {num_stru}.')
+            logger.debug(f'Structure index: {count}.')
+            
+            if count == 1: #Using initiale base argument
+                len_odessa_base = odessa_base.len(name_stru.replace("'", ""))
+                logger.debug(f'Length of odessa base element: {len_odessa_base}.')
+                if len_odessa_base >= int(num_stru):
+                    if count < nkeys: #getting next structure
+                        new_base = odessa_base.get(name_stru + " "+num_stru)
+                else:
+                    is_valid_path = False
+                    break
+            
+            else: #Using substructure
+                len_odessa_base = new_base.len(name_stru.replace("'", ""))
+                logger.debug(f'Length of odessa base element: {len_odessa_base}.')
+                if len_odessa_base >= int(num_stru):
+                    if count < nkeys: #getting next structure
+                        new_base = new_base.get(name_stru+" "+num_stru)
+                else:
+                    is_valid_path = False
+                    break
+    
+        return is_valid_path
     
     def read_astec_variable_index(
         self,
@@ -259,21 +323,26 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f'Initialized array with shape {array.shape}.')
 
         for channel_number in range(1, vessel.len('CHANNEL')):
-
+            
             channel = vessel.get(f'CHANNEL {channel_number}')
-
+            
             for mesh_number in range(1, channel.len('MESH')):
-
+                
                 logger.debug(f'Channel number {channel_number}, Mesh number {mesh_number}.')
                 mesh_identifier = channel.get(f'MESH {mesh_number}')
                 logger.debug(f'Read mesh identifier {mesh_identifier}.')
 
-                mesh_object = vessel.get(f'MESH {mesh_identifier}')
-                ther_object = mesh_object.get(f'THER')
-                variable_structure = ther_object.get(f'{variable_name}')
-
-                logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-                array[channel_number][mesh_number] = variable_structure[2]
+                odessa_path = f'VESSEL 1: MESH {mesh_identifier}: THER 1: {variable_name} 1'
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+                ):  
+                    variable_structure = odessa_base.get(odessa_path)
+                    logger.debug(f'Collect variable structure {variable_structure}.')
+                    array[channel_number][mesh_number] = variable_structure[0]
+                else:
+                    logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                    array[channel_number][mesh_number] = np.nan
 
         return array
     
@@ -318,11 +387,17 @@ class AssasOdessaNetCDF4Converter:
                 mesh_identifier = channel.get(f'MESH {mesh_number}')
                 logger.debug(f'Read mesh identifier {mesh_identifier}.')
 
-                mesh_object = vessel.get(f'MESH {mesh_identifier}')
-                variable_structure = mesh_object.get(f'{variable_name}')
-
-                logger.debug(f'Collect variable structure {variable_structure}.')
-                array[channel_number][mesh_number] = variable_structure
+                odessa_path = f'VESSEL 1: MESH {mesh_identifier}: THER 1: {variable_name} 1'
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+                ):  
+                    variable_structure = odessa_base.get(odessa_path)
+                    logger.debug(f'Collect variable structure {variable_structure}.')
+                    array[channel_number][mesh_number] = variable_structure[0]
+                else:
+                    logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                    array[channel_number][mesh_number] = np.nan
 
         return array
     
@@ -343,12 +418,17 @@ class AssasOdessaNetCDF4Converter:
         
         for face_number in range(1, number_of_faces):
             
-            junction_object = vessel.get(f'FACE {face_number}')
-            ther_object = junction_object.get(f'THER')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-            array[face_number] = variable_structure[2]
+            odessa_path = f'VESSEL 1: FACE {face_number}: THER 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[face_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[face_number] = np.nan
             
         return array
     
@@ -379,15 +459,19 @@ class AssasOdessaNetCDF4Converter:
         
         logger.info(f'Parse ASTEC variable {variable_name}, type vessel_general.')
 
-        vessel = odessa_base.get('VESSEL')
-        general_object = vessel.get('GENERAL')
-        variable_structure = general_object.get(f'{variable_name}')
-        
-        logger.debug(f'Collect variable structure {variable_structure}.')
-
-        array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
-            odessa_structure = variable_structure
-        )
+        odessa_path = f'VESSEL 1: GENERAL 1: {variable_name} 1'
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
+                odessa_structure = variable_structure
+            )
+        else:
+            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            array = np.nan
 
         return array
     
@@ -408,12 +492,17 @@ class AssasOdessaNetCDF4Converter:
         
         for junction_number in range(1, number_of_junctions):
             
-            junction_object = primary.get(f'JUNCTION {junction_number}')
-            ther_object = junction_object.get(f'THER')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-            array[junction_number] = variable_structure[2]
+            odessa_path = f'PRIMARY 1: JUNCTION {junction_number}: THER 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[junction_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[junction_number] = np.nan
             
         return array
     
@@ -434,12 +523,17 @@ class AssasOdessaNetCDF4Converter:
         
         for junction_number in range(1, number_of_junctions):
             
-            junction_object = primary.get(f'JUNCTION {junction_number}')
-            geom_object = junction_object.get(f'GEOM')
-            variable_structure = geom_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}.')
-            array[junction_number] = variable_structure
+            odessa_path = f'PRIMARY 1: JUNCTION {junction_number}: GEOM 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path,
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[junction_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[junction_number] = np.nan
             
         return array
     
@@ -460,12 +554,17 @@ class AssasOdessaNetCDF4Converter:
         
         for volume_number in range(1, number_of_volumes):
             
-            volume_object = primary.get(f'VOLUME {volume_number}')
-            ther_object = volume_object.get(f'THER')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-            array[volume_number] = variable_structure[2]
+            odessa_path = f'PRIMARY 1: VOLUME {volume_number}: THER 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[volume_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[volume_number] = np.nan
             
         return array
     
@@ -486,12 +585,17 @@ class AssasOdessaNetCDF4Converter:
         
         for volume_number in range(1, number_of_volumes):
             
-            volume_object = primary.get(f'VOLUME {volume_number}')
-            geom_object = volume_object.get(f'GEOM')
-            variable_structure = geom_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure} {volume_number}.')
-            array[volume_number] = variable_structure
+            odessa_path = f'PRIMARY 1: VOLUME {volume_number}: GEOM 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[volume_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[volume_number] = np.nan
             
         return array
     
@@ -512,12 +616,17 @@ class AssasOdessaNetCDF4Converter:
         
         for pipe_number in range(1, number_of_pipes):
             
-            pipe_object = primary.get(f'PIPE {pipe_number}')
-            ther_object = pipe_object.get(f'THER')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}.')
-            array[pipe_number] = variable_structure
+            odessa_path = f'PRIMARY 1: PIPE {pipe_number}: THER 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[pipe_number] = variable_structure
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[pipe_number] = np.nan
             
         return array
     
@@ -533,18 +642,23 @@ class AssasOdessaNetCDF4Converter:
         number_of_pipes = primary.len('PIPE')
         variable_structure = primary.get(f'PIPE 1: GEOM 1: {variable_name} 1')
         
-        logger.debug(f'Number of pipes in primary: {number_of_pipes}. {len(variable_structure)} {variable_structure}')
+        logger.debug(f'Number of pipes in primary: {number_of_pipes}. Length of variable structure: {len(variable_structure)}.')
         
         array = np.zeros((number_of_pipes, len(variable_structure)))
         
         for pipe_number in range(1, number_of_pipes):
             
-            pipe_object = primary.get(f'PIPE {pipe_number}')
-            geom_object = pipe_object.get(f'GEOM')
-            variable_structure = primary.get(f'PIPE {pipe_number}: GEOM 1: {variable_name} 1')
-            
-            logger.debug(f'Collect variable structure {variable_structure}.')
-            array[pipe_number] = variable_structure
+            odessa_path = f'PRIMARY 1: PIPE {pipe_number}: GEOM 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[pipe_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[pipe_number] = np.nan
             
         return array
         
@@ -565,12 +679,17 @@ class AssasOdessaNetCDF4Converter:
         
         for junction_number in range(1, number_of_junctions):
             
-            junction_object = secondar.get(f'JUNCTION {junction_number}')
-            ther_object = junction_object.get(f'THER')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-            array[junction_number] = variable_structure[2]
+            odessa_path = f'SECONDAR 1: JUNCTION {junction_number}: THER 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[junction_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[junction_number] = np.nan
             
         return array
     
@@ -591,12 +710,17 @@ class AssasOdessaNetCDF4Converter:
         
         for junction_number in range(1, number_of_junctions):
             
-            junction_object = secondar.get(f'JUNCTION {junction_number}')
-            geom_object = junction_object.get(f'GEOM')
-            variable_structure = geom_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}.')
-            array[junction_number] = variable_structure
+            odessa_path = f'SECONDAR 1: JUNCTION {junction_number}: GEOM 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[junction_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[junction_number] = np.nan
             
         return array
     
@@ -617,12 +741,17 @@ class AssasOdessaNetCDF4Converter:
         
         for volume_number in range(1, number_of_volumes):
             
-            volume_object = secondar.get(f'VOLUME {volume_number}')
-            ther_object = volume_object.get(f'THER')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-            array[volume_number] = variable_structure[2]
+            odessa_path = f'SECONDAR 1: VOLUME {volume_number}: THER 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[volume_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[volume_number] = np.nan
             
         return array
     
@@ -643,11 +772,17 @@ class AssasOdessaNetCDF4Converter:
         
         for wall_number in range(1, number_of_walls):
             
-            wall_object = primary.get(f'WALL {wall_number}')
-            variable_structure = wall_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}.')
-            array[wall_number] = variable_structure
+            odessa_path = f'PRIMARY 1: WALL {wall_number}: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[wall_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[wall_number] = np.nan
             
         return array
     
@@ -668,12 +803,17 @@ class AssasOdessaNetCDF4Converter:
         
         for wall_number in range(1, number_of_walls):
             
-            wall_object = primary.get(f'WALL {wall_number}')
-            ther_object = wall_object.get(f'THER')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-            array[wall_number] = variable_structure[2]
+            odessa_path = f'PRIMARY 1: WALL {wall_number}: THER 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[wall_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[wall_number] = np.nan
             
         return array
 
@@ -694,12 +834,17 @@ class AssasOdessaNetCDF4Converter:
         
         for wall_number in range(1, number_of_walls):
             
-            wall_object = primary.get(f'WALL {wall_number}')
-            geom_object = wall_object.get(f'GEOM')
-            variable_structure = geom_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure}.')
-            array[wall_number] = variable_structure
+            odessa_path = f'PRIMARY 1: WALL {wall_number}: GEOM 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[wall_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[wall_number] = np.nan
             
         return array
     
@@ -720,11 +865,17 @@ class AssasOdessaNetCDF4Converter:
         
         for wall_number in range(1, number_of_walls):
             
-            wall_object = secondar.get(f'WALL {wall_number}')
-            variable_structure = wall_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}.')
-            array[wall_number] = variable_structure
+            odessa_path = f'SECONDAR 1: WALL {wall_number}: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[wall_number] = variable_structure
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[wall_number] = np.nan
             
         return array
     
@@ -745,12 +896,17 @@ class AssasOdessaNetCDF4Converter:
         
         for wall_number in range(1, number_of_walls):
 
-            wall_object = secondar.get(f'WALL {wall_number}')
-            ther_object = wall_object.get(f'THER 1')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-            array[wall_number] = variable_structure[2]
+            odessa_path = f'SECONDAR 1: WALL {wall_number}: THER 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[wall_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[wall_number] = np.nan
             
         return array
     
@@ -771,12 +927,17 @@ class AssasOdessaNetCDF4Converter:
         
         for wall_number in range(1, number_of_walls):
 
-            wall_object = secondar.get(f'WALL {wall_number}')
-            ther_object = wall_object.get(f'THER 2')
-            variable_structure = ther_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure[2]}.')
-            array[wall_number] = variable_structure[2]
+            odessa_path = f'SECONDAR 1: WALL {wall_number}: THER 2: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[wall_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[wall_number] = np.nan
             
         return array
     
@@ -797,12 +958,17 @@ class AssasOdessaNetCDF4Converter:
         
         for wall_number in range(1, number_of_walls):
             
-            wall_object = secondar.get(f'WALL {wall_number}')
-            geom_object = wall_object.get(f'GEOM')
-            variable_structure = geom_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}.')
-            array[wall_number] = variable_structure
+            odessa_path = f'SECONDAR 1: WALL {wall_number}: GEOM 1: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[wall_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[wall_number] = np.nan
             
         return array
     
@@ -823,11 +989,17 @@ class AssasOdessaNetCDF4Converter:
         
         for pump_number in range(1, number_of_pumps):
             
-            pump_object = systems.get(f'PUMP {pump_number}')
-            variable_structure = pump_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure}.')
-            array[pump_number] = variable_structure
+            odessa_path = f'SYSTEMS 1: PUMP {pump_number}: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[pump_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[pump_number] = np.nan
             
         return array
     
@@ -848,11 +1020,17 @@ class AssasOdessaNetCDF4Converter:
         
         for valve_number in range(1, number_of_valves):
             
-            valve_object = systems.get(f'VALVE {valve_number}')
-            variable_structure = valve_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}, extract data point: {variable_structure}.')
-            array[valve_number] = variable_structure
+            odessa_path = f'SYSTEMS 1: VALVE {valve_number}: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[valve_number] = variable_structure[0]
+            else:
+                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[valve_number] = np.nan
             
         return array
     
@@ -864,12 +1042,21 @@ class AssasOdessaNetCDF4Converter:
         
         logger.info(f'Parse ASTEC variable from sensor {variable_name}, type sensor.')
 
-        sensor = odessa_base.get(f'SENSOR {variable_name}')
-        sensor_value = sensor.get('value')
+        odessa_path = f'SENSOR {variable_name}: value 1'
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
+                odessa_structure = variable_structure
+            )
+        else:
+            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            array = np.nan
         
-        logger.debug(f'Sensor value: {sensor_value}.')
-        
-        return np.asarray([sensor_value])
+        return array
     
     @staticmethod
     def parse_variable_from_containment_dome(
@@ -879,13 +1066,19 @@ class AssasOdessaNetCDF4Converter:
         
         logger.info(f'Parse ASTEC variable from sensor {variable_name}, type containment_dome.')
 
-        containment = odessa_base.get('CONTAINM')
-        zone_10 = containment.get('ZONE 10')
-        variable_structure = zone_10.get(f'THER: {variable_name}')
-
-        array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
-            variable_structure
-        )
+        odessa_path = f'CONTAINM 1: ZONE 10: THER 1: {variable_name} 1'
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
+                odessa_structure = variable_structure
+            )
+        else:
+            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            array = np.nan
         
         return array
     
@@ -897,13 +1090,19 @@ class AssasOdessaNetCDF4Converter:
         
         logger.info(f'Parse ASTEC variable from sensor {variable_name}, type containment_pool.')
 
-        containment = odessa_base.get('CONTAINM')
-        zone_10 = containment.get('ZONE 11')
-        variable_structure = zone_10.get(f'THER: {variable_name}')
-
-        array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
-            variable_structure
-        )
+        odessa_path = f'CONTAINM 1: ZONE 11: THER 1: {variable_name} 1'
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f'Collect variable structure {variable_structure}.')
+            array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
+                odessa_structure = variable_structure
+            )
+        else:
+            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            array = np.nan
         
         return array
     
@@ -923,11 +1122,17 @@ class AssasOdessaNetCDF4Converter:
         
         for connecti_number in range(1, number_of_connectis):
             
-            connecti_object = odessa_base.get(f'CONNECTI {connecti_number}')
-            variable_structure = connecti_object.get(f'{variable_name}')
-            
-            logger.debug(f'Collect variable structure {variable_structure}.')
-            array[connecti_number] = variable_structure
+            odessa_path = f'CONNECTI {number_of_connectis}: {variable_name} 1'
+            if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base = odessa_base,
+                    odessa_path = odessa_path
+            ):  
+                variable_structure = odessa_base.get(odessa_path)
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[connecti_number] = variable_structure[0]
+            else:
+                logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
+                array[connecti_number] = np.nan
             
         return array
     
@@ -945,7 +1150,6 @@ class AssasOdessaNetCDF4Converter:
             value = ncfile.getncattr(attribute_name)
             
         return value
-
 
     @staticmethod
     def set_general_meta_data(

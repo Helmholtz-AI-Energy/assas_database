@@ -5,7 +5,12 @@ import os
 
 from assasdb import AssasOdessaNetCDF4Converter
 
-logger = logging.getLogger('assas_app')
+logger = logging.getLogger('assas_test')
+
+logging.basicConfig(
+    format = '%(asctime)s %(module)s %(levelname)s: %(message)s',
+    level = logging.INFO,
+    stream = sys.stdout)
 
 class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
     
@@ -55,9 +60,8 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         odessa_converter = AssasOdessaNetCDF4Converter(
             input_path = input_path,
             output_path = output_path,
-            astec_variable_index_file = 'data/assas_astec_variables_wp2_report.csv'
         )
-        
+
         odessa_converter.convert_astec_variables_to_netcdf4()
 
         variable_index = odessa_converter.get_variable_index()
@@ -79,7 +83,6 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         odessa_converter = AssasOdessaNetCDF4Converter(
             input_path = input_path,
             output_path = output_path,
-            astec_variable_index_file = 'data/assas_astec_variables_unittest.csv'
         )
         
         odessa_converter.convert_astec_variables_to_netcdf4(
@@ -97,10 +100,40 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
     
     def test_get_meta_info(self):
         
+        output_path = '/root/assas-data-hub/assas_database/test/data/result/loca_12p_cl_1300_like.h5'
         result = AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4(
-            netcdf4_file = self.output_path
+            netcdf4_file = output_path
         )
         print(f'result {result}')
+        
+    def test_check_if_odessa_path_exists(self):
+        
+        input_path = '/root/assas-data-hub/assas_database/test/data/archive/LOCA_12P_CL_1300_LIKE.bin'
+        output_path = '/root/assas-data-hub/assas_database/test/data/result/loca_12p_cl_1300_like.h5'
+
+        odessa_converter = AssasOdessaNetCDF4Converter(
+            input_path = input_path,
+            output_path = output_path,
+        )
+
+        test_base = odessa_converter.get_odessa_base_from_index(0)
+        
+        self.assertTrue(AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            test_base,
+            "VESSEL 1: MESH 74: THER 1: P 1",
+        ))
+        self.assertFalse(AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            test_base,
+            "VESSEL 1: MESH 74: THER 1: NOTEXISITNG 1",
+        ))
+        self.assertFalse(AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            test_base,
+            "NOTEXISITNG 1: MESH 74: THER 1: P 1",
+        ))
+        
+        
+        
+    
 
 
 if __name__ == '__main__':
