@@ -1,5 +1,5 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-delta_v,change in velocity,delta_v,none,vessel,vessel_face_ther,face
-q_m_liq,liquid mass flow rate,q_m_liq,[kg/s],vessel,vessel_face_ther,face
+delta_v_face,change in velocity,delta_v,none,vessel,vessel_face_ther,face
+q_m_liq_face,liquid mass flow rate,q_m_liq,[kg/s],vessel,vessel_face_ther,face
 v_gas_face,gas velocity in face of vessel,v_gas,[m/s],vessel,vessel_face_ther,face
 v_liq_face,liquid velocity in face of vessel,v_liq,[m/s],vessel,vessel_face_ther,face

@@ -67,6 +67,8 @@ class AssasOdessaNetCDF4Converter:
         self.variable_index = self.read_astec_variable_index_files(
             report = False
         )
+        
+        self.magma_debris_ids = self.read_vessel_magma_debris_ids()
 
         self.variable_strategy_mapping = { # TODO: Implement all other types
             'primary_pipe_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther,
@@ -97,6 +99,9 @@ class AssasOdessaNetCDF4Converter:
             'containment_dome': AssasOdessaNetCDF4Converter.parse_variable_from_containment_dome,
             'containment_pool': AssasOdessaNetCDF4Converter.parse_variable_from_containment_pool,
             'connecti': AssasOdessaNetCDF4Converter.parse_variable_from_connecti,
+            'connecti_source': AssasOdessaNetCDF4Converter.parse_variable_from_connecti_source,
+            'connecti_source_index': AssasOdessaNetCDF4Converter.parse_variable_from_connecti_source_index,
+            'vessel_magma_debris': self.parse_variable_vessel_magma_debris,
         }
         
     def get_time_points(
@@ -118,62 +123,6 @@ class AssasOdessaNetCDF4Converter:
         
         return self.variable_index
 
-    @staticmethod
-    def get_size_of_archive_in_giga_bytes(
-        number_of_timesteps: int,
-        size_of_saving: float = 1.68
-    ) -> float:
-        '''
-        Function to estimate the size of the ASTEC archive.
-        
-        Parameters
-        ----------
-        number_of_timesteps: int
-            Number of timesteps assumed in the ASTEC archive.
-        
-        Returns
-        ----------
-        float 
-            Estimation of the size in giga bytes.
-        '''
-        
-        size_in_giga_bytes = (number_of_timesteps * size_of_saving) / 1000.0
-        
-        return size_in_giga_bytes
-
-    @staticmethod
-    def get_lists_of_saving_times(
-        archive_path_list: List[str],
-    ) -> List[List[int]]:
-        '''
-        Get the time points for a list of ASTEC archives.
-        
-        Parameters
-        ----------
-        archive_path_list: List[str]
-            List of the ASTEC binary archives.
-        
-        Returns
-        ----------
-        List[List[int]] 
-            List of List of integers containing all time points 
-            of the ASTEC archives.
-        '''
-
-        result_list = []
-
-        for archive_path in archive_path_list:
-
-            try:
-                saved_instants = pyod.get_saving_times(archive_path)
-                result_list.append(saved_instants)
-
-            except:
-                logger.error(f'Astec archive is not consistent {archive_path}')
-                result_list.append([-1])
-
-        return result_list
-    
     def read_astec_variable_index_files(
         self,
         report: bool = False
@@ -213,10 +162,39 @@ class AssasOdessaNetCDF4Converter:
         
         return dataframe
     
+    def read_vessel_magma_debris_ids(
+        self,
+        id_file: str = 'data/inr/assas_variables_vessel_magma_debris_id.csv',
+    )-> pd.DataFrame:
+        '''
+        Read names of the ASTEC variables into a dataframe.
+        
+        Parameters
+        ----------
+        filename: str
+            Name of the csv file containing the ASTEC variable names.
+        
+        Returns
+        ----------
+        List[str] 
+            List of strings representing the ASTEC variable names.
+        '''
+
+        with pkg_resources.resource_stream(__name__, id_file) as csv_file:
+            
+            logger.info(f'Read variable index file {csv_file}')
+            dataframe = pd.read_csv(csv_file)
+
+        logger.debug(f'Read ASTEC variables to process from file {id_file}.')
+        logger.debug(f'{dataframe}')
+        dataframe.replace('nan', np.nan)
+        
+        return dataframe
+    
     @staticmethod
     def check_if_odessa_path_exists(
         odessa_base,
-        odessa_path,
+        odessa_path: str,
     )-> bool:
         
         keys = odessa_path.split(":")
@@ -233,9 +211,12 @@ class AssasOdessaNetCDF4Converter:
             num_stru = 1
             
             if " " in var:
+                
                 name_stru = var.split(" ")[0]
                 num_stru = var.split(" ")[1]
+            
             elif "[" in var:
+                
                 name_stru = var.split("[")[0]
 
             logger.debug(f'Name of the structure: {name_stru}.')
@@ -243,8 +224,10 @@ class AssasOdessaNetCDF4Converter:
             logger.debug(f'Structure index: {count}.')
             
             if count == 1: #Using initiale base argument
+                
                 len_odessa_base = odessa_base.len(name_stru.replace("'", ""))
                 logger.debug(f'Length of odessa base element: {len_odessa_base}.')
+                
                 if len_odessa_base >= int(num_stru):
                     if count < nkeys: #getting next structure
                         new_base = odessa_base.get(name_stru + " "+num_stru)
@@ -253,8 +236,10 @@ class AssasOdessaNetCDF4Converter:
                     break
             
             else: #Using substructure
+                
                 len_odessa_base = new_base.len(name_stru.replace("'", ""))
                 logger.debug(f'Length of odessa base element: {len_odessa_base}.')
+                
                 if len_odessa_base >= int(num_stru):
                     if count < nkeys: #getting next structure
                         new_base = new_base.get(name_stru+" "+num_stru)
@@ -264,33 +249,35 @@ class AssasOdessaNetCDF4Converter:
     
         return is_valid_path
     
-    def read_astec_variable_index(
+    def parse_variable_vessel_magma_debris(
         self,
-        variable_index_file: str = 'data/astec_vessel_ther_variables_inr.csv'
-    )-> pd.DataFrame:
-        '''
-        Read names of the ASTEC variables into a dataframe.
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
         
-        Parameters
-        ----------
-        filename: str
-            Name of the csv file containing the ASTEC variable names.
+        vessel = odessa_base.get('VESSEL')
+        number_of_meshes = vessel.len('MESH')
         
-        Returns
-        ----------
-        List[str] 
-            List of strings representing the ASTEC variable names.
-        '''
-
-        csv_path = pkg_resources.resource_stream(__name__, variable_index_file)
-        logger.info(f'Read variable index file {csv_path}')
+        array = np.zeros((number_of_meshes))
+        logger.debug(f'Initialized array with shape {array.shape}.')
         
-        dataframe = pd.read_csv(csv_path)
-
-        logger.debug(f'Read ASTEC variables to process from file {variable_index_file}.')
-        logger.debug(f'{dataframe}')
-
-        return dataframe
+        for _, dataframe_row in self.magma_debris_ids.iterrows():
+            
+            mesh_id = dataframe_row['mesh_id']
+            variable_id = dataframe_row[variable_name]
+            
+            logger.debug(f'Handle mesh_id {mesh_id} and variable_id {variable_id}.')
+            
+            if np.isnan(variable_id):
+                array[int(mesh_id)] = np.nan
+            else:
+                odessa_path = f'VESSEL 1: COMP {int(variable_id)}: M 1'
+                variable_structure = odessa_base.get(odessa_path)
+                
+                logger.debug(f'Collect variable structure {variable_structure}.')
+                array[int(mesh_id)] = variable_structure
+        
+        return array
 
     @staticmethod
     def parse_variable_from_vessel_mesh_ther(
@@ -323,7 +310,7 @@ class AssasOdessaNetCDF4Converter:
         array = np.zeros((number_of_channels, number_of_meshes))
         logger.debug(f'Initialized array with shape {array.shape}.')
 
-        for channel_number in range(1, vessel.len('CHANNEL')):
+        for channel_number in range(1, number_of_channels):
             
             channel = vessel.get(f'CHANNEL {channel_number}')
             
@@ -378,7 +365,7 @@ class AssasOdessaNetCDF4Converter:
         array = np.zeros((number_of_channels, number_of_meshes))
         logger.debug(f'Initialized array with shape {array.shape}.')
 
-        for channel_number in range(vessel.len('CHANNEL')):
+        for channel_number in range(1, number_of_channels):
 
             channel = vessel.get(f'CHANNEL {channel_number}')
 
@@ -1110,7 +1097,7 @@ class AssasOdessaNetCDF4Converter:
     @staticmethod
     def parse_variable_from_connecti(
         odessa_base,# TODO: fix type hint
-        variable_name: str,
+        variable_name: str,        
     )-> np.ndarray:
         
         logger.info(f'Parse ASTEC variable {variable_name}, type connecti.')
@@ -1134,6 +1121,87 @@ class AssasOdessaNetCDF4Converter:
             else:
                 logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
                 array[connecti_number] = np.nan
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_connecti_source(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type connecti_source.')
+
+        number_of_connectis = odessa_base.len('CONNECTI')
+        
+        overall_shape = 0
+        for connecti_number in range(1, number_of_connectis):
+            connecti_object = odessa_base.get(f'CONNECTI {connecti_number}')
+            overall_shape += connecti_object.len('SOURCE')
+            
+        logger.info(f'Number of valves in systems: {number_of_connectis}. Complete shape {overall_shape}.')
+        
+        array = np.zeros((overall_shape))
+        
+        for connecti_number in range(1, number_of_connectis):
+            
+            connecti_object = odessa_base.get(f'CONNECTI {connecti_number}')
+            number_of_sources = connecti_object.len('SOURCE')
+            
+            for source_number in range(1, number_of_sources):
+
+                odessa_path = f'CONNECTI {connecti_number}: SOURCE {source_number}: {variable_name} 1'
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                        odessa_base = odessa_base,
+                        odessa_path = odessa_path
+                ):  
+                    variable_structure = odessa_base.get(odessa_path)
+                    logger.debug(f'Collect variable structure {variable_structure}.')
+                    array[connecti_number] = variable_structure
+                else:
+                    logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
+                    array[connecti_number] = np.nan
+            
+        return array
+    
+    @staticmethod
+    def parse_variable_from_connecti_source_index(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+        index: int
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type connecti_source_index. Index: {index}')
+
+        number_of_connectis = odessa_base.len('CONNECTI')
+        
+        overall_shape = 0
+        for connecti_number in range(1, number_of_connectis):
+            connecti_object = odessa_base.get(f'CONNECTI {connecti_number}')
+            overall_shape += connecti_object.len('SOURCE')
+            
+        logger.info(f'Number of valves in systems: {number_of_connectis}. Complete shape {overall_shape}.')
+        
+        array = np.zeros((overall_shape))
+        
+        for connecti_number in range(1, number_of_connectis):
+            
+            connecti_object = odessa_base.get(f'CONNECTI {connecti_number}')
+            number_of_sources = connecti_object.len('SOURCE')
+            
+            for source_number in range(1, number_of_sources):
+
+                odessa_path = f'CONNECTI {connecti_number}: SOURCE {source_number}: {variable_name} 1'
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                        odessa_base = odessa_base,
+                        odessa_path = odessa_path
+                ):  
+                    variable_structure = odessa_base.get(odessa_path)
+                    logger.debug(f'Collect variable structure {variable_structure}.')
+                    array[connecti_number] = variable_structure[index]
+                else:
+                    logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
+                    array[connecti_number] = np.nan
             
         return array
     
@@ -1278,11 +1346,18 @@ class AssasOdessaNetCDF4Converter:
                     
                     strategy_function = self.variable_strategy_mapping[variable['strategy']]
                     
-                    data_per_timestep = strategy_function(
-                        odessa_base = odessa_base,
-                        variable_name = variable['name_odessa']
-                    )
+                    if np.isnan(variable['index']):
+                        data_per_timestep = strategy_function(
+                            odessa_base = odessa_base,
+                            variable_name = variable['name_odessa']
+                        )
+                    else:
+                        data_per_timestep = strategy_function(
+                            odessa_base = odessa_base,
+                            variable_name = variable['name_odessa'],
+                            index = int(variable['index'])
+                        )
 
-                    logger.debug(f"Read data for {variable['name_odessa']} with shape {data_per_timestep.shape}.")
+                    logger.debug(f"Read data for {variable['name_odessa']} with shape {data_per_timestep.shape}. Odessa index {variable['index']} {np.isnan(variable['index'])}")
 
                     variable_datasets[variable['name']][idx] = data_per_timestep

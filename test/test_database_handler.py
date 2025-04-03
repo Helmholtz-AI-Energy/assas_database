@@ -110,6 +110,30 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         
         upload_uuid = uuid.UUID('66045178-aac4-414d-8353-3e3db44f36cc')
         self.database_handler.delete_file_document_by_upload_uuid(upload_uuid)
+    '''
+    Test case to delete database entries manually.
+    def test_database_handler_delete_many_by_upload_uuid(self):
+        
+        
+        self.database_handler = AssasDatabaseHandler(
+            connection_string = 'mongodb://localhost:27017/',
+            database_name = 'assas',
+            file_collection_name = 'files'
+        )
+        list_to_delete = [
+            uuid.UUID('4ae44354-325a-4dc1-a9c3-79a671a2feae'),
+            uuid.UUID('5e5d7636-b24c-41cf-80f4-997e343c1da1'),
+            uuid.UUID('309b2b56-eb03-4113-88be-6c08a696010a'),
+            uuid.UUID('4fc93eb0-0c89-4fc1-820b-5f03698cf225'),
+            uuid.UUID('3d2d481d-5364-4adf-88b1-2ea9ef3f644e'),
+            uuid.UUID('31554b66-dd5e-4460-8a37-396f14d27362'),
+        ]
+        
+        for upload_uuid in list_to_delete:
+            self.database_handler.delete_file_documents_by_upload_uuid(
+                upload_uuid = upload_uuid
+            )
+    '''
 
 
 if __name__ == '__main__':

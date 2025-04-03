@@ -1,5 +1,7 @@
 import logging
- 
+import os 
+import bson
+
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from uuid import uuid4
@@ -23,6 +25,27 @@ class AssasDatabaseHandler:
 
         self.db_handle = self.client[database_name]
         self.file_collection = self.db_handle[file_collection_name]
+        
+    def dump_collections(
+        self,
+        collections,
+        path,
+    )-> None:
+
+        for collection in collections:
+            with open(os.path.join(path, f'{collection}.bson'), 'wb+') as f:
+                for doc in self.db_handle[collection].find():
+                    f.write(bson.BSON.encode(doc))
+                    
+    def restore_collections(
+        self,
+        path,
+    )-> None:
+
+        for collection in os.listdir(path):
+            if collection.endswith('.bson'):
+                with open(os.path.join(path, collection), 'rb+') as f:
+                    self.db_handle[collection.split('.')[0]].insert_many(bson.decode_all(f.read()))
 
     def get_db_handle(
         self
@@ -85,6 +108,13 @@ class AssasDatabaseHandler:
         
         return self.file_collection.find({'system_status':status})
     
+    def get_file_documents_to_update_size(
+        self,
+        update_key: str = '...',
+    ):
+        
+        return self.file_collection.find({'system_size':update_key})
+    
     def update_file_document_by_uuid(
         self,
         uuid: uuid4,
@@ -142,12 +172,9 @@ class AssasDatabaseHandler:
 
 class AssasDocumentFileStatus:
     UPLOADED = 'Uploaded'
-    INVALID = 'Invalid'
-    VALIDATING = 'Validating'
-    VALIDATED = 'Validated' 
     CONVERTING = 'Converting'
-    CONVERTED = 'Converted'
-    FAILED = 'Failed'
+    VALID = 'Valid'
+    INVALID = 'Invalid'
 
 class AssasDocumentFile:
     

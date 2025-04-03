@@ -127,7 +127,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
     def test_database_manager_set_status(self):
         
         document_uuid = uuid.UUID('46a980bc-0d2c-4ab9-9ced-4a5e11e8d1ef')
-        status = AssasDocumentFileStatus.CONVERTED
+        status = AssasDocumentFileStatus.VALID
                
         self.database_manager.set_document_status_by_uuid(document_uuid, status)
         
@@ -166,6 +166,11 @@ class AssasDatabaseManagerTest(unittest.TestCase):
     def test_database_manager_collect_meta(self):
         
         self.database_manager.collect_meta_data_after_conversion()
+        
+    def test_database_manager_get_upload_time(self):
+        
+        directory = '/mnt/ASSAS/upload_test/defb5a82-edeb-4efb-b824-fd15d95317cf'
+        self.database_manager.get_upload_time(directory)
         
 
 if __name__ == '__main__':
