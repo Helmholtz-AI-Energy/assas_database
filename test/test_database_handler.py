@@ -110,6 +110,29 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         
         upload_uuid = uuid.UUID('66045178-aac4-414d-8353-3e3db44f36cc')
         self.database_handler.delete_file_document_by_upload_uuid(upload_uuid)
+        
+    def test_database_handler_update_names_by_upload_uuid(self):
+        
+        self.database_handler = AssasDatabaseHandler(
+            connection_string = 'mongodb://localhost:27017/',
+            database_name = 'assas',
+            file_collection_name = 'files'
+        )
+        list_to_update = [
+            (uuid.UUID('3ec9fd4c-9a52-4675-bf6c-df38de42e9e9'),'SBO_KIT_init_sim_s2'),
+            (uuid.UUID('9660f85e-ed19-400f-952f-0ee36d4c50c6'),'SBO_KIT_init_sim_s4'),
+            (uuid.UUID('02db5e8a-b684-445d-96e9-382148ed2765'),'SBO_KIT_init_sim_s5'),
+            (uuid.UUID('36ee904b-b98e-4385-809e-53a57d2c75f2'),'SBO_KIT_init_sim_s3'),
+            (uuid.UUID('b44e548b-848d-424b-a056-0af9938fe3a7'),'SBO_KIT_init_sim_s1'),
+        ]
+        
+        for updates in list_to_update:
+            
+            update = {'meta_name': updates[1]}
+            self.database_handler.update_file_document_by_upload_uuid(updates[0], update)
+            document = self.database_handler.get_file_document_by_upload_uuid(updates[0])
+            self.assertEqual(document['meta_name'],update['meta_name'])
+        
     '''
     Test case to delete database entries manually.
     def test_database_handler_delete_many_by_upload_uuid(self):

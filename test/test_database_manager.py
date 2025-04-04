@@ -118,12 +118,10 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_database_manager_update_archive_sizes(self):
         
-        self.assertTrue(self.database_manager.update_archive_sizes())
-        
-    def test_database_manager_conversion_in_progress(self):
-        
-        self.assertTrue(self.database_manager.conversion_in_progress())
-    
+        self.assertTrue(self.database_manager.update_archive_sizes(
+            number_of_archives = 10
+        ))
+
     def test_database_manager_set_status(self):
         
         document_uuid = uuid.UUID('46a980bc-0d2c-4ab9-9ced-4a5e11e8d1ef')
@@ -171,6 +169,10 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         directory = '/mnt/ASSAS/upload_test/defb5a82-edeb-4efb-b824-fd15d95317cf'
         self.database_manager.get_upload_time(directory)
+        
+    def test_database_manager_backup_internal_database(self):
+        
+        self.database_manager.backup_internal_database()
         
 
 if __name__ == '__main__':

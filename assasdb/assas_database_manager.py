@@ -13,7 +13,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple, Union
 
-
 from assasdb.assas_database_handler import AssasDatabaseHandler
 from assasdb.assas_database_handler import AssasDocumentFile, AssasDocumentFileStatus
 from assasdb.assas_odessa_netcdf4_converter import AssasOdessaNetCDF4Converter
@@ -74,16 +73,16 @@ class AssasDatabaseManager:
 
     def __init__(
         self,
-        lsdf_archive: str = '/mnt/ASSAS/upload_test',
         upload_directory: str = '/mnt/ASSAS/upload_test',
+        backup_directory: str = '/mnt/ASSAS/backup_mongodb',
         connection_string: str = 'mongodb://localhost:27017/',
     ) -> None:
 
-        self.lsdf_archive = Path(lsdf_archive)
         self.upload_directory = Path(upload_directory)
 
         self.database_handler = AssasDatabaseHandler(
-            connection_string = connection_string
+            connection_string = connection_string,
+            backup_directory = backup_directory,
         )
 
     def get_database_entry_by_upload_uuid(
@@ -119,9 +118,7 @@ class AssasDatabaseManager:
     ) -> pandas.DataFrame:
         
         file_collection = self.database_handler.get_file_collection()
-        
         data_frame = pandas.DataFrame(list(file_collection.find()))
-        
         logger.info(f'Load data frame with size {str(data_frame.size), str(data_frame.shape)}')
         
         if data_frame.size == 0:
@@ -131,6 +128,14 @@ class AssasDatabaseManager:
         data_frame['_id'] = data_frame['_id'].astype(str)
 
         return data_frame
+    
+    def backup_internal_database(
+        self,
+    ) -> None:
+        
+        self.database_handler.dump_collections(
+            collection_names = ['files']
+        )
     
     def set_document_status_by_uuid(
         self,
@@ -153,7 +158,7 @@ class AssasDatabaseManager:
         document: dict
     ) -> None:
         
-        logger.info(f'Insert document {document}')
+        logger.info(f'Insert document {document}.')
         self.database_handler.insert_file_document(document)
         
     def empty_internal_database(
@@ -232,11 +237,13 @@ class AssasDatabaseManager:
                 
             for document_file in document_file_list:
                 
-                archive_size = AssasDatabaseManager.get_size_of_directory_in_bytes(document_file.get_value('system_path'))
+                system_path = document_file.get_value('system_path')
+               
+                archive_size = AssasDatabaseManager.get_size_of_directory_in_bytes(system_path)
                 converted_size = AssasDatabaseManager.convert_from_bytes(archive_size)
             
                 document_file.set_value('system_size', converted_size)
-                self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+                self.database_handler.update_file_document_by_path(system_path, document_file.get_document())
                 
             success = True
         
@@ -255,10 +262,14 @@ class AssasDatabaseManager:
         for directory in os.listdir(self.upload_directory):
 
             if os.path.isdir(Path.joinpath(self.upload_directory, directory)):
+                
                 if os.path.isfile(Path.joinpath(self.upload_directory, directory, directory)):
+                    
                     logger.debug(f'Detected complete uploaded archive {Path.joinpath(self.upload_directory, directory)}.')
+                    
                     try:
                         upload_uuid_list.append(uuid.UUID(directory))
+                    
                     except ValueError:
                         logger.error('Received univalid uuid.')
         
@@ -275,13 +286,18 @@ class AssasDatabaseManager:
         for directory in os.listdir(self.upload_directory):
 
             if os.path.isdir(Path.joinpath(self.upload_directory, directory)):
+                
                 reload_file = Path.joinpath(self.upload_directory, directory, directory + '_reload')
+                
                 if os.path.isfile(reload_file):
+                    
                     logger.debug(f'Detected reload file in archive {Path.joinpath(self.upload_directory, directory)}.')
+                    
                     try:
                         upload_uuid_list.append(uuid.UUID(directory))
                         logger.info(f'Remove file with path {reload_file}.')
                         os.remove(reload_file)
+                    
                     except ValueError:
                         logger.error('Received univalid uuid.')
         
@@ -311,7 +327,7 @@ class AssasDatabaseManager:
             raise NotImplementedError(f'Path {file_path} points to a directory.')
     
     def get_uploaded_archives_to_process(
-        self
+        self,
     )-> List[AssasAstecArchive]:
 
         uploaded_archives_to_process = []
@@ -336,7 +352,7 @@ class AssasDatabaseManager:
         return uploaded_archives_to_process
     
     def get_uploaded_archives_to_reload(
-        self
+        self,
     )-> List[AssasAstecArchive]:
 
         uploaded_archives_to_reload = []
@@ -424,7 +440,7 @@ class AssasDatabaseManager:
         try:
             
             upload_info = {}
-            upload_info_file = Path.joinpath(self.lsdf_archive, str(upload_uuid), upload_info_file_name)
+            upload_info_file = Path.joinpath(self.upload_directory, str(upload_uuid), upload_info_file_name)
             logger.info(f'Update upload info from file {str(upload_info_file)}')
         
             with open(upload_info_file, 'rb') as file:
@@ -448,7 +464,7 @@ class AssasDatabaseManager:
             
         except Exception as exception:
             
-            logger.error(f'Error when updating upload information in file {str(upload_info_file)} occured: {exception}')
+            logger.error(f'Error when updating upload information in file {str(upload_info_file)} occured: {exception}.')
                 
         return success
     
@@ -461,14 +477,14 @@ class AssasDatabaseManager:
         archive_list = []
         
         upload_info = {}
-        upload_info_file = Path.joinpath(self.lsdf_archive, str(upload_uuid), upload_info_file_name)
+        upload_info_file = Path.joinpath(self.upload_directory, str(upload_uuid), upload_info_file_name)
         logger.info(f'Read upload info from file {str(upload_info_file)}.')
         
         with open(upload_info_file, 'rb') as file:
             upload_info = pickle.load(file)
 
         name = upload_info['name']
-        archive_path = Path.joinpath(self.lsdf_archive, str(upload_uuid))
+        archive_path = Path.joinpath(self.upload_directory, str(upload_uuid))
         upload_time = AssasDatabaseManager.get_upload_time(
             directory = str(archive_path)
         )
@@ -540,14 +556,15 @@ class AssasDatabaseManager:
             document_file.set_value('system_size_hdf5', AssasDatabaseManager.file_size(archive.result_path))
             self.add_internal_database_entry(document_file.get_document())
 
-    def conversion_in_progress(
-        self
+    def postpone_conversion(
+        self,
+        maximum_conversions: int = 5,
     )-> bool:
         
         documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.CONVERTING)
         document_files = [AssasDocumentFile(document) for document in documents]
         
-        return len(document_files) > 0
+        return len(document_files) > maximum_conversions
 
     def convert_next_validated_archive(
         self,
@@ -559,6 +576,10 @@ class AssasDatabaseManager:
         
         if len(document_files) == 0:
             logger.info(f'Found no new archive to convert.')
+            return
+        
+        if self.postpone_conversion():
+            logger.info(f'Too may conversions started. Skip this conversion.')
             return
         
         document_file = document_files[0] # take first in list
@@ -616,5 +637,5 @@ class AssasDatabaseManager:
                 
         except Exception as exception:
             
-            logger.error(f'Update meta info failed to FAILED due to exception: {exception}.')
+            logger.error(f'Update meta info failed due to exception: {exception}.')
 

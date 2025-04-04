@@ -75,6 +75,31 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
     def test_on_lsdf(self):
         
+        input_path = '/mnt/ASSAS/upload_test/f626e095-08dc-4154-82c9-22db4ca0e21b/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'
+        output_path = '/mnt/ASSAS/upload_test/f626e095-08dc-4154-82c9-22db4ca0e21b/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.h5'
+        if os.path.exists(output_path):
+            os.remove(output_path)
+
+        odessa_converter = AssasOdessaNetCDF4Converter(
+            input_path = input_path,
+            output_path = output_path,
+        )
+        
+        odessa_converter.convert_astec_variables_to_netcdf4(
+            explicit_times = [0, 2]
+        )
+
+        variable_index = odessa_converter.get_variable_index()
+        meta_data_list = odessa_converter.read_meta_values_from_netcdf4(output_path)
+
+        variables_from_meta_data = [meta_data['name'] for meta_data in meta_data_list]
+        variables_from_meta_data.remove('time_points')
+        variables_from_index = variable_index['name'].tolist()
+
+        self.assertEqual(set(variables_from_meta_data), set(variables_from_index))
+
+    def test_on_demo_archive(self):
+        
         input_path = '/root/assas-data-hub/assas_database/test/data/archive/LOCA_12P_CL_1300_LIKE.bin'
         output_path = '/root/assas-data-hub/assas_database/test/data/result/loca_12p_cl_1300_like.h5'
         if os.path.exists(output_path):

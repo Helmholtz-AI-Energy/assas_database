@@ -16,9 +16,8 @@ logger.info(f'Start update of archive sizes as cron job at {now}')
 
 manager = AssasDatabaseManager()
 
-#manager.process_uploads()
-#manager.process_uploads_with_reload_flag()
-#manager.update_archive_sizes()
+manager.process_uploads()
+manager.process_uploads_with_reload_flag()
 
 now = datetime.datetime.now()
 logger.info(f'Finished update of archives sizes at {now}')

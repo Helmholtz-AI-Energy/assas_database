@@ -7,6 +7,7 @@ from bson.objectid import ObjectId
 from uuid import uuid4
 from datetime import datetime
 from typing import List
+from pathlib import Path
 
 logger = logging.getLogger('assas_app')
 
@@ -14,37 +15,38 @@ class AssasDatabaseHandler:
 
     def __init__(
         self,
-        connection_string: str = 'mongodb://localhost:27017/',
+        connection_string: str,
+        backup_directory: str,
         database_name: str = 'assas',
-        file_collection_name: str = 'files'
+        file_collection_name: str = 'files',
     )-> None:
         
         self.client = MongoClient(
             host = connection_string
         )
 
+        self.backup_directory = Path(backup_directory)
         self.db_handle = self.client[database_name]
         self.file_collection = self.db_handle[file_collection_name]
         
     def dump_collections(
         self,
-        collections,
-        path,
+        collection_names,
     )-> None:
 
-        for collection in collections:
-            with open(os.path.join(path, f'{collection}.bson'), 'wb+') as f:
-                for doc in self.db_handle[collection].find():
+        for collection_name in collection_names:
+            logger.info(f'Dump collection {collection_name} into a backup file.')
+            with open(os.path.join(self.backup_directory, f'{collection_name}.bson'), 'wb+') as f:
+                for doc in self.db_handle[collection_name].find():
                     f.write(bson.BSON.encode(doc))
                     
     def restore_collections(
         self,
-        path,
     )-> None:
 
-        for collection in os.listdir(path):
+        for collection in os.listdir(self.backup_directory):
             if collection.endswith('.bson'):
-                with open(os.path.join(path, collection), 'rb+') as f:
+                with open(os.path.join(self.backup_directory, collection), 'rb+') as f:
                     self.db_handle[collection.split('.')[0]].insert_many(bson.decode_all(f.read()))
 
     def get_db_handle(
@@ -64,7 +66,7 @@ class AssasDatabaseHandler:
         file: dict
     ):
         
-        logger.info(f'Insert {file}')
+        logger.info(f'Insert file document: {file}.')
         self.file_collection.insert_one(file)
         
     def drop_file_collection(
@@ -89,7 +91,7 @@ class AssasDatabaseHandler:
     
     def get_file_document_by_upload_uuid(
         self,
-        upload_uuid: uuid4
+        upload_uuid: uuid4,
     ):
         
         return self.file_collection.find_one({'system_upload_uuid':str(upload_uuid)})
@@ -184,7 +186,7 @@ class AssasDocumentFile:
     ) -> None:
         
         self.document = document
-                
+
     def get_document(
         self
     ) -> dict:
@@ -197,7 +199,7 @@ class AssasDocumentFile:
     ) -> None:
         
         self.document = document
-        
+
     def extend_document(
         self,
         add_document: dict
@@ -207,7 +209,7 @@ class AssasDocumentFile:
         temp.update(add_document)
         
         self.document = temp
-        
+
     def set_general_meta_values(
         self,
         meta_name: str,
