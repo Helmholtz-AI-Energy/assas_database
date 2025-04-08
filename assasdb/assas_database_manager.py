@@ -607,7 +607,32 @@ class AssasDatabaseManager:
             
             document_file.set_value('system_status', AssasDocumentFileStatus.INVALID)
             self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+    
+    def reset_invalid_archives(
+        self
+    )-> None:
+        
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.INVALID)
+        document_files = [AssasDocumentFile(document) for document in documents]
+        
+        for document in document_files:
+            document.set_value('system_status', AssasDocumentFileStatus.UPLOADED)
+            self.database_handler.update_file_document_by_path(document.get_value('system_path'), document.get_document())
             
+    def reset_all_result_files(
+       self 
+    )-> None:
+        
+        documents = self.database_handler.get_all_file_documents()
+        document_files = [AssasDocumentFile(document) for document in documents]
+        
+        for document in document_files:
+            AssasOdessaNetCDF4Converter.set_general_meta_data(
+                output_path = document.get_value('system_result'),
+                archive_name = document.get_value('meta_name'),
+                archive_description = document.get_value('meta_description'),
+            )
+
     def collect_meta_data_after_conversion(
         self
     )-> None:

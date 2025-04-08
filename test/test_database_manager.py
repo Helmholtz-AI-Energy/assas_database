@@ -174,6 +174,14 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         self.database_manager.backup_internal_database()
         
+    def test_database_manager_reset_invalid_archives(self):
+        
+        self.database_manager.reset_invalid_archives()
+        
+    def test_database_manager_reset_result_files(self):
+        
+        self.database_manager.reset_all_result_files()
+        
 
 if __name__ == '__main__':
     unittest.main()

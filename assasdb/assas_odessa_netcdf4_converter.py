@@ -101,6 +101,7 @@ class AssasOdessaNetCDF4Converter:
             'connecti': AssasOdessaNetCDF4Converter.parse_variable_from_connecti,
             'connecti_source': AssasOdessaNetCDF4Converter.parse_variable_from_connecti_source,
             'connecti_source_index': AssasOdessaNetCDF4Converter.parse_variable_from_connecti_source_index,
+            'connecti_source_fp': AssasOdessaNetCDF4Converter.parse_variable_from_connecti_source_fp,
             'vessel_magma_debris': self.parse_variable_vessel_magma_debris,
         }
         
@@ -145,6 +146,7 @@ class AssasOdessaNetCDF4Converter:
             'data/inr/assas_variables_secondar_wall.csv',
             'data/inr/assas_variables_secondar_wall_ther.csv',
             'data/inr/assas_variables_connecti.csv',
+            'data/inr/assas_variables_connecti_source_fp.csv',
         ]
         
         dataframe_list = []
@@ -1242,6 +1244,25 @@ class AssasOdessaNetCDF4Converter:
         return array
     
     @staticmethod
+    def parse_variable_from_connecti_source_fp(
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable from connecti source {variable_name}, type connecti_source_fp.')
+
+        odessa_path = f'CONNECTI 1: SOURCE {variable_name}: QMAV 1'
+        
+        variable_structure = odessa_base.get(odessa_path)
+        logger.debug(f'Collect variable structure {variable_structure}.')
+        
+        array = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_array(
+                odessa_structure = variable_structure
+        )
+        
+        return array
+    
+    @staticmethod
     def get_general_meta_data(
         netcdf4_file_path: str,
         attribute_name: str,
@@ -1296,13 +1317,13 @@ class AssasOdessaNetCDF4Converter:
                 
                 dimension_string = ' '.join(str(dimension) for dimension in dimensions)
                 variable_dict['dimensions'] = ' '.join(str(dimension) for dimension in dimensions)
-                logger.debug(f'Dimension string {dimension_string}.')
+                logger.debug(f'Dimension string is {dimension_string}.')
                 
                 shapes = ncfile.variables[variable_name].shape
                 
                 shape_string = ' '.join(str(shape) for shape in shapes)
                 variable_dict['shape'] = ' '.join(str(shape) for shape in shapes)
-                logger.debug(f'Shape string {shape_string}.')
+                logger.debug(f'Shape string is {shape_string}.')
                 
                 result.append(variable_dict)
         
@@ -1360,6 +1381,8 @@ class AssasOdessaNetCDF4Converter:
 
                 dimensions = list(variable['dimension'].split(';'))
                 dimensions.insert(0, 'time')
+                dimensions = [dimension for dimension in dimensions if dimension != 'none']
+                
                 logger.info(f'Use dimension: {dimensions}.')
 
                 variable_datasets[variable['name']] = ncfile.createVariable(

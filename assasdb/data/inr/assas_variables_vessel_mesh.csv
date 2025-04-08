@@ -13,6 +13,6 @@ q_m_list,liquid to vapor flowrate,q_m_list,[kg/s],vessel,vessel_mesh_ther,mesh
 rho_gas,density of the gaseous phase in the volume,rho_gas,[kg/m3],vessel,vessel_mesh_ther,mesh
 rho_liq,density of the liquid phase in the volume,rho_liq,[kg/m3],vessel,vessel_mesh_ther,mesh
 x_alfa,void fraction,x_alfa,[],vessel,vessel_mesh_ther,mesh
-POROSITY,porosity of the mesh with rods (without debris components),POROSITY,[],vessel,vessel_mesh,mesh
-VOLFDEB,volume proportion of the 3 debris classes,VOLFDEB,[],vessel,vessel_mesh,mesh
-VOLFMAG,volume proportion of the magma,VOLFMAG,[],vessel,vessel_mesh,mesh
+POROSITY,porosity of the mesh with rods (without debris components),POROSITY,[-],vessel,vessel_mesh,mesh
+VOLFDEB,volume proportion of the 3 debris classes,VOLFDEB,[-],vessel,vessel_mesh,mesh
+VOLFMAG,volume proportion of the magma,VOLFMAG,[-],vessel,vessel_mesh,mesh

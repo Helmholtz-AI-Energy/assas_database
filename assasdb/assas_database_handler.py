@@ -61,6 +61,11 @@ class AssasDatabaseHandler:
         
         return self.file_collection
     
+    def get_all_file_documents(
+        self
+    ):
+        return self.file_collection.find()
+    
     def insert_file_document(
         self,
         file: dict

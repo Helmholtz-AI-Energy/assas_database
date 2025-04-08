@@ -76,7 +76,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
     def test_on_lsdf(self):
         
         input_path = '/mnt/ASSAS/upload_test/f626e095-08dc-4154-82c9-22db4ca0e21b/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'
-        output_path = '/mnt/ASSAS/upload_test/f626e095-08dc-4154-82c9-22db4ca0e21b/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.h5'
+        output_path = '/mnt/ASSAS/upload_test/f626e095-08dc-4154-82c9-22db4ca0e21b/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5'
         if os.path.exists(output_path):
             os.remove(output_path)
 
