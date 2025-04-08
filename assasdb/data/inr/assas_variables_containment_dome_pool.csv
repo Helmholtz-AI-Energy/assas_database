@@ -1,0 +1,11 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+PRES,average total pressure in a zone,PRES,[Pa],containment_dome,containment_dome,sensor
+TFLU,average sump temperature in a zone,TFLU,[K],containment_dome,containment_dome,sensor
+XCO,carbon monoxide mass fraction,XCO,[-],containment_dome,containment_dome,sensor
+XC02,carbon dioxide mass fraction,XC02,[-],containment_dome,containment_dome,sensor
+XH2,hydrogen mass fraction in a zone,XH2,[-],containment_dome,containment_dome,sensor
+XH20,steam mass fraction in a zone,XH20,[-],containment_dome,containment_dome,sensor
+XN2,average N2 mass fraction in a zone,XN2,[-],containment_dome,containment_dome,sensor
+XO2,average O2 mass fraction in a zone,XO2,[-],containment_dome,containment_dome,sensor
+TLIQ,temperature,TLIQ,[K],containment_pool,containment_pool,sensor
+WLEV,water level,WLEV,[m],containment_pool,containment_pool,sensor

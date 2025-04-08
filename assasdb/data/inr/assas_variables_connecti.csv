@@ -1,9 +1,10 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension,index
-Qsteam_connecti,Instantenous value of steam mass flow,Qsteam,[kg/s],connecti,connecti,connecti
-Qwater_connecti,Instantenous value of water flow,Qwater,[kg/s],connecti,connecti,connecti
-Mwater_connecti,Cumulative total mass of water,Mwater,[kg],connecti,connecti,connecti
-T_connecti,Temperature,T,[K],connecti,connecti,connecti
-P_connecti,Total pressure [Pa] it may be given constant or function of time. It represent the back pressure,T,[Pa],connecti,connecti,connecti
-QMAV_connecti_source,none,QMAV,[],connecti,connecti_source,connecti
-FLOW_0_connecti_source,none,FLOW,[],connecti,connecti_source_index,connecti,0
-FLOW_1_connecti_source,none,FLOW,[],connecti,connecti_source_index,connecti,1
+Qsteam_connecti,instantenous value of steam mass flow,Qsteam,[kg/s],connecti,connecti,connecti
+Qwater_connecti,instantenous value of water flow,Qwater,[kg/s],connecti,connecti,connecti
+Mwater_connecti,cumulative total mass of water,Mwater,[kg],connecti,connecti,connecti
+T_connecti,temperature,T,[K],connecti,connecti,connecti
+P_connecti,total pressure [Pa] it may be given constant or function of time. It represent the back pressure,T,[Pa],connecti,connecti,connecti
+QMAV_connecti_source,mean mass flowrate,QMAV,[kg/s],connecti,connecti_source,connecti
+FLOW_0_connecti_source,cumulated enthalpy,FLOW,[J],connecti,connecti_source_index,connecti,0
+FLOW_1_connecti_source,cumulated enthalpy,FLOW,[J],connecti,connecti_source_index,connecti,1
+Heat_Flux_connecti,table of heat source versus time,FLUX,[W],connecti,connecti_heat,connecti

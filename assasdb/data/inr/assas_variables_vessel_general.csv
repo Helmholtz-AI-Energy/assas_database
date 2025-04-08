@@ -1,10 +1,4 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-CUMAFP,cumulated mass of FP release (47 values for 47 species),CUMAFP,[kg],vessel,vessel_general,general
-CUMAGFP,cumulated mass of FP release from magma (47 values for 47 species),CUMAGFP,[kg],vessel,vessel_general,general
-CUMAGSM,cumulated mass of SM release from magma (14 values for 14 species),CUMAGSM,[kg],vessel,vessel_general,general
-CUMASM,cumulated mass of SM release,CUMASM,[kg],vessel,vessel_general,general
-FRACFP,mass fraction of FP release (47 values for 47 species),FRACFP,none,vessel,vessel_general,general
-FRACSM,cumulated fraction of the SMs which have been released (SMEVOL and ELSA models),FRACSM,none,vessel,vessel_general,general
 PRODH2,H2 cumulated mass produced in the core,PRODH2,[kg],vessel,vessel_general,general
 SATUMX,max saturation in the core meshes (>=0 / <=1.0),SATUMX,[-],vessel,vessel_general,general
 TOTMAMAG,corium mass in the core,TOTMAMAG,[kg],vessel,vessel_general,general

@@ -11,3 +11,6 @@ QACORPRI,activity release rate from VESSEL to RCS,364,[],vessel,sensor,sensor
 magma_vessel,vessel magma mass,magma_id,[kg],vessel,vessel_magma_debris,mesh
 debris_0_vessel,vessel debris 0 mass,debris_id_0,[kg],vessel,vessel_magma_debris,mesh
 debris_1_vessel,vessel debris 1 mass,debris_id_1,[kg],vessel,vessel_magma_debris,mesh
+T_clad,clad components T,T,[K],vessel,vessel_clad,component
+T_fuel,fuel components T,T,[K],vessel,vessel_fuel,component
+FP_Heat_Actisum,Total activity in a domain,ACTISUM,[Bq],fp_heat_vessel,fp_heat_vessel,none

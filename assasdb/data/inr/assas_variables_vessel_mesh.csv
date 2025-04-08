@@ -5,8 +5,6 @@ P_steam,pressure of steam in the vessel,P_steam,[Pa],vessel,vessel_mesh_ther,mes
 T_gas,gaseous phase temperature,T_gas,[K],vessel,vessel_mesh_ther,mesh
 T_liq,liquid phase temperature,T_liq,[K],vessel,vessel_mesh_ther,mesh
 T_sat,saturation temperature,T_sat,[K],vessel,vessel_mesh_ther,mesh
-VG_bar,unkown,VG_bar,[],vessel,vessel_mesh_ther,mesh
-VL_bar,unkown,VL_bar,[],vessel,vessel_mesh_ther,mesh
 m_gas,mass of gaseous phase in the volume,m_gas,[kg],vessel,vessel_mesh_ther,mesh
 m_liq,mass of liquid phase in the volume,m_liq,[kg],vessel,vessel_mesh_ther,mesh
 q_m_list,liquid to vapor flowrate,q_m_list,[kg/s],vessel,vessel_mesh_ther,mesh
