@@ -122,6 +122,14 @@ class AssasDatabaseHandler:
         
         return self.file_collection.find({'system_size':update_key})
     
+    def get_file_documents_to_collect_meta_data(
+        self,
+    ):
+        
+        return self.file_collection.find({
+            '$and': [{'meta_data_variables': {'$exists': False}}, {'system_status': AssasDocumentFileStatus.VALID}]
+        })
+    
     def update_file_document_by_uuid(
         self,
         uuid: uuid4,

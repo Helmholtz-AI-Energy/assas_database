@@ -619,8 +619,19 @@ class AssasDatabaseManager:
             document.set_value('system_status', AssasDocumentFileStatus.UPLOADED)
             self.database_handler.update_file_document_by_path(document.get_value('system_path'), document.get_document())
             
+    def reset_valid_archives(
+        self
+    )-> None:
+        
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.VALID)
+        document_files = [AssasDocumentFile(document) for document in documents]
+        
+        for document in document_files:
+            document.set_value('system_status', AssasDocumentFileStatus.UPLOADED)
+            self.database_handler.update_file_document_by_path(document.get_value('system_path'), document.get_document())
+            
     def reset_all_result_files(
-       self 
+        self 
     )-> None:
         
         documents = self.database_handler.get_all_file_documents()
@@ -637,11 +648,11 @@ class AssasDatabaseManager:
         self
     )-> None:
         
-        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.VALID)
+        documents = self.database_handler.get_file_documents_to_collect_meta_data()
         document_files = [AssasDocumentFile(document) for document in documents]
         
         if len(document_files) == 0:
-            logger.info(f'Found no new archive to convert.')
+            logger.info(f'Found no new archive to collect meta data.')
             return
         
         try:
@@ -659,6 +670,38 @@ class AssasDatabaseManager:
                 )
                 
                 self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+                
+        except Exception as exception:
+            
+            logger.error(f'Update meta info failed due to exception: {exception}.')
+            
+    def update_meta_data(
+        self,
+        uuid: uuid4,
+    )-> None:
+        
+        document = self.database_handler.get_file_document_by_uuid(
+            uuid = uuid
+        )
+        document_file = AssasDocumentFile(document)
+        
+        if document_file is None:
+            logger.info(f'Found no new archive to collect meta data.')
+            return
+        
+        try:
+            
+            logger.info(f"Collect meta info from file {document_file.get_value('system_result')}.")
+                
+            meta_info = AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4(
+                netcdf4_file = document_file.get_value('system_result')
+            )
+                
+            document_file.set_meta_data_values(
+                meta_data_variables = meta_info
+            )
+                
+            self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
                 
         except Exception as exception:
             

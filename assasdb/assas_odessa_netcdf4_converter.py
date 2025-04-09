@@ -1514,15 +1514,24 @@ class AssasOdessaNetCDF4Converter:
 
                 dimensions = ncfile.variables[variable_name].dimensions
                 
-                dimension_string = ' '.join(str(dimension) for dimension in dimensions)
-                variable_dict['dimensions'] = ' '.join(str(dimension) for dimension in dimensions)
-                logger.debug(f'Dimension string is {dimension_string}.')
+                variable_dict['dimensions'] = '(' + ', '.join(str(dimension) for dimension in dimensions) + ')'
+                logger.debug(f"Dimension string is {variable_dict['dimensions']}.")
                 
                 shapes = ncfile.variables[variable_name].shape
                 
-                shape_string = ' '.join(str(shape) for shape in shapes)
-                variable_dict['shape'] = ' '.join(str(shape) for shape in shapes)
-                logger.debug(f'Shape string is {shape_string}.')
+                variable_dict['shape'] = '(' + ', '.join(str(shape) for shape in shapes) + ')'
+                logger.debug(f"Shape string is {variable_dict['shape']}.")
+                
+                if variable_name == 'time_points':
+                    domain = '-'
+                else:
+                    domain = ncfile.variables[variable_name].getncattr('domain')
+                
+                variable_dict['domain'] = domain
+                logger.debug(f"Domain string is {variable_dict['domain']}.")
+                
+                for attr_name in ncfile.variables[variable_name].ncattrs():
+                    logger.debug(f"Attribute name {attr_name}.")
                 
                 result.append(variable_dict)
         
