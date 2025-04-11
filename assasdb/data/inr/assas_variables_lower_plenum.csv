@@ -1,7 +1,7 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-T_low_pl,temperature in lower plenum,36,[K],lower plenum,sensor,sensor
-m_low_pl,Total mass of corium located in lower plenum,355,[kg],lower plenum,sensor,sensor
-m_oxy_low_pl,mass of oxyde layer located in lower plenum,356,[kg],lower plenum,sensor,sensor
-m_lml_low_pl,mass of light metal layer located in lower plenum,357,[kg],lower plenum,sensor,sensor
-m_hml_low_pl,mass of heavy metal layer located in lower plenum,358,[kg],lower plenum,sensor,sensor
-m_deb_low_pl,mass of debris located in lower plenum,359,[kg],lower plenum,sensor,sensor
+T_low_pl,temperature in lower plenum,36,[K],lower plenum,sensor,none
+m_low_pl,Total mass of corium located in lower plenum,355,[kg],lower plenum,sensor,none
+m_oxy_low_pl,mass of oxyde layer located in lower plenum,356,[kg],lower plenum,sensor,none
+m_lml_low_pl,mass of light metal layer located in lower plenum,357,[kg],lower plenum,sensor,none
+m_hml_low_pl,mass of heavy metal layer located in lower plenum,358,[kg],lower plenum,sensor,none
+m_deb_low_pl,mass of debris located in lower plenum,359,[kg],lower plenum,sensor,none
