@@ -159,6 +159,18 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
                 upload_uuid = upload_uuid
             )
     '''
+    def test_database_handler_unset_meta_data_variables(self):
+        
+        self.database_handler = AssasDatabaseHandler(
+            connection_string = 'mongodb://localhost:27017/',
+            backup_directory = '/mnt/ASSAS/backup_mongodb',
+            database_name = 'assas',
+            file_collection_name = 'files'
+        )
+        
+        system_uuid = uuid.UUID('144f6875-b09e-45d5-9656-0cfbac61c7ab')
+        self.database_handler.unset_meta_data_variables(system_uuid)
+
     def test_database_handler_get_documents_to_collect_meta(self):
         
         self.database_handler = AssasDatabaseHandler(

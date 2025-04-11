@@ -157,6 +157,16 @@ class AssasDatabaseHandler:
         post = {"$set": update}
         return self.file_collection.update_one({'system_upload_uuid':str(upload_uuid)}, post)
     
+    def unset_meta_data_variables(
+        self,
+        system_uuid: uuid4,
+    ):
+        
+        self.file_collection.update_one(
+            {'system_uuid': str(system_uuid)},
+            {'$unset': {'meta_data_variables': ''}}
+        )
+    
     def delete_file_document(
         self,
         id: str
