@@ -1,16 +1,18 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-Q_DC,vessel downcomer liquid mass flowrate,4,[kg/s],vessel,sensor,sensor
-LVL_CORE,vessel level,15,[m],vessel,sensor,sensor
-ML_CUVE,vessel liquid mass,16,[kg],vessel,sensor,sensor
-MV_CUVE,vessel steam mass,17,[kg],vessel,sensor,sensor
-QH2_CORE,vessel H2 mass production,19,[kg],vessel,sensor,sensor
-MH2_CORE,vessel H2 mass cumulated mass,20,[kg],vessel,sensor,sensor
-MMAGCORE,total mass of magma located in core vessel,353,[kg],vessel,sensor,sensor
-MDEBCORE,total mass of debris located in core vessel,354,[kg],vessel,sensor,sensor
-QACORPRI,activity release rate from VESSEL to RCS,364,[],vessel,sensor,sensor
-magma_vessel,vessel magma mass,magma_id,[kg],vessel,vessel_magma_debris,mesh
-debris_0_vessel,vessel debris 0 mass,debris_id_0,[kg],vessel,vessel_magma_debris,mesh
-debris_1_vessel,vessel debris 1 mass,debris_id_1,[kg],vessel,vessel_magma_debris,mesh
-T_clad,clad components T,T,[K],vessel,vessel_clad,component
-T_fuel,fuel components T,T,[K],vessel,vessel_fuel,component
-FP_Heat_Actisum,Total activity in a domain,ACTISUM,[Bq],fp_heat_vessel,fp_heat_vessel,none
+Q_m_dc,vessel downcomer liquid mass flowrate,4,[kg/s],vessel,sensor,sensor
+l_H20_vessel,vessel water level,15,[%],vessel,sensor,sensor
+m_liq_vessel,vessel liquid mass,16,[kg],vessel,sensor,sensor
+m_steam_vessel,vessel steam mass,17,[kg],vessel,sensor,sensor
+m_prod_H2_vessel,vessel H2 mass production,19,[kg],vessel,sensor,sensor
+m_cum_H2_vessel,vessel H2 mass cumulated mass,20,[kg],vessel,sensor,sensor
+m_magma_tot_vessel,total mass of magma located in core vessel,353,[kg],vessel,sensor,sensor
+m_debris_vessel,total mass of debris located in core vessel,354,[kg],vessel,sensor,sensor
+Q_A_vessel_rcs,activity release rate from VESSEL to RCS,364,[Bq/h],vessel,sensor,sensor
+m_magma_vessel,vessel magma mass,magma_id,[kg],vessel,vessel_magma_debris,mesh
+m_debris_0_vessel,vessel debris 0 mass,debris_id_0,[kg],vessel,vessel_magma_debris,mesh
+m_debris_1_vessel,vessel debris 1 mass,debris_id_1,[kg],vessel,vessel_magma_debris,mesh
+T_comp_clad,clad component temperature,T,[K],vessel,vessel_clad,component
+T_comp_fuel,fuel component temperature,T,[K],vessel,vessel_fuel,component
+FP_A_heat,total activity in a domain,ACTISUM,[Bq],fp_heat_vessel,fp_heat_vessel,none
+state_clad,component state of cladding (0-4),STAT,[-],vessel,vessel_clad_stat,component
+state_fuel,component state of fuel (0-4),STAT,[-],vessel,vessel_fuel_stat,component

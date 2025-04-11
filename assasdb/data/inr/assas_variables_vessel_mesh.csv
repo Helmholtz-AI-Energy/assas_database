@@ -1,16 +1,16 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-P,pressure in the vessel,P,[Pa],vessel,vessel_mesh_ther,mesh
-P_h2,pressure of hydrogen in the vessel,P_h2,[Pa],vessel,vessel_mesh_ther,mesh
-P_steam,pressure of steam in the vessel,P_steam,[Pa],vessel,vessel_mesh_ther,mesh
-T_gas,gaseous phase temperature,T_gas,[K],vessel,vessel_mesh_ther,mesh
-T_liq,liquid phase temperature,T_liq,[K],vessel,vessel_mesh_ther,mesh
-T_sat,saturation temperature,T_sat,[K],vessel,vessel_mesh_ther,mesh
-m_gas,mass of gaseous phase in the volume,m_gas,[kg],vessel,vessel_mesh_ther,mesh
-m_liq,mass of liquid phase in the volume,m_liq,[kg],vessel,vessel_mesh_ther,mesh
-q_m_list,liquid to vapor flowrate,q_m_list,[kg/s],vessel,vessel_mesh_ther,mesh
-rho_gas,density of the gaseous phase in the volume,rho_gas,[kg/m3],vessel,vessel_mesh_ther,mesh
-rho_liq,density of the liquid phase in the volume,rho_liq,[kg/m3],vessel,vessel_mesh_ther,mesh
-x_alfa,void fraction,x_alfa,[],vessel,vessel_mesh_ther,mesh
-POROSITY,porosity of the mesh with rods (without debris components),POROSITY,[-],vessel,vessel_mesh,mesh
-VOLFDEB,volume proportion of the 3 debris classes,VOLFDEB,[-],vessel,vessel_mesh,mesh
-VOLFMAG,volume proportion of the magma,VOLFMAG,[-],vessel,vessel_mesh,mesh
+P_vessel,pressure in the vessel,P,[Pa],vessel,vessel_mesh_ther,mesh
+P_H2_vessel,pressure of hydrogen in the vessel,P_h2,[Pa],vessel,vessel_mesh_ther,mesh
+P_steam_vessel,pressure of steam in the vessel,P_steam,[Pa],vessel,vessel_mesh_ther,mesh
+T_gas_vessel,gaseous phase temperature,T_gas,[K],vessel,vessel_mesh_ther,mesh
+T_liq_vessel,liquid phase temperature,T_liq,[K],vessel,vessel_mesh_ther,mesh
+T_sat_vessel,saturation temperature,T_sat,[K],vessel,vessel_mesh_ther,mesh
+m_gas_vessel,mass of gaseous phase in the volume,m_gas,[kg],vessel,vessel_mesh_ther,mesh
+m_liq_vessel_mesh,mass of liquid phase in the volume,m_liq,[kg],vessel,vessel_mesh_ther,mesh
+Q_liq_vap_vessel,liquid to vapor flowrate,q_m_list,[kg/s],vessel,vessel_mesh_ther,mesh
+rho_gas_vessel,density of the gaseous phase in the volume,rho_gas,[kg/m3],vessel,vessel_mesh_ther,mesh
+rho_liq_vessel,density of the liquid phase in the volume,rho_liq,[kg/m3],vessel,vessel_mesh_ther,mesh
+x_alfa_vessel,void fraction,x_alfa,[-],vessel,vessel_mesh_ther,mesh
+porosity_vessel,porosity of the mesh with rods (without debris components),POROSITY,[-],vessel,vessel_mesh,mesh
+V_deb_vessel,volume proportion of the 3 debris classes,VOLFDEB,[-],vessel,vessel_mesh,mesh
+V_mag_vessel,volume proportion of the magma,VOLFMAG,[-],vessel,vessel_mesh,mesh

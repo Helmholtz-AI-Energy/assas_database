@@ -1,5 +1,5 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-PRODH2,H2 cumulated mass produced in the core,PRODH2,[kg],vessel,vessel_general,general
-SATUMX,max saturation in the core meshes (>=0 / <=1.0),SATUMX,[-],vessel,vessel_general,general
-TOTMAMAG,corium mass in the core,TOTMAMAG,[kg],vessel,vessel_general,general
-TOTMADEB,total mass of core debris,TOTMADEB,[kg],vessel,vessel_general,general
+m_cum_H2,H2 cumulated mass produced in the core,PRODH2,[kg],vessel,vessel_general,general
+sat_core_mesh,maximum saturation in the core meshes (>=0 / <=1.0),SATUMX,[-],vessel,vessel_general,general
+m_tot_cor,corium mass in the core,TOTMAMAG,[kg],vessel,vessel_general,general
+m_tot_deb,debris mass in the core,TOTMADEB,[kg],vessel,vessel_general,general

@@ -3,7 +3,7 @@ T_gas_primary_volume,gas temperature,T_gas,[K],primary,primary_volume_ther,volum
 x_alfa_primary_volume,void fraction,x_alfa,[-],primary,primary_volume_ther,volume
 P_steam_primary_volume,steam partial pressure,P_steam,[Pa],primary,primary_volume_ther,volume
 P_saturation_primary_volume,saturation pressure,Psat,[Pa],primary,primary_volume_ther,volume
-P_h2_primary_volume,hydrogen partial pressure,P_h2,[Pa],primary,primary_volume_ther,volume
+P_H2_primary_volume,hydrogen partial pressure,P_h2,[Pa],primary,primary_volume_ther,volume
 P_primary_volume,total pressure,P,[Pa],primary,primary_volume_ther,volume
 m_steam_primary_volume,steam mass,m_steam,[kg],primary,primary_volume_ther,volume
 rho_liq_primary_volume,liquid density,rho_liq,[kg/m3],primary,primary_volume_ther,volume
@@ -11,4 +11,4 @@ m_liq_primary_volume,liquid mass,m_liq,[kg],primary,primary_volume_ther,volume
 T_sat_primary_volume,saturation temperature,T_sat,[K],primary,primary_volume_ther,volume
 x_steam_primary_volume,void fraction of steam water,x_steam,[],primary,primary_volume_ther,volume
 T_liq_primary_volume,liquid temperature,T_liq,[K],primary,primary_volume_ther,volume
-P_UP_primary_volume,pressure above water level,P_UP,[Pa],primary,primary_volume_ther,volume
+P_up_primary_volume,pressure above water level,P_UP,[Pa],primary,primary_volume_ther,volume

@@ -68,12 +68,20 @@ class AssasOdessaNetCDF4Converter:
             report = False
         )
         
-        self.magma_debris_ids = self.read_vessel_magma_debris_ids()
+        self.magma_debris_ids = self.read_vessel_magma_debris_ids(
+            resource_file = 'data/inr/assas_variables_vessel_magma_debris_ids.csv'
+        )
+        self.fuel_ids = self.read_csv_resource_file(
+            resource_file = 'data/inr/assas_variables_vessel_fuel_ids.csv'
+        )
+        self.clad_ids = self.read_csv_resource_file(
+            resource_file = 'data/inr/assas_variables_vessel_clad_ids.csv'
+        )
+        self.component_states = self.read_csv_resource_file(
+            resource_file = 'data/inr/assas_variables_component_states.csv'
+        )
 
-        self.fuel_ids = self.read_vessel_fuel_ids()
-        self.clad_ids = self.read_vessel_clad_ids()
-
-        self.variable_strategy_mapping = { # TODO: Implement all other types
+        self.variable_strategy_mapping = {
             'primary_pipe_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther,
             'primary_pipe_geom': AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_geom,
             'primary_volume_ther': AssasOdessaNetCDF4Converter.parse_variable_from_primary_volume_ther,
@@ -111,6 +119,8 @@ class AssasOdessaNetCDF4Converter:
             'vessel_magma_debris': self.parse_variable_vessel_magma_debris,
             'vessel_clad': self.parse_variable_vessel_clad,
             'vessel_fuel': self.parse_variable_vessel_fuel,
+            'vessel_clad_stat': self.parse_variable_vessel_clad_stat,
+            'vessel_fuel_stat': self.parse_variable_vessel_fuel_stat,
         }
         
     def get_time_points(
@@ -176,7 +186,7 @@ class AssasOdessaNetCDF4Converter:
     
     def read_vessel_magma_debris_ids(
         self,
-        id_file: str = 'data/inr/assas_variables_vessel_magma_debris_ids.csv',
+        resource_file: str,
     )-> pd.DataFrame:
         '''
         Read names of the ASTEC variables into a dataframe.
@@ -192,69 +202,23 @@ class AssasOdessaNetCDF4Converter:
             List of strings representing the ASTEC variable names.
         '''
 
-        with pkg_resources.resource_stream(__name__, id_file) as csv_file:
-            
-            logger.info(f'Read variable index file {csv_file}')
-            dataframe = pd.read_csv(csv_file)
-
-        logger.debug(f'Read magma and debris ids to process from file {id_file}.')
-        logger.debug(f'{dataframe}')
+        dataframe = self.read_csv_resource_file(
+            resource_file = resource_file
+        )
         dataframe.replace('nan', np.nan)
         
         return dataframe
     
-    def read_vessel_fuel_ids(
+    def read_csv_resource_file(
         self,
-        id_file: str = 'data/inr/assas_variables_vessel_fuel_ids.csv',
+        resource_file: str,
     )-> pd.DataFrame:
-        '''
-        Read names of the ASTEC variables into a dataframe.
         
-        Parameters
-        ----------
-        filename: str
-            Name of the csv file containing the ASTEC variable names.
-        
-        Returns
-        ----------
-        List[str] 
-            List of strings representing the ASTEC variable names.
-        '''
-
-        with pkg_resources.resource_stream(__name__, id_file) as csv_file:
+        with pkg_resources.resource_stream(__name__, resource_file) as csv_file:
             
-            logger.info(f'Read variable index file {csv_file}')
+            logger.info(f'Read csv resource file {csv_file}')
             dataframe = pd.read_csv(csv_file)
 
-        logger.debug(f'Read fluel ids to process from file {id_file}.')
-        logger.debug(f'{dataframe}')
-        
-        return dataframe
-    
-    def read_vessel_clad_ids(
-        self,
-        id_file: str = 'data/inr/assas_variables_vessel_clad_ids.csv',
-    )-> pd.DataFrame:
-        '''
-        Read names of the ASTEC variables into a dataframe.
-        
-        Parameters
-        ----------
-        filename: str
-            Name of the csv file containing the ASTEC variable names.
-        
-        Returns
-        ----------
-        List[str] 
-            List of strings representing the ASTEC variable names.
-        '''
-
-        with pkg_resources.resource_stream(__name__, id_file) as csv_file:
-            
-            logger.info(f'Read variable index file {csv_file}')
-            dataframe = pd.read_csv(csv_file)
-
-        logger.debug(f'Read clad ids to process from file {id_file}.')
         logger.debug(f'{dataframe}')
         
         return dataframe
@@ -391,6 +355,62 @@ class AssasOdessaNetCDF4Converter:
                 
             logger.debug(f'Collect variable structure {variable_structure}.')
             array[idx] = variable_structure
+        
+        return array
+    
+    def parse_variable_vessel_fuel_stat(
+        self,
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type vessel_fuel_stat.')
+
+        array = np.zeros((len(self.fuel_ids.index)))
+        logger.debug(f'Initialized array with shape {array.shape}.')
+        
+        for idx, dataframe_row in self.fuel_ids.iterrows():
+            
+            comp_id = dataframe_row['fuel_id']
+            
+            logger.debug(f'Handle comp_id {comp_id}.')
+
+            odessa_path = f'VESSEL 1: COMP {int(comp_id)}: {variable_name} 1'
+            variable_structure = odessa_base.get(odessa_path)
+                
+            component_state = self.component_states.loc[self.component_states['state'] == variable_structure]
+            component_state_code = component_state['code']
+            
+            logger.debug(f'Collect variable structure string {variable_structure}, what corresponds to code {int(component_state_code.iloc[0])}.')
+            array[idx] = int(component_state_code.iloc[0])
+        
+        return array
+    
+    def parse_variable_vessel_clad_stat(
+        self,
+        odessa_base,# TODO: fix type hint
+        variable_name: str,
+    )-> np.ndarray:
+        
+        logger.info(f'Parse ASTEC variable {variable_name}, type vessel_clad_stat.')
+
+        array = np.zeros((len(self.clad_ids.index)))
+        logger.debug(f'Initialized array with shape {array.shape}.')
+        
+        for idx, dataframe_row in self.clad_ids.iterrows():
+            
+            comp_id = dataframe_row['clad_id']
+            
+            logger.debug(f'Handle comp_id {comp_id}.')
+
+            odessa_path = f'VESSEL 1: COMP {int(comp_id)}: {variable_name} 1'
+            variable_structure = odessa_base.get(odessa_path)
+            
+            component_state = self.component_states.loc[self.component_states['state'] == variable_structure]
+            component_state_code = component_state['code']
+            
+            logger.debug(f'Collect variable structure string {variable_structure}, what corresponds to code {int(component_state_code.iloc[0])}.')
+            array[idx] = int(component_state_code.iloc[0])
         
         return array
     
@@ -1304,7 +1324,7 @@ class AssasOdessaNetCDF4Converter:
     @staticmethod
     def parse_variable_from_connecti(
         odessa_base,# TODO: fix type hint
-        variable_name: str,        
+        variable_name: str,
     )-> np.ndarray:
         
         logger.info(f'Parse ASTEC variable {variable_name}, type connecti.')

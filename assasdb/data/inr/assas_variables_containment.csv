@@ -1,45 +1,45 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-MH2_reco,mass of recombined H2,269,[kg],containment,sensor,sensor
-MCO_reco,mass of recombined CO,270,[kg],containment,sensor,sensor
-QL_CSS1,containment spray system 1 flow rate,295,[kg/s],containment,sensor,sensor
-QL_CSS2,containment spray system 2 flow rate,296,[kg/s],containment,sensor,sensor
-QL_CSS3,containment spray system 3 flow rate,297,[kg/s],containment,sensor,sensor
-Q_VENT,containment venting flow rate,298,[kg/s],containment,sensor,sensor
-AC_Xe133,activity Xe133,308,[Bq/kg],containment,sensor,sensor
-AC_I131O,activity I131O,322,[Bq/kg],containment,sensor,sensor
-AC_I131I,activity I131I,324,[Bq/kg],containment,sensor,sensor
-AC_I131A,activity I131A,326,[Bq/kg],containment,sensor,sensor
-AC_I132O,activity I132O,323,[Bq/kg],containment,sensor,sensor
-AC_I132I,activity I132I,325,[Bq/kg],containment,sensor,sensor
-AC_I132A,activity I132A,327,[Bq/kg],containment,sensor,sensor
-AC_Cs134,activity Cs134,311,[Bq/kg],containment,sensor,sensor
-AC_Cs136,activity Cs136,312,[Bq/kg],containment,sensor,sensor
-AC_Cs137,activity Cs137,313,[Bq/kg],containment,sensor,sensor
-AC_Te132,activity Te132,314,[Bq/kg],containment,sensor,sensor
-AC_Sr90,activity Sr90,315,[Bq/kg],containment,sensor,sensor
-AC_Mo99,activity Mo99,316,[Bq/kg],containment,sensor,sensor
-AC_La140,activity La140,317,[Bq/kg],containment,sensor,sensor
-AC_Cm242,activity Cm242,318,[Bq/kg],containment,sensor,sensor
-AC_Pu241,activity Pu241,319,[Bq/kg],containment,sensor,sensor
-AC_Ru103,activity Ru103,320,[Bq/kg],containment,sensor,sensor
-AC_Sb127,activity Sb127,321,[Bq/kg],containment,sensor,sensor
-DOS_CONT,total dose rate,288,[Gy/s],containment,sensor,sensor
-AC_Xe133_env,activity Xe133,328,[Bq/kg],containment environ,sensor,sensor
-AC_I131O_env,activity I131O,342,[Bq/kg],containment environ,sensor,sensor
-AC_I131I_env,activity I131I,344,[Bq/kg],containment environ,sensor,sensor
-AC_I131A_env,activity I131A,346,[Bq/kg],containment environ,sensor,sensor
-AC_I132O_env,activity I132O,343,[Bq/kg],containment environ,sensor,sensor
-AC_I132I_env,activity I132I,345,[Bq/kg],containment environ,sensor,sensor
-AC_I132A_env,activity I132A,347,[Bq/kg],containment environ,sensor,sensor
-AC_Cs134_env,activity Cs134,331,[Bq/kg],containment environ,sensor,sensor
-AC_Cs136_env,activity Cs136,332,[Bq/kg],containment environ,sensor,sensor
-AC_Cs137_env,activity Cs137,333,[Bq/kg],containment environ,sensor,sensor
-AC_Te132_env,activity Te132,334,[Bq/kg],containment environ,sensor,sensor
-AC_Sr90_env,activity Sr90,335,[Bq/kg],containment environ,sensor,sensor
-AC_Mo99_env,activity Mo99,336,[Bq/kg],containment environ,sensor,sensor
-AC_La137_env,activity La137,338,[Bq/kg],containment environ,sensor,sensor
-AC_Cm242_env,activity Cm242,337,[Bq/kg],containment environ,sensor,sensor
-AC_Pu241_env,activity Pu241,339,[Bq/kg],containment environ,sensor,sensor
-AC_Ru103_env,activity Ru103,340,[Bq/kg],containment environ,sensor,sensor
-AC_Sb127_env,activity Sb127,341,[Bq/kg],containment environ,sensor,sensor
-QACONENV,activity release rate from CONTAINM to ENVIRON,366,[Bq/h],containment environ,sensor,sensor
+m_H2_reco,mass of recombined H2,269,[kg],containment,sensor,sensor
+m_CO_reco,mass of recombined CO,270,[kg],containment,sensor,sensor
+Q_css_1,containment spray system 1 flow rate,295,[kg/s],containment,sensor,sensor
+Q_css_2,containment spray system 2 flow rate,296,[kg/s],containment,sensor,sensor
+Q_css_3,containment spray system 3 flow rate,297,[kg/s],containment,sensor,sensor
+Q_vent,containment venting flow rate,298,[kg/s],containment,sensor,sensor
+A_Xe133,activity Xe133,308,[Bq/kg],containment,sensor,sensor
+A_I131O,activity I131O,322,[Bq/kg],containment,sensor,sensor
+A_I131I,activity I131I,324,[Bq/kg],containment,sensor,sensor
+A_I131A,activity I131A,326,[Bq/kg],containment,sensor,sensor
+A_I132O,activity I132O,323,[Bq/kg],containment,sensor,sensor
+A_I132I,activity I132I,325,[Bq/kg],containment,sensor,sensor
+A_I132A,activity I132A,327,[Bq/kg],containment,sensor,sensor
+A_Cs134,activity Cs134,311,[Bq/kg],containment,sensor,sensor
+A_Cs136,activity Cs136,312,[Bq/kg],containment,sensor,sensor
+A_Cs137,activity Cs137,313,[Bq/kg],containment,sensor,sensor
+A_Te132,activity Te132,314,[Bq/kg],containment,sensor,sensor
+A_Sr90,activity Sr90,315,[Bq/kg],containment,sensor,sensor
+A_Mo99,activity Mo99,316,[Bq/kg],containment,sensor,sensor
+A_La140,activity La140,317,[Bq/kg],containment,sensor,sensor
+A_Cm242,activity Cm242,318,[Bq/kg],containment,sensor,sensor
+A_Pu241,activity Pu241,319,[Bq/kg],containment,sensor,sensor
+A_Ru103,activity Ru103,320,[Bq/kg],containment,sensor,sensor
+A_Sb127,activity Sb127,321,[Bq/kg],containment,sensor,sensor
+Q_dose_cont,total dose rate,288,[Gy/s],containment,sensor,sensor
+A_Xe133_env,activity Xe133,328,[Bq/kg],containment environ,sensor,sensor
+A_I131O_env,activity I131O,342,[Bq/kg],containment environ,sensor,sensor
+A_I131I_env,activity I131I,344,[Bq/kg],containment environ,sensor,sensor
+A_I131A_env,activity I131A,346,[Bq/kg],containment environ,sensor,sensor
+A_I132O_env,activity I132O,343,[Bq/kg],containment environ,sensor,sensor
+A_I132I_env,activity I132I,345,[Bq/kg],containment environ,sensor,sensor
+A_I132A_env,activity I132A,347,[Bq/kg],containment environ,sensor,sensor
+A_Cs134_env,activity Cs134,331,[Bq/kg],containment environ,sensor,sensor
+A_Cs136_env,activity Cs136,332,[Bq/kg],containment environ,sensor,sensor
+A_Cs137_env,activity Cs137,333,[Bq/kg],containment environ,sensor,sensor
+A_Te132_env,activity Te132,334,[Bq/kg],containment environ,sensor,sensor
+A_Sr90_env,activity Sr90,335,[Bq/kg],containment environ,sensor,sensor
+A_Mo99_env,activity Mo99,336,[Bq/kg],containment environ,sensor,sensor
+A_La137_env,activity La137,338,[Bq/kg],containment environ,sensor,sensor
+A_Cm242_env,activity Cm242,337,[Bq/kg],containment environ,sensor,sensor
+A_Pu241_env,activity Pu241,339,[Bq/kg],containment environ,sensor,sensor
+A_Ru103_env,activity Ru103,340,[Bq/kg],containment environ,sensor,sensor
+A_Sb127_env,activity Sb127,341,[Bq/kg],containment environ,sensor,sensor
+Q_A_con_env,activity release rate from CONTAINM to ENVIRON,366,[Bq/h],containment environ,sensor,sensor

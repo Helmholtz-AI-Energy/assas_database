@@ -2,7 +2,7 @@ name,long_name,name_odessa,unit,domain,strategy,dimension
 T_gas_secondar_volume,gas temperature,T_gas,[K],secondar,secondar_volume_ther,volume
 x_alfa_secondar_volume,void fraction,x_alfa,[-],secondar,secondar_volume_ther,volume
 P_steam_secondar_volume,steam partial pressure,P_steam,[Pa],secondar,secondar_volume_ther,volume
-P_h2_secondar_volume,hydrogen partial pressure,P_h2,[Pa],secondar,secondar_volume_ther,volume
+P_H2_secondar_volume,hydrogen partial pressure,P_h2,[Pa],secondar,secondar_volume_ther,volume
 P_secondar_volume,total pressure,P,[Pa],secondar,secondar_volume_ther,volume
 m_steam_secondar_volume,mass of steam,m_steam,[kg],secondar,secondar_volume_ther,volume
 rho_gas_secondar_volume,density of gaseous mixture,rho_gas,[kg/m3],secondar,secondar_volume_ther,volume
