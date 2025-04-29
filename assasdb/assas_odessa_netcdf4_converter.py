@@ -12,11 +12,14 @@ import pandas as pd
 import shutil
 import pkg_resources
 
+from tqdm import tqdm
 from typing import List, Union
 from os.path import join, dirname, abspath
 from pathlib import Path
 
 from assasdb.assas_utils import get_duration
+
+LOG_INTERVAL = 100
 
 logger = logging.getLogger('assas_app')
 
@@ -275,6 +278,22 @@ class AssasOdessaNetCDF4Converter:
     
         return is_valid_path
     
+    @staticmethod
+    def convert_odessa_structure_to_float(
+        odessa_structure,
+    )-> float:
+        
+        value = []
+        
+        if isinstance(odessa_structure, pyod.R1):
+            value = odessa_structure[0]
+        elif isinstance(odessa_structure, float):
+            value = odessa_structure
+        else:
+            logger.error('Unkown type.')
+
+        return value
+    
     def parse_variable_vessel_magma_debris(
         self,
         odessa_base,# TODO: fix type hint
@@ -453,7 +472,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
 
         return array
@@ -502,7 +521,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
 
         return array
@@ -535,7 +554,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -559,7 +578,7 @@ class AssasOdessaNetCDF4Converter:
             array = np.array([variable_structure])
             
         else:
-            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
             array = np.array([np.nan])
 
         return array
@@ -583,7 +602,7 @@ class AssasOdessaNetCDF4Converter:
             array = np.array([variable_structure[0]])
             
         else:
-            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
             array = np.array([np.nan])
 
         return array
@@ -616,7 +635,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -649,7 +668,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -682,7 +701,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -715,7 +734,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -748,7 +767,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -782,7 +801,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -815,7 +834,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -848,7 +867,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -881,7 +900,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -914,7 +933,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -947,7 +966,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -980,7 +999,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1013,7 +1032,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1046,7 +1065,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1079,7 +1098,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1112,7 +1131,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1144,7 +1163,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1176,7 +1195,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1208,7 +1227,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1232,7 +1251,7 @@ class AssasOdessaNetCDF4Converter:
             array = np.array([variable_structure])
             
         else:
-            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
             array = np.array([np.nan])
         
         return array
@@ -1256,7 +1275,7 @@ class AssasOdessaNetCDF4Converter:
             array = np.array([variable_structure[0]])
             
         else:
-            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
             array = np.array([np.nan])
         
         return array
@@ -1279,7 +1298,7 @@ class AssasOdessaNetCDF4Converter:
             array = np.array([variable_structure[0]])
             
         else:
-            logger.warning(f'Variable not in odessa base, fill datapoint with np.nan.')
+            logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
             array = np.array([np.nan])
         
         return array
@@ -1307,10 +1326,12 @@ class AssasOdessaNetCDF4Converter:
             ):  
                 variable_structure = odessa_base.get(odessa_path)
                 logger.debug(f'Collect variable structure {variable_structure}.')
-                array[idx] = variable_structure
+                array[idx] = AssasOdessaNetCDF4Converter.convert_odessa_structure_to_float(
+                    odessa_structure = variable_structure
+                )
                 
             else:
-                logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1341,7 +1362,7 @@ class AssasOdessaNetCDF4Converter:
                 array[idx] = variable_structure[0]
                 
             else:
-                logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
+                logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                 array[idx] = np.nan
             
         return array
@@ -1384,7 +1405,7 @@ class AssasOdessaNetCDF4Converter:
                     logger.debug(f'Collect variable structure {variable_structure}.')
                     array[index] = variable_structure
                 else:
-                    logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
+                    logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                     array[index] = np.nan
                     
                 index += 1
@@ -1430,7 +1451,7 @@ class AssasOdessaNetCDF4Converter:
                     logger.debug(f'Collect variable structure {variable_structure}.')
                     array[index] = variable_structure[index]
                 else:
-                    logger.debug(f'Variable not in odessa base, fill datapoint with np.nan.')
+                    logger.warning(f'Variable {variable_name} not in odessa base, fill datapoint with np.nan.')
                     array[index] = np.nan
             
         return array
@@ -1592,7 +1613,8 @@ class AssasOdessaNetCDF4Converter:
                 variable_datasets[variable['name']].domain = variable['domain']
                 variable_datasets[variable['name']].strategy = variable['strategy']
 
-            for idx, time_point in enumerate(time_points):
+            progress_bar = tqdm(time_points)
+            for idx, time_point in enumerate(progress_bar):
 
                 logger.info(f'Restore odessa base for time point {time_point}.')
                 odessa_base = pyod.restore(self.input_path, time_point)
@@ -1616,3 +1638,6 @@ class AssasOdessaNetCDF4Converter:
                     logger.debug(f"Read data for {variable['name_odessa']} with shape {data_per_timestep.shape}. Odessa index {variable['index']} {np.isnan(variable['index'])}")
 
                     variable_datasets[variable['name']][idx] = data_per_timestep
+                    
+                if progress_bar.n % LOG_INTERVAL == 0:
+                    logger.warning(str(progress_bar))

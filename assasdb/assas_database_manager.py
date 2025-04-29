@@ -578,7 +578,7 @@ class AssasDatabaseManager:
             logger.info(f'Found no new archive to convert.')
             return
         
-        if self.postpone_conversion():
+        if self.postpone_conversion(maximum_conversions = 1):
             logger.info(f'Too may conversions started. Skip this conversion.')
             return
         
@@ -619,6 +619,17 @@ class AssasDatabaseManager:
             document.set_value('system_status', AssasDocumentFileStatus.UPLOADED)
             self.database_handler.update_file_document_by_path(document.get_value('system_path'), document.get_document())
             
+    def reset_converting_archives(
+        self
+    )-> None:
+        
+        documents = self.database_handler.get_file_documents_by_status(AssasDocumentFileStatus.CONVERTING)
+        document_files = [AssasDocumentFile(document) for document in documents]
+        
+        for document in document_files:
+            document.set_value('system_status', AssasDocumentFileStatus.UPLOADED)
+            self.database_handler.update_file_document_by_path(document.get_value('system_path'), document.get_document())
+            
     def reset_valid_archives(
         self
     )-> None:
@@ -643,6 +654,23 @@ class AssasDatabaseManager:
                 archive_name = document.get_value('meta_name'),
                 archive_description = document.get_value('meta_description'),
             )
+            
+    def reset_result_file_by_uuid(
+        self,
+        system_uuid: uuid4, 
+    )-> None:
+        
+        document = self.database_handler.get_file_document_by_uuid(
+            uuid = system_uuid 
+        )
+
+        document_file = AssasDocumentFile(document)
+
+        AssasOdessaNetCDF4Converter.set_general_meta_data(
+            output_path = document_file.get_value('system_result'),
+            archive_name = document_file.get_value('meta_name'),
+            archive_description = document_file.get_value('meta_description'),
+        )
 
     def collect_meta_data_after_conversion(
         self

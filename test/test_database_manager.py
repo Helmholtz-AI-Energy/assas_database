@@ -184,6 +184,10 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         self.database_manager.reset_invalid_archives()
         
+    def test_database_manager_reset_converting_archives(self):
+        
+        self.database_manager.reset_converting_archives()
+        
     def test_database_manager_reset_valid_archives(self):
         
         self.database_manager.reset_valid_archives()
@@ -197,6 +201,13 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         document_uuid = uuid.UUID('144f6875-b09e-45d5-9656-0cfbac61c7ab')
         self.database_manager.update_meta_data(
             uuid = document_uuid
+        )
+        
+    def test_database_manager_reset_result_file(self):
+        
+        system_uuid = uuid.UUID('9cf84cfd-2dd0-456c-9593-b7c9ff337fed')
+        self.database_manager.reset_result_file_by_uuid(
+            system_uuid = system_uuid
         )
         
     def test_database_manager_update_upload_info(self):
