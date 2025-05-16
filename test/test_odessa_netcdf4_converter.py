@@ -5,7 +5,7 @@ import os
 
 from assasdb import AssasOdessaNetCDF4Converter
 
-logger = logging.getLogger('assas_test')
+logger = logging.getLogger('assas_app')
 
 logging.basicConfig(
     format = '%(asctime)s %(module)s %(levelname)s: %(message)s',
@@ -73,20 +73,32 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
         self.assertEqual(set(variables_from_meta_data), set(variables_from_index))
 
-    def test_on_lsdf(self):
+    def test_convert_netcdf4_on_lsdf(self):
         
-        input_path = '/mnt/ASSAS/upload_test/f626e095-08dc-4154-82c9-22db4ca0e21b/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'
-        output_path = '/mnt/ASSAS/upload_test/f626e095-08dc-4154-82c9-22db4ca0e21b/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5'
+        input_path = '/lsdf/kit/scc/projects/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'
+        output_path = '/lsdf/kit/scc/projects/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5'
         if os.path.exists(output_path):
             os.remove(output_path)
 
+        test_name = 'SBO_KIT_init_sim_s83'
+        test_description = 'SBO_KIT_init_sim_s83'
+        
+        AssasOdessaNetCDF4Converter.set_general_meta_data(
+            output_path = output_path,
+            archive_name = test_name,
+            archive_description = test_description, 
+        )
+        
+        self.assertEqual(AssasOdessaNetCDF4Converter.get_general_meta_data(output_path, 'name'), test_name)
+        self.assertEqual(AssasOdessaNetCDF4Converter.get_general_meta_data(output_path, 'description'), test_description)
+        
         odessa_converter = AssasOdessaNetCDF4Converter(
             input_path = input_path,
             output_path = output_path,
         )
         
         odessa_converter.convert_astec_variables_to_netcdf4(
-            explicit_times = [0, 2]
+            maximum_index = 5
         )
 
         variable_index = odessa_converter.get_variable_index()
