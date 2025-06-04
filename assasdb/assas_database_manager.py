@@ -468,6 +468,15 @@ class AssasDatabaseManager:
                 
         return success
     
+    @staticmethod
+    def remove_lead_slash_from_path_string(
+        path: str
+    ):
+        if path.startswith('/'):
+            path = path[1:]
+        
+        return path
+    
     def read_upload_info(
         self,
         upload_uuid: uuid4,
@@ -489,29 +498,43 @@ class AssasDatabaseManager:
             directory = str(archive_path)
         )
 
-        logger.info(f'Path of archive is {str(archive_path)}.')
+        logger.info(f'Path of database entry is {str(archive_path)}.')
         
         if len(upload_info['archive_paths']) == 1:
+            
             archive_sub_path = upload_info['archive_paths'][0]
+            archive_sub_path = self.remove_lead_slash_from_path_string(archive_sub_path)
+            logger.info(f'Sub path of ASTEC archive is {archive_sub_path}.')
+            
+            final_archive_path = Path.joinpath(archive_path, archive_sub_path)
+            logger.info(f'Final path of ASTEC archive is {str(final_archive_path)}.')
+            
             archive_list.append(AssasAstecArchive(
                 upload_uuid = str(upload_uuid),
                 name = name,
                 date = upload_time,
                 user = upload_info['user'],
                 description = upload_info['description'],
-                archive_path = str(archive_path) + archive_sub_path,
-                result_path = str(archive_path) + archive_sub_path + '/../result/dataset.h5', # Put result next to binary
+                archive_path = str(final_archive_path),
+                result_path = str(final_archive_path) + '/../result/dataset.h5', # Put result next to binary
             ))
         else:
             for idx, archive_sub_path in enumerate(upload_info['archive_paths']):
+                
+                archive_sub_path = self.remove_lead_slash_from_path_string(archive_sub_path)
+                logger.info(f'Sub path of ASTEC archive is {archive_sub_path}.')
+                
+                final_archive_path = Path.joinpath(archive_path, archive_sub_path)
+                logger.info(f'Final path of ASTEC archive is {str(final_archive_path)}.')
+                
                 archive_list.append(AssasAstecArchive(
                     upload_uuid = str(upload_uuid),
                     name = f'{name}_{idx}',
                     date = upload_time,
                     user = upload_info['user'],
                     description = upload_info['description'],
-                    archive_path = str(archive_path) + archive_sub_path,
-                    result_path = str(archive_path) + archive_sub_path + '/../result/dataset.h5', # Put result next to binary
+                    archive_path = str(final_archive_path),
+                    result_path = str(final_archive_path) + '/../result/dataset.h5', # Put result next to binary
                 ))
         
         return archive_list

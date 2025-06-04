@@ -212,11 +212,11 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_database_manager_update_upload_info(self):
         
-        upload_uuid = uuid.UUID('2a7e2707-a8c4-47c0-9eae-3bea6dd42cf3')
+        upload_uuid = uuid.UUID('c11bbcdd-78b9-481b-a8cb-dbffa4c6af94')
         self.database_manager.update_upload_info(
             upload_uuid = upload_uuid,
             key = 'archive_paths',
-            value_list = ['/Sample_1/LOCA_6I_CL_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'],
+            value_list = ['/Sample_144/LOCA_6I_CL_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'],
         )
         
         
