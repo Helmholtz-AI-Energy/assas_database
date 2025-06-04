@@ -1,6 +1,9 @@
+import os
+import sys
 import datetime
 import logging
-import sys
+
+os.environ['ASTEC_ROOT'] = '/root/astecV3.1.2'
 
 from assasdb import AssasDatabaseManager
 
@@ -8,7 +11,7 @@ logger = logging.getLogger('assas_app')
 
 logging.basicConfig(
     format = '%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s',
-    level = logging.ERROR,
+    level = logging.DEBUG,
     stream = sys.stdout)
 
 now = datetime.datetime.now()

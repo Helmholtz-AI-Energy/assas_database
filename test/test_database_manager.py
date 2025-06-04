@@ -219,6 +219,20 @@ class AssasDatabaseManagerTest(unittest.TestCase):
             value_list = ['/Sample_144/LOCA_6I_CL_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'],
         )
         
+    def test_database_manager_read_entries_from_backup(self):
+        
+        dataframe = self.database_manager.get_all_database_entries_from_backup()
+        
+        assas_archive_meta = dataframe.loc[0]
+        
+        upload_uuid = assas_archive_meta['system_upload_uuid']
+        input_path = assas_archive_meta['system_path']
+        output_path = assas_archive_meta['system_result']
+
+        logger.info(f'upload_uuid: {str(upload_uuid)}')
+        logger.info(f'input_path: {str(input_path)}')
+        logger.info(f'output_path: {str(output_path)}')
+        
         
         
 

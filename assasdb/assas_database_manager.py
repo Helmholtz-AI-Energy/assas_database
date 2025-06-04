@@ -1,6 +1,6 @@
 
 import os 
-import pandas
+import pandas as pd
 import logging
 import uuid
 import pathlib
@@ -115,10 +115,11 @@ class AssasDatabaseManager:
     
     def get_all_database_entries(
         self
-    ) -> pandas.DataFrame:
+    ) -> pd.DataFrame:
         
         file_collection = self.database_handler.get_file_collection()
-        data_frame = pandas.DataFrame(list(file_collection.find()))
+        
+        data_frame = pd.DataFrame(list(file_collection.find()))
         logger.info(f'Load data frame with size {str(data_frame.size), str(data_frame.shape)}')
         
         if data_frame.size == 0:
@@ -127,6 +128,18 @@ class AssasDatabaseManager:
         data_frame['system_index'] = range(1, len(data_frame) + 1)
         data_frame['_id'] = data_frame['_id'].astype(str)
 
+        return data_frame
+    
+    def get_all_database_entries_from_backup(
+        self
+    ) -> pd.DataFrame:
+        
+        file_collection = self.database_handler.read_collection_from_backup()
+        
+        data_frame = pd.DataFrame(file_collection)
+        
+        logger.info(f'Load data frame with size {str(data_frame.size), str(data_frame.shape)}')
+        
         return data_frame
     
     def backup_internal_database(

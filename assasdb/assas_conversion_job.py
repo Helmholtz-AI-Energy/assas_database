@@ -1,6 +1,9 @@
+import os
+import sys
 import datetime
 import logging
-import sys
+
+os.environ['ASTEC_ROOT'] = '/root/astecV3.1.2'
 
 from assasdb import AssasDatabaseManager
 

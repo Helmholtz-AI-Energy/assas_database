@@ -1,5 +1,5 @@
+import os
 import logging
-import os 
 import bson
 
 from pymongo import MongoClient
@@ -35,8 +35,10 @@ class AssasDatabaseHandler:
     )-> None:
 
         for collection_name in collection_names:
+            
             logger.info(f'Dump collection {collection_name} into a backup file.')
-            with open(os.path.join(self.backup_directory, f'{collection_name}.bson'), 'wb+') as f:
+            
+            with open(Path.joinpath(self.backup_directory, f'{collection_name}.bson'), 'wb+') as f:
                 for doc in self.db_handle[collection_name].find():
                     f.write(bson.BSON.encode(doc))
                     
@@ -46,8 +48,20 @@ class AssasDatabaseHandler:
 
         for collection in os.listdir(self.backup_directory):
             if collection.endswith('.bson'):
-                with open(os.path.join(self.backup_directory, collection), 'rb+') as f:
+                with open(Path.joinpath(self.backup_directory, collection), 'rb+') as f:
                     self.db_handle[collection.split('.')[0]].insert_many(bson.decode_all(f.read()))
+                    
+    def read_collection_from_backup(
+        self,
+        collection_file = 'files.bson'
+    )-> None:
+        
+        collection = []
+        
+        with open(Path.joinpath(self.backup_directory, collection_file), 'rb+') as f:
+            collection = bson.decode_all(f.read())
+            
+        return collection
 
     def get_db_handle(
         self
