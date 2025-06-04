@@ -38,7 +38,7 @@ class AssasOdessaNetCDF4Converter:
     
     def __init__(
         self,
-        input_path: str,
+        input_path: Union[str, Path],
         output_path: Union[str, Path],
     ) -> None:
         '''
@@ -58,14 +58,16 @@ class AssasOdessaNetCDF4Converter:
         None
         '''
 
-        self.input_path = input_path
+        self.input_path = Path(input_path)
+        logger.info(f'Input path of ASTEC binary archive is {str(self.input_path)}.')
+        
         self.output_path = Path(output_path)
         logger.info(f'Output path of hdf5 file is {str(self.output_path)}.')
 
         self.output_path.parent.mkdir(parents = True, exist_ok = True)
 
-        self.time_points = pyod.get_saving_times(input_path)
-        logger.debug(f'Read {len(self.time_points)} time points from ASTEC archive.')
+        self.time_points = pyod.get_saving_times(str(self.input_path))
+        logger.info(f'Read {len(self.time_points)} time points from ASTEC archive.')
         logger.debug(f'List of time points: {self.time_points}.')
 
         self.variable_index = self.read_astec_variable_index_files(
@@ -1584,7 +1586,7 @@ class AssasOdessaNetCDF4Converter:
     ) -> str:
         
         netcdf4_path_object = Path(netcdf4_file_path)
-        logger.info(f'Path of hdf5 file is {str(netcdf4_path_object)}.')
+        logger.info(f'Read general meta data attribute {attribute_name} from hdf5 file with path {str(netcdf4_path_object)}.')
         
         value = None
         with netCDF4.Dataset(f'{netcdf4_path_object}', 'r', format='NETCDF4') as ncfile:
@@ -1600,7 +1602,7 @@ class AssasOdessaNetCDF4Converter:
     ) -> None:
         
         output_path_object = Path(output_path)
-        logger.info(f'Output path of hdf5 file is {str(output_path_object)}.')
+        logger.info(f'Write general meta data to hdf5 file with path {str(output_path_object)}.')
 
         output_path_object.parent.mkdir(parents = True, exist_ok = True)
         
@@ -1669,7 +1671,7 @@ class AssasOdessaNetCDF4Converter:
         None
         '''
     
-        logger.info(f'Parse ASTEC data from binary with path {self.input_path}.')
+        logger.info(f'Parse ASTEC data from binary with path {str(self.input_path)}.')
 
         with netCDF4.Dataset(f'{self.output_path}', 'a', format='NETCDF4') as ncfile:
 
@@ -1736,7 +1738,7 @@ class AssasOdessaNetCDF4Converter:
             for idx, time_point in enumerate(progress_bar):
 
                 logger.info(f'Restore odessa base for time point {time_point}.')
-                odessa_base = pyod.restore(self.input_path, time_point)
+                odessa_base = pyod.restore(str(self.input_path), time_point)
 
                 for _, variable in self.variable_index.iterrows():
                     

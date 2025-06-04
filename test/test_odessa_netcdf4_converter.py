@@ -49,7 +49,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         self.assertEqual(AssasOdessaNetCDF4Converter.get_general_meta_data(output_path, 'name'), test_name)
         self.assertEqual(AssasOdessaNetCDF4Converter.get_general_meta_data(output_path, 'description'), test_description)
         
-    def test_initialize_file_on_lsdf(self):
+    def test_initialize_file_on_assas_data_hub_with_remote_data(self):
         
         output_path = '/mnt/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5'
         if os.path.exists(output_path):
@@ -67,7 +67,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         self.assertEqual(AssasOdessaNetCDF4Converter.get_general_meta_data(output_path, 'name'), test_name)
         self.assertEqual(AssasOdessaNetCDF4Converter.get_general_meta_data(output_path, 'description'), test_description)
 
-    def test_convert_netcdf4(self):
+    def test_convert_netcdf4_with_local_data(self):
 
         input_path = '/root/assas-data-hub/assas_database/test/data/archive/LOCA_12P_CL_1300_LIKE.bin'
         output_path = '/root/assas-data-hub/assas_database/test/data/result/loca_12p_cl_1300_like.h5'
@@ -89,8 +89,45 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         variables_from_index = variable_index['name'].tolist()
 
         self.assertEqual(set(variables_from_meta_data), set(variables_from_index))
+        
+    def test_convert_netcdf4_on_assas_data_hub_with_remote_data(self):
+        
+        input_path = '/mnt/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'
+        output_path = '/mnt/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5'
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
-    def test_convert_netcdf4_on_lsdf(self):
+        test_name = 'SBO_KIT_init_sim_s83'
+        test_description = 'SBO_KIT_init_sim_s83'
+        
+        AssasOdessaNetCDF4Converter.set_general_meta_data(
+            output_path = output_path,
+            archive_name = test_name,
+            archive_description = test_description,
+        )
+        
+        self.assertEqual(AssasOdessaNetCDF4Converter.get_general_meta_data(output_path, 'name'), test_name)
+        self.assertEqual(AssasOdessaNetCDF4Converter.get_general_meta_data(output_path, 'description'), test_description)
+        
+        odessa_converter = AssasOdessaNetCDF4Converter(
+            input_path = input_path,
+            output_path = output_path,
+        )
+        
+        odessa_converter.convert_astec_variables_to_netcdf4(
+            maximum_index = 5
+        )
+
+        variable_index = odessa_converter.get_variable_index()
+        meta_data_list = odessa_converter.read_meta_values_from_netcdf4(output_path)
+
+        variables_from_meta_data = [meta_data['name'] for meta_data in meta_data_list]
+        variables_from_meta_data.remove('time_points')
+        variables_from_index = variable_index['name'].tolist()
+
+        self.assertEqual(set(variables_from_meta_data), set(variables_from_index))
+
+    def test_convert_netcdf4_on_horeka_with_remote_data(self):
         
         input_path = '/lsdf/kit/scc/projects/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'
         output_path = '/lsdf/kit/scc/projects/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5'
