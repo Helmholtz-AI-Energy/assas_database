@@ -111,9 +111,9 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         size = AssasDatabaseManager.convert_from_bytes(size_bytes)
         print(f'size {size}')
         
-    def test_database_manager_file_size(self):
+    def test_database_manager_get_file_size(self):
         
-        size = AssasDatabaseManager.file_size('/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/result/dataset.h5')
+        size = AssasDatabaseManager.get_file_size('/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/result/dataset.h5')
         print(f'size {size}')
         
     def test_database_manager_update_archive_sizes(self):
@@ -124,10 +124,17 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
     def test_database_manager_set_status(self):
         
-        document_uuid = uuid.UUID('46a980bc-0d2c-4ab9-9ced-4a5e11e8d1ef')
-        status = AssasDocumentFileStatus.VALID
+        document_uuid = uuid.UUID('9cf84cfd-2dd0-456c-9593-b7c9ff337fed')
+        status = AssasDocumentFileStatus.UPLOADED
                
         self.database_manager.set_document_status_by_uuid(document_uuid, status)
+        
+    def test_database_manager_set_size(self):
+        
+        document_uuid = uuid.UUID('d4bc85ff-cbd2-4c41-bb60-5238356ecadb')
+        size = '10.5 MB' 
+               
+        self.database_manager.set_hdf5_size_by_uuid(document_uuid, size)
         
     def test_database_manager_update_upload_information(self):
 
@@ -169,7 +176,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
     def test_database_manager_collect_meta(self):
         
-        self.database_manager.collect_meta_data_after_conversion()
+        self.database_manager.update_meta_data_of_valid_archives()
         
     def test_database_manager_get_upload_time(self):
         
@@ -232,6 +239,13 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         logger.info(f'upload_uuid: {str(upload_uuid)}')
         logger.info(f'input_path: {str(input_path)}')
         logger.info(f'output_path: {str(output_path)}')
+        
+    def test_database_manager_get_overall_database_size(self):
+        
+        size = self.database_manager.get_overall_database_size()
+        logger.info(f'overall size: {size}')
+        self.assertIsInstance(size, str)
+        self.assertTrue(len(size) > 0)
         
         
         

@@ -13,7 +13,7 @@ logger = logging.getLogger('assas_app')
 
 logging.basicConfig(
     format = '%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s',
-    level = logging.WARNING,
+    level = logging.ERROR,
     stream = sys.stdout)
 
 now = datetime.datetime.now()

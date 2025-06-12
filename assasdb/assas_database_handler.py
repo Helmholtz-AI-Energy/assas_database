@@ -115,6 +115,13 @@ class AssasDatabaseHandler:
         
         return self.file_collection.find_one({'system_upload_uuid':str(upload_uuid)})
     
+    def get_file_documents_by_upload_uuid(
+        self,
+        upload_uuid: uuid4,
+    ):
+        
+        return self.file_collection.find({'system_upload_uuid':str(upload_uuid)})
+    
     def get_file_document_by_path(
         self,
         path: str

@@ -11,7 +11,7 @@ logger = logging.getLogger('assas_app')
 
 logging.basicConfig(
     format = '%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s',
-    level = logging.ERROR,
+    level = logging.INFO,
     stream = sys.stdout)
 
 now = datetime.datetime.now()
@@ -22,6 +22,8 @@ manager = AssasDatabaseManager()
 manager.update_archive_sizes(
     number_of_archives = 10
 )
+manager.update_valid_archives()
+manager.update_meta_data_of_valid_archives()
 
 now = datetime.datetime.now()
 logger.info(f'Finished update of archives sizes at {now}')
