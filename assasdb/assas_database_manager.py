@@ -352,7 +352,7 @@ class AssasDatabaseManager:
         """
                 
         valid_archives = self.get_upload_uuids_of_valid_archives()
-        logger.info(f'Update {len(valid_archives)} valid archives.')
+        logger.info(f'Found {len(valid_archives)} valid archives.')
         
         for upload_uuid in valid_archives:
             
@@ -360,9 +360,13 @@ class AssasDatabaseManager:
                 upload_uuid = upload_uuid
             )
             
-            for document in documents:
+            document_files = [AssasDocumentFile(document) for document in documents]
+            logger.info(f'Update status of {len(document_files)} archives with upload_uuid {upload_uuid} to VALID.')
+            
+            document_files = [document_file for document_file in document_files if document_file.get_value('system_status') == AssasDocumentFileStatus.UPLOADED]
+            
+            for document_file in document_files:
                 
-                document_file = AssasDocumentFile(document)
                 logger.info(f'Update status of archive {document_file.get_value("system_path")} to VALID.')
                 
                 document_file.set_value('system_status', AssasDocumentFileStatus.VALID)
