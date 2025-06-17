@@ -195,7 +195,44 @@ class AssasDatabaseManager:
     )-> None:
         
         self.database_handler.drop_file_collection()
+    
+    def collect_number_of_samples_of_uploaded_archives(
+        self
+    )-> None:
         
+        documents_uploaded = self.database_handler.get_file_documents_to_collect_number_of_samples(
+            system_status = AssasDocumentFileStatus.UPLOADED
+        )
+        document_files_uploaded = [AssasDocumentFile(document) for document in documents_uploaded]
+        documents_valid = self.database_handler.get_file_documents_to_collect_number_of_samples(
+            system_status = AssasDocumentFileStatus.VALID
+        )
+        
+        document_files_valid = [AssasDocumentFile(document) for document in documents_valid]
+        document_files = document_files_uploaded + document_files_valid
+        logger.info(f'Collect number of samples of {len(document_files)} uploaded archives.')
+        
+        for document_file in document_files:
+            
+            try:
+                
+                converter = AssasOdessaNetCDF4Converter(
+                    input_path = document_file.get_value('system_path'),
+                    output_path = document_file.get_value('system_result'),
+                )
+                
+                number_of_samples = len(converter.get_time_points())
+                
+            except Exception as exception:
+                
+                logger.error(f'Error when collecting number of samples from archive {document_file.get_value("system_path")}: {exception}.')
+                number_of_samples = -1
+                
+            logger.info(f'Archive {document_file.get_value("system_path")} has {number_of_samples} samples.')
+            document_file.set_value('system_number_of_samples', str(number_of_samples))
+            
+            self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
+ 
     def get_overall_database_size(
         self
     )-> str:
@@ -361,8 +398,6 @@ class AssasDatabaseManager:
             )
             
             document_files = [AssasDocumentFile(document) for document in documents]
-            logger.info(f'Update status of {len(document_files)} archives with upload_uuid {upload_uuid} to VALID.')
-            
             document_files = [document_file for document_file in document_files if document_file.get_value('system_status') == AssasDocumentFileStatus.UPLOADED]
             
             for document_file in document_files:

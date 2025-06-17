@@ -11,6 +11,12 @@ from pathlib import Path
 
 logger = logging.getLogger('assas_app')
 
+class AssasDocumentFileStatus:
+    UPLOADED = 'Uploaded'
+    CONVERTING = 'Converting'
+    VALID = 'Valid'
+    INVALID = 'Invalid'
+
 class AssasDatabaseHandler:
 
     def __init__(
@@ -143,6 +149,15 @@ class AssasDatabaseHandler:
         
         return self.file_collection.find({'system_size':update_key})
     
+    def get_file_documents_to_collect_number_of_samples(
+        self,
+        system_status: str
+    ):
+        
+        return self.file_collection.find({
+            '$and': [{'system_number_of_samples': {'$exists': False}}, {'system_status': system_status}]
+        })
+    
     def get_file_documents_to_collect_meta_data(
         self,
     ):
@@ -215,12 +230,6 @@ class AssasDatabaseHandler:
     ):
         
         return self.file_collection.delete_many({'system_upload_uuid':str(upload_uuid)})
-
-class AssasDocumentFileStatus:
-    UPLOADED = 'Uploaded'
-    CONVERTING = 'Converting'
-    VALID = 'Valid'
-    INVALID = 'Invalid'
 
 class AssasDocumentFile:
     

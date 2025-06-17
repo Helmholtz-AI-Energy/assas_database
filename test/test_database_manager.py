@@ -124,8 +124,8 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
     def test_database_manager_set_status(self):
         
-        document_uuid = uuid.UUID('9cf84cfd-2dd0-456c-9593-b7c9ff337fed')
-        status = AssasDocumentFileStatus.UPLOADED
+        document_uuid = uuid.UUID('77022ac7-8b43-48da-93c5-6ec999fd12ff')
+        status = AssasDocumentFileStatus.INVALID
                
         self.database_manager.set_document_status_by_uuid(document_uuid, status)
         
@@ -246,6 +246,12 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         logger.info(f'overall size: {size}')
         self.assertIsInstance(size, str)
         self.assertTrue(len(size) > 0)
+        
+    def test_database_manager_collect_number_of_samples(self):
+        
+        self.database_manager.collect_number_of_samples_of_uploaded_archives()
+        
+        
         
         
         
