@@ -380,16 +380,36 @@ class AssasDatabaseManager:
       
         return upload_uuid_list
     
-    def update_valid_archives(
+    def update_status_of_archives(
         self
     )-> None:
         """ 
         This function will update the status of all valid archives in the database.
-        It will set the status to VALID.
+        It will set the status of all archives in state UPLOADED to CONVERTING and
+        all archives in state CONVERTING to VALID.
         """
+        
+        converting_archives = self.get_upload_uuids_of_converting_archives()
+        logger.info(f'Found {len(converting_archives)} archives with file flag _converting.')
+        
+        for upload_uuid in converting_archives:
+            
+            documents = self.database_handler.get_file_documents_by_upload_uuid(
+                upload_uuid = upload_uuid
+            )
+            
+            document_files = [AssasDocumentFile(document) for document in documents]
+            document_files = [document_file for document_file in document_files if document_file.get_value('system_status') == AssasDocumentFileStatus.UPLOADED]
+            
+            for document_file in document_files:
+                
+                logger.info(f'Update status of archive {document_file.get_value("system_path")} to CONVERTING.')
+                
+                document_file.set_value('system_status', AssasDocumentFileStatus.CONVERTING)
+                self.database_handler.update_file_document_by_path(document_file.get_value('system_path'), document_file.get_document())
                 
         valid_archives = self.get_upload_uuids_of_valid_archives()
-        logger.info(f'Found {len(valid_archives)} valid archives.')
+        logger.info(f'Found {len(valid_archives)} archives with file flag _valid.')
         
         for upload_uuid in valid_archives:
             
@@ -398,7 +418,7 @@ class AssasDatabaseManager:
             )
             
             document_files = [AssasDocumentFile(document) for document in documents]
-            document_files = [document_file for document_file in document_files if document_file.get_value('system_status') == AssasDocumentFileStatus.UPLOADED]
+            document_files = [document_file for document_file in document_files if document_file.get_value('system_status') == AssasDocumentFileStatus.CONVERTING]
             
             for document_file in document_files:
                 
@@ -418,6 +438,30 @@ class AssasDatabaseManager:
             if os.path.isdir(Path.joinpath(self.upload_directory, directory)):
                 
                 if os.path.isfile(Path.joinpath(self.upload_directory, directory, directory + '_valid')):
+                    
+                    logger.debug(f'Detected valid archive {Path.joinpath(self.upload_directory, directory)}.')
+                    
+                    try:
+                        upload_uuid_list.append(uuid.UUID(directory))
+                    
+                    except ValueError:
+                        logger.error('Received univalid uuid.')
+        
+        logger.debug(f'Read {len(upload_uuid_list)} upload uuids {upload_uuid_list} in {self.upload_directory} of valid archives.')
+      
+        return upload_uuid_list
+    
+    def get_upload_uuids_of_converting_archives(
+        self,
+    )-> List[uuid4]:
+        
+        upload_uuid_list = []
+
+        for directory in os.listdir(self.upload_directory):
+
+            if os.path.isdir(Path.joinpath(self.upload_directory, directory)):
+                
+                if os.path.isfile(Path.joinpath(self.upload_directory, directory, directory + '_converting')):
                     
                     logger.debug(f'Detected valid archive {Path.joinpath(self.upload_directory, directory)}.')
                     

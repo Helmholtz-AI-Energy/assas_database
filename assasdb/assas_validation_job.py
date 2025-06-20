@@ -22,7 +22,7 @@ manager = AssasDatabaseManager()
 manager.update_archive_sizes(
     number_of_archives = 10
 )
-manager.update_valid_archives()
+manager.update_status_of_archives()
 manager.update_meta_data_of_valid_archives()
 
 now = datetime.datetime.now()
