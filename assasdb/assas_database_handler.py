@@ -1,28 +1,73 @@
+import os
 import logging
- 
+import bson
+
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 from uuid import uuid4
 from datetime import datetime
 from typing import List
+from pathlib import Path
 
 logger = logging.getLogger('assas_app')
+
+class AssasDocumentFileStatus:
+    UPLOADED = 'Uploaded'
+    CONVERTING = 'Converting'
+    VALID = 'Valid'
+    INVALID = 'Invalid'
 
 class AssasDatabaseHandler:
 
     def __init__(
         self,
-        connection_string: str = 'mongodb://localhost:27017/',
+        connection_string: str,
+        backup_directory: str,
         database_name: str = 'assas',
-        file_collection_name: str = 'files'
+        file_collection_name: str = 'files',
     )-> None:
         
         self.client = MongoClient(
             host = connection_string
         )
 
+        self.backup_directory = Path(backup_directory)
         self.db_handle = self.client[database_name]
         self.file_collection = self.db_handle[file_collection_name]
+        
+    def dump_collections(
+        self,
+        collection_names,
+    )-> None:
+
+        for collection_name in collection_names:
+            
+            logger.info(f'Dump collection {collection_name} into a backup file.')
+            
+            with open(Path.joinpath(self.backup_directory, f'{collection_name}.bson'), 'wb+') as f:
+                for doc in self.db_handle[collection_name].find():
+                    f.write(bson.BSON.encode(doc))
+                    
+    def restore_collections(
+        self,
+    )-> None:
+
+        for collection in os.listdir(self.backup_directory):
+            if collection.endswith('.bson'):
+                with open(Path.joinpath(self.backup_directory, collection), 'rb+') as f:
+                    self.db_handle[collection.split('.')[0]].insert_many(bson.decode_all(f.read()))
+                    
+    def read_collection_from_backup(
+        self,
+        collection_file = 'files.bson'
+    )-> None:
+        
+        collection = []
+        
+        with open(Path.joinpath(self.backup_directory, collection_file), 'rb+') as f:
+            collection = bson.decode_all(f.read())
+            
+        return collection
 
     def get_db_handle(
         self
@@ -36,12 +81,17 @@ class AssasDatabaseHandler:
         
         return self.file_collection
     
+    def get_all_file_documents(
+        self
+    ):
+        return self.file_collection.find()
+    
     def insert_file_document(
         self,
         file: dict
     ):
         
-        logger.info(f'Insert {file}')
+        logger.info(f'Insert file document: {file}.')
         self.file_collection.insert_one(file)
         
     def drop_file_collection(
@@ -66,10 +116,17 @@ class AssasDatabaseHandler:
     
     def get_file_document_by_upload_uuid(
         self,
-        upload_uuid: uuid4
+        upload_uuid: uuid4,
     ):
         
         return self.file_collection.find_one({'system_upload_uuid':str(upload_uuid)})
+    
+    def get_file_documents_by_upload_uuid(
+        self,
+        upload_uuid: uuid4,
+    ):
+        
+        return self.file_collection.find({'system_upload_uuid':str(upload_uuid)})
     
     def get_file_document_by_path(
         self,
@@ -84,6 +141,30 @@ class AssasDatabaseHandler:
     ):
         
         return self.file_collection.find({'system_status':status})
+    
+    def get_file_documents_to_update_size(
+        self,
+        update_key: str = '...',
+    ):
+        
+        return self.file_collection.find({'system_size':update_key})
+    
+    def get_file_documents_to_collect_number_of_samples(
+        self,
+        system_status: str
+    ):
+        
+        return self.file_collection.find({
+            '$and': [{'system_number_of_samples': {'$exists': False}}, {'system_status': system_status}]
+        })
+    
+    def get_file_documents_to_collect_meta_data(
+        self,
+    ):
+        
+        return self.file_collection.find({
+            '$and': [{'meta_data_variables': {'$exists': False}}, {'system_status': AssasDocumentFileStatus.VALID}]
+        })
     
     def update_file_document_by_uuid(
         self,
@@ -111,6 +192,16 @@ class AssasDatabaseHandler:
         
         post = {"$set": update}
         return self.file_collection.update_one({'system_upload_uuid':str(upload_uuid)}, post)
+    
+    def unset_meta_data_variables(
+        self,
+        system_uuid: uuid4,
+    ):
+        
+        self.file_collection.update_one(
+            {'system_uuid': str(system_uuid)},
+            {'$unset': {'meta_data_variables': ''}}
+        )
     
     def delete_file_document(
         self,
@@ -140,15 +231,6 @@ class AssasDatabaseHandler:
         
         return self.file_collection.delete_many({'system_upload_uuid':str(upload_uuid)})
 
-class AssasDocumentFileStatus:
-    UPLOADED = 'Uploaded'
-    INVALID = 'Invalid'
-    VALIDATING = 'Validating'
-    VALIDATED = 'Validated' 
-    CONVERTING = 'Converting'
-    CONVERTED = 'Converted'
-    FAILED = 'Failed'
-
 class AssasDocumentFile:
     
     def __init__(
@@ -157,7 +239,7 @@ class AssasDocumentFile:
     ) -> None:
         
         self.document = document
-                
+
     def get_document(
         self
     ) -> dict:
@@ -170,7 +252,7 @@ class AssasDocumentFile:
     ) -> None:
         
         self.document = document
-        
+
     def extend_document(
         self,
         add_document: dict
@@ -180,7 +262,7 @@ class AssasDocumentFile:
         temp.update(add_document)
         
         self.document = temp
-        
+
     def set_general_meta_values(
         self,
         meta_name: str,

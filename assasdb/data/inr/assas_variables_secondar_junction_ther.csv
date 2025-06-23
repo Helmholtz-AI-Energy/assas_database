@@ -1,0 +1,5 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+V_liq_secondar_junction_ther,liquid velocity at the junction,v_liq,[m/s],secondar,secondar_junction_ther,junction
+V_gas_secondar_junction_ther,gas velocity at the junction,v_gas,[m/s],secondar,secondar_junction_ther,junction
+Q_m_stea_secondar_junction_ther,gas mass flow rate at the junction,q_m_stea,[kg/s],secondar,secondar_junction_ther,junction
+Q_m_liq_secondar_junction_ther,liquid mass flow rate at the junction,q_m_liq,[kg/s],secondar,secondar_junction_ther,junction

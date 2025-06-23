@@ -1,0 +1,6 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+P_primary_pipes,total pressure value in the whole pipe,P,[Pa],primary,primary_pipe_ther,pipe
+T_gas_primary_pipes,gas temperature value in the whole pipe,T_gas,[K],primary,primary_pipe_ther,pipe
+T_liq_primary_pipes,liquid temperature value in the whole pipe,T_liq,bar,primary,primary_pipe_ther,pipe
+V_gas_primary_pipes,gas velocity value in the whole pipe,v_gas,[m/s],primary,primary_pipe_ther,pipe
+x_alfa_primary_pipes,void fraction value in the whole pipe,x_alfa,[],primary,primary_pipe_ther,pipe

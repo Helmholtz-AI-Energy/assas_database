@@ -1,0 +1,10 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension,index
+Q_steam_connecti,instantenous value of steam mass flow,Qsteam,[kg/s],connecti,connecti,connecti
+Q_H20_connecti,instantenous value of water flow,Qwater,[kg/s],connecti,connecti,connecti
+m_H20_connecti,cumulative total mass of water,Mwater,[kg],connecti,connecti,connecti
+T_connecti,temperature in connecti,T,[K],connecti,connecti,connecti
+P_connecti,total pressure representing the back pressure,P,[Pa],connecti,connecti,connecti
+Q_m_av_connecti_source,mean mass flowrate,QMAV,[kg/s],connecti,connecti_source,connecti
+H_0_connecti_source,cumulated enthalpy,FLOW,[J],connecti,connecti_source_index,connecti,0
+H_1_connecti_source,cumulated enthalpy,FLOW,[J],connecti,connecti_source_index,connecti,1
+flux_heat_connecti,table of heat source versus time,FLUX,[W],connecti,connecti_heat,connecti

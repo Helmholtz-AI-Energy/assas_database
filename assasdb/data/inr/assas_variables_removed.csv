@@ -1,0 +1,45 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+delta_V_face,change in velocity,delta_v,none,vessel,vessel_face_ther,face
+m_cum_A_fp,cumulated mass of FP release (47 values for 47 species),CUMAFP,[kg],vessel,vessel_general,general
+m_cum_mag_fp,cumulated mass of FP release from magma (47 values for 47 species),CUMAGFP,[kg],vessel,vessel_general,general
+m_cum_mag_sm,cumulated mass of SM release from magma (14 values for 14 species),CUMAGSM,[kg],vessel,vessel_general,general
+m_cum_sm,cumulated mass of SM release,CUMASM,[kg],vessel,vessel_general,general
+m_frac_fp,mass fraction of FP release (47 values for 47 species),FRACFP,none,vessel,vessel_general,general
+m_frac_sm,cumulated fraction of the SMs which have been released (SMEVOL and ELSA models),FRACSM,none,vessel,vessel_general,general
+VG_bar,unkown,VG_bar,[],vessel,vessel_mesh_ther,mesh
+VL_bar,unkown,VL_bar,[],vessel,vessel_mesh_ther,mesh
+Q_m_gas_junction_ther,gas mass flow rate at the junction,q_m_gas,[kg/s],primary,primary_junction_ther,junction
+H_BHO2_primary_volume,enthalpy of BHO2,h_bho2,[J/kg],primary,primary_volume_ther,volume
+rho_gas_primary_volume,gaseous mixture density,rho_gas,[kg/m3],primary,primary_volume_ther,volume
+rho_CO2_primary_volume,CO2 density,rho_co2,[kg/m3],primary,primary_volume_ther,volume
+m_H2_primary_volume,hydrogen mass,m_h2,[kg],primary,primary_volume_ther,volume
+Q_m_list_primary_volume,liquid to vapor flowrate,q_m_list,[kg/s],primary,primary_volume_ther,volume
+H_H2_primary_volume,enthalpy of hydrogen,h_h2,[J/kg],primary,primary_volume_ther,volume
+phi_wtol_primary_volume,heat flux exchanged from wall to liquid,phi_wtol,[W],primary,primary_volume_ther,volume
+rho_stea_primary_volume,vapor density,rho_stea,[kg/m3],primary,primary_volume_ther,volume
+phi_wtog_primary_volume,heat flux exchanged from wall to gas,phi_wtog,[W],primary,primary_volume_ther,volume
+phi_wtoi_primary_volume,heat flux exchanged from wall to interface,phi_wtoi,[W],primary,primary_volume_ther,volume
+rho_H2_primary_volume,hydrogen density,rho_h2,[kg/m3],primary,primary_volume_ther,volume
+PPI_primary_volume,incondensible partial pressure,PPI,[Pa],primary,primary_volume_ther,volume
+H_CO2_primary_volume,enthalpy of CO2,h_co2,[J/kg],primary,primary_volume_ther,volume
+m_gas_primary_volume,gas mass,m_gas,[kg],primary,primary_volume_ther,volume
+x_BHO2_primary_volume,void fraction of BHO2,x_bho2,[],primary,primary_volume_ther,volume
+m_BHO2_primary_volume,BHO2 mass,m_bho2,[kg],primary,primary_volume_ther,volume
+H_gas_primary_volume,enthalpy of gaseous mixture,h_gas,[J/kg],primary,primary_volume_ther,volume
+rho_BHO2_primary_volume,BHO2 density,rho_bho2,[kg/m3],primary,primary_volume_ther,volume
+H_liq_sa_primary_volume,enthalpy of liquid at saturation state,h_liq_sa,[J/kg],primary,primary_volume_ther,volume
+P_CO2_primary_volume,CO2 partial pressure,P_co2,[Pa],primary,primary_volume_ther,volume
+x_CO2_primary_volume,void fraction of CO2,x_co2,[],primary,primary_volume_ther,volume
+H_steam_sa_primary_volume,enthalpy of steam at saturation state,h_ste_sa,[J/kg],primary,primary_volume_ther,volume
+x_H2_primary_volume,void fraction of hydrogen,x_h2,[],primary,primary_volume_ther,volume
+m_CO2_primary_volume,CO2 mass,m_co2,[kg],primary,primary_volume_ther,volume
+P_BHO2_primary_volume,BHO2 partial pressure,P_bho2,[Pa],primary,primary_volume_ther,volume
+hexch_wg_wall_primary,heat exchange coefficient from wall to the gas phase,hexch_wg,[W/m2/K],primary,primary_wall_ther,wall
+hexch_wi_wall_primary,heat exchange coefficient from wall to the interface phase,hexch_wi,[W/m2/K],primary,primary_wall_ther,wall
+hexch_wl_wall_primary,heat exchange coefficient from wall to the liquid phase,hexch_wl,[W/m2/K],primary,primary_wall_ther,wall
+Q_m_cond_wall_primary,table of steam condensation mass flow rate,q_m_cond,[kg/s],primary,primary_wall_ther,wall
+delta_V_secondar_junction_ther,change in velocity,delta_v,[m/s],secondar,secondar_junction_ther,junction
+lambda_secondar_wall,conductivity,LAMBDA,[W/m/K],secondar,secondar_wall,wall
+m_secondar_wall,mass of the wall,MASS,[kg],secondar,secondar_wall,wall
+thic_secondar_wall,wall thickness,THIC,[m],secondar,secondar_wall,wall
+V_secondar_wall,wall volume,V,[m3],secondar,secondar_wall,wall

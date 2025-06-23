@@ -111,25 +111,30 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         size = AssasDatabaseManager.convert_from_bytes(size_bytes)
         print(f'size {size}')
         
-    def test_database_manager_file_size(self):
+    def test_database_manager_get_file_size(self):
         
-        size = AssasDatabaseManager.file_size('/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/result/dataset.h5')
+        size = AssasDatabaseManager.get_file_size('/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/result/dataset.h5')
         print(f'size {size}')
         
     def test_database_manager_update_archive_sizes(self):
         
-        self.assertTrue(self.database_manager.update_archive_sizes())
-        
-    def test_database_manager_conversion_in_progress(self):
-        
-        self.assertTrue(self.database_manager.conversion_in_progress())
-    
+        self.assertTrue(self.database_manager.update_archive_sizes(
+            number_of_archives = 10
+        ))
+
     def test_database_manager_set_status(self):
         
-        document_uuid = uuid.UUID('46a980bc-0d2c-4ab9-9ced-4a5e11e8d1ef')
-        status = AssasDocumentFileStatus.CONVERTED
+        document_uuid = uuid.UUID('77022ac7-8b43-48da-93c5-6ec999fd12ff')
+        status = AssasDocumentFileStatus.INVALID
                
         self.database_manager.set_document_status_by_uuid(document_uuid, status)
+        
+    def test_database_manager_set_size(self):
+        
+        document_uuid = uuid.UUID('d4bc85ff-cbd2-4c41-bb60-5238356ecadb')
+        size = '10.5 MB' 
+               
+        self.database_manager.set_hdf5_size_by_uuid(document_uuid, size)
         
     def test_database_manager_update_upload_information(self):
 
@@ -159,13 +164,96 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         
         AssasDatabaseManager.get_upload_uuids2('/mnt/ASSAS/upload_test')
     '''
+    def test_database_manager_convert_next_10_time_points(self):
+        
+        self.database_manager.convert_next_validated_archive(
+            explicit_times = [0,10]
+        )
+        
     def test_database_manager_convert_next(self):
         
         self.database_manager.convert_next_validated_archive()
         
     def test_database_manager_collect_meta(self):
         
-        self.database_manager.collect_meta_data_after_conversion()
+        self.database_manager.update_meta_data_of_valid_archives()
+        
+    def test_database_manager_get_upload_time(self):
+        
+        directory = '/mnt/ASSAS/upload_test/defb5a82-edeb-4efb-b824-fd15d95317cf'
+        self.database_manager.get_upload_time(directory)
+        
+    def test_database_manager_backup_internal_database(self):
+        
+        self.database_manager.backup_internal_database()
+        
+    def test_database_manager_reset_invalid_archives(self):
+        
+        self.database_manager.reset_invalid_archives()
+        
+    def test_database_manager_reset_converting_archives(self):
+        
+        self.database_manager.reset_converting_archives()
+        
+    def test_database_manager_reset_valid_archives(self):
+        
+        self.database_manager.reset_valid_archives()
+        
+    def test_database_manager_reset_all_result_files(self):
+        
+        self.database_manager.reset_all_result_files()
+        
+    def test_database_manager_update_meta_data(self):
+        
+        document_uuid = uuid.UUID('144f6875-b09e-45d5-9656-0cfbac61c7ab')
+        self.database_manager.update_meta_data(
+            uuid = document_uuid
+        )
+        
+    def test_database_manager_reset_result_file(self):
+        
+        system_uuid = uuid.UUID('9cf84cfd-2dd0-456c-9593-b7c9ff337fed')
+        self.database_manager.reset_result_file_by_uuid(
+            system_uuid = system_uuid
+        )
+        
+    def test_database_manager_update_upload_info(self):
+        
+        upload_uuid = uuid.UUID('c11bbcdd-78b9-481b-a8cb-dbffa4c6af94')
+        self.database_manager.update_upload_info(
+            upload_uuid = upload_uuid,
+            key = 'archive_paths',
+            value_list = ['/Sample_144/LOCA_6I_CL_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin'],
+        )
+        
+    def test_database_manager_read_entries_from_backup(self):
+        
+        dataframe = self.database_manager.get_all_database_entries_from_backup()
+        
+        assas_archive_meta = dataframe.loc[0]
+        
+        upload_uuid = assas_archive_meta['system_upload_uuid']
+        input_path = assas_archive_meta['system_path']
+        output_path = assas_archive_meta['system_result']
+
+        logger.info(f'upload_uuid: {str(upload_uuid)}')
+        logger.info(f'input_path: {str(input_path)}')
+        logger.info(f'output_path: {str(output_path)}')
+        
+    def test_database_manager_get_overall_database_size(self):
+        
+        size = self.database_manager.get_overall_database_size()
+        logger.info(f'overall size: {size}')
+        self.assertIsInstance(size, str)
+        self.assertTrue(len(size) > 0)
+        
+    def test_database_manager_collect_number_of_samples(self):
+        
+        self.database_manager.collect_number_of_samples_of_uploaded_archives()
+        
+        
+        
+        
         
 
 if __name__ == '__main__':

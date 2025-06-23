@@ -4,3 +4,9 @@ FRICTION_primary_pipes,none,FRICTION,none,primary,primary_pipe_geom,pipe
 MESH_primary_pipes,none,MESH,none,primary,primary_pipe_geom,pipe
 PERI_primary_pipes,none,PERI,none,primary,primary_pipe_geom,pipe
 SECT_primary_pipes,none,SECT,none,primary,primary_pipe_geom,pipe
+D_h_volume,none,D_h,none,primary,primary_volume_geom,volume
+elev_volume,none,elev,none,primary,primary_volume_geom,volume
+mult_fac_volume,none,mult_fac,none,primary,primary_volume_geom,volume
+L_volume,none,L,none,primary,primary_volume_geom,volume
+VERT_volume,none,VERT,none,primary,primary_volume_geom,volume
+V_volume,none,V,none,primary,primary_volume_geom,volume
