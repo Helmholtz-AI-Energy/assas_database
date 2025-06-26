@@ -3,10 +3,10 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main  # Run the workflow on pushes to the main branch
+      - feature_ruff_horeka_tools
   pull_request:
     branches:
-      - main  # Run the workflow on pull requests targeting the main branch
+      - feature_ruff_horeka_tools
 
 jobs:
   lint:
