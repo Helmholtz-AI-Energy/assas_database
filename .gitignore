@@ -162,3 +162,6 @@ cython_debug/
 /data/
 assasdb/results/
 /test/data
+assasdb/tools/jobs/
+assasdb/tools/logs/
+assasdb/tools/result/
