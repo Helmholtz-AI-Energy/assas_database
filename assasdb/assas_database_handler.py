@@ -261,6 +261,3 @@ class AssasDocumentFile:
         }
 
         return document
-
-
-# __all__ = ["AssasDatabaseHandler", "AssasDocumentFile", "AssasDocumentFileStatus"]
