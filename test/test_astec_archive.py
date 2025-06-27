@@ -2,6 +2,7 @@ import unittest
 from uuid import uuid4
 from assasdb import AssasAstecArchive
 
+
 class AssasAstecArchiveTest(unittest.TestCase):
     def setUp(self):
         self.upload_uuid = uuid4()
@@ -41,6 +42,7 @@ class AssasAstecArchiveTest(unittest.TestCase):
 
     def test_result_path(self):
         self.assertEqual(self.archive.result_path, self.result_path)
+
 
 if __name__ == "__main__":
     unittest.main()
