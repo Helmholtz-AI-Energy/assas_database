@@ -55,10 +55,9 @@ jobs:
            pip install -r requirements.txt
       
        # Step 5: Change directory to `assas_database`
-       - name: Change directory
+       - name: Install assas_database package
          run: |
           export ASTEC_ROOT=$(pwd)
-          cd assas_database
           pip install -e .
 
        # Step 6: Run unit tests
