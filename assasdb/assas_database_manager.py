@@ -44,7 +44,7 @@ class AssasDatabaseManager:
             logger.warning(
                 f"Upload directory {self.upload_directory} does not exist. "
                 "Create it and check your setup."
-            )            
+            )
 
     def get_database_entry_by_upload_uuid(self, upload_uuid: uuid4):
         """
