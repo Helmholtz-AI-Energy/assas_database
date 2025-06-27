@@ -10,7 +10,6 @@ dnspython==2.7.0
 filelock==3.18.0
 identify==2.6.12
 iniconfig==2.1.0
-mpi4py==4.0.3
 mypy_extensions==1.1.0
 netCDF4==1.7.2
 nodeenv==1.9.1
