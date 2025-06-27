@@ -1,0 +1,27 @@
+import os
+import sys
+import datetime
+import logging
+
+os.environ["ASTEC_ROOT"] = "/root/astecV3.1.2"
+
+from assasdb import AssasDatabaseManager
+
+logger = logging.getLogger("assas_app")
+
+logging.basicConfig(
+    format="%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s",
+    level=logging.ERROR,
+    stream=sys.stdout,
+)
+
+now = datetime.datetime.now()
+logger.info(f"Start update of archive sizes as cron job at {now}")
+
+manager = AssasDatabaseManager()
+
+manager.process_uploads()
+manager.process_uploads_with_reload_flag()
+
+now = datetime.datetime.now()
+logger.info(f"Finished update of archives sizes at {now}")

@@ -1,15 +1,15 @@
 from setuptools import setup
 
 setup(
-      name='assasdb',
-      version='0.1',
-      description='python module to access the ASSAS database',
-      url='https://github.com/ke4920/assas_database',
-      author='Jonas Dressner',
-      author_email='jonas.dressner@kit.edu',
-      license='MIT',
-      packages = ['assasdb', 'assasdb.data', 'assasdb.data.inr'],
-      zip_safe = False,
-      include_package_data = True,
-      package_data = {'assasdb': ['data/inr/*.csv']},
+    name="assasdb",
+    version="0.1",
+    description="python module to access the ASSAS database",
+    url="https://github.com/ke4920/assas_database",
+    author="Jonas Dressner",
+    author_email="jonas.dressner@kit.edu",
+    license="MIT",
+    packages=["assasdb", "assasdb.astec_config", "assasdb.astec_config.inr"],
+    zip_safe=False,
+    include_package_data=True,
+    package_data={"assasdb": ["astec_config/inr/*.csv"]},
 )
