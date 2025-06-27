@@ -1,4 +1,3 @@
-assasdb @ file:///hkfs/work/workspace/scratch/ke4920-assas-hdf5/assas_database
 black==25.1.0
 bson==0.5.10
 certifi==2025.4.26
