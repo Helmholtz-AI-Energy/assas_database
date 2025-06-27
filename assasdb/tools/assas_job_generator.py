@@ -34,10 +34,6 @@ class SlurmJobState(Enum):
     SUSPENDED = "S"  # Job is suspended
 
 
-# JOB_DIRECTORY = os.getenv(
-#    "ASSAS_JOB_DIRECTORY",
-#    os.path.join(os.path.dirname(os.path.realpath(__file__)), "jobs"),
-# )
 LIMIT_SAMPLES = 80000
 BACKUP_DIRECTORY = "/lsdf/kit/scc/projects/ASSAS/backup_mongodb"
 TEMPLATE = """#!/bin/bash
@@ -91,30 +87,35 @@ def get_database_entries() -> pd.DataFrame:
 
 def get_maximum_indizes(
     number_of_samples: int,
+    limit_samples: int,
 ) -> List[int]:
     """
     Returns a list of maximum indizes for the job parameter list.
     """
 
-    leng_of_list = number_of_samples // LIMIT_SAMPLES
+    leng_of_list = number_of_samples // limit_samples
 
-    if number_of_samples % LIMIT_SAMPLES != 0:
+    if number_of_samples % limit_samples != 0:
         leng_of_list = leng_of_list + 1
 
     maximum_indizes = list(range(0, leng_of_list))
+    logger.debug(f"Number of maximum indizes: {len(maximum_indizes)}.")
 
     for i in range(len(maximum_indizes)):
-        maximum_indizes[i] = LIMIT_SAMPLES * (i + 1)
+        maximum_indizes[i] = limit_samples * (i + 1)
 
         if maximum_indizes[i] > number_of_samples:
             maximum_indizes[i] = number_of_samples
 
-        logger.debug(f"File index {i} has maximum index {maximum_indizes[i]}.")
+        # logger.debug(f"File index {i} has maximum index {maximum_indizes[i]}.")
 
     return maximum_indizes
 
 
-def get_job_parameter_list(entry: pd.Series) -> List[dict]:
+def get_job_parameter_list(
+    entry: pd.Series,
+    limit_samples: int,
+) -> List[dict]:
     """
     Returns a list of job parameters for the given entry.
     Each job parameter is a dictionary with the keys 'jobname', 'uuid'
@@ -124,7 +125,10 @@ def get_job_parameter_list(entry: pd.Series) -> List[dict]:
     job_parameter_list = []
 
     uuid = entry["system_upload_uuid"]
-    maximum_indizes = get_maximum_indizes(int(entry["system_number_of_samples"]))
+    maximum_indizes = get_maximum_indizes(
+        number_of_samples=int(entry["system_number_of_samples"]),
+        limit_samples=limit_samples,
+    )
 
     if len(maximum_indizes) == 1:
         job_parameters = {
@@ -165,7 +169,11 @@ def get_job_parameter_list(entry: pd.Series) -> List[dict]:
     return job_parameter_list
 
 
-def generate_job_file(job_directory: str, entry: pd.Series) -> None:
+def generate_job_file(
+    job_directory: str,
+    entry: pd.Series,
+    limit_samples,
+) -> None:
     """
     Generates a job file for the given entry.
     The job file is saved in the jobs directory with the name 'convert-{uuid}.sh'.
@@ -186,7 +194,10 @@ def generate_job_file(job_directory: str, entry: pd.Series) -> None:
         print(f"Skipping {uuid} with negative number of samples: {number_of_samples}.")
         return
 
-    job_parameter_list = get_job_parameter_list(entry)
+    job_parameter_list = get_job_parameter_list(
+        entry=entry,
+        limit_samples=limit_samples,
+    )
     logger.debug(f"Job parameter list for {uuid}: {job_parameter_list}")
 
     if not job_parameter_list:
@@ -215,7 +226,11 @@ def generate_job_file(job_directory: str, entry: pd.Series) -> None:
                 handle.write(job_parameters)
 
 
-def generate_job_files(job_directory: str, database_entries: pd.DataFrame) -> None:
+def generate_job_files(
+    job_directory: str,
+    database_entries: pd.DataFrame,
+    limit_samples: int = LIMIT_SAMPLES,
+) -> None:
     """
     Generates job files for all entries in the database that have the status 'Uploaded'.
     It filters the database entries for those with the status 'Uploaded' and applies
@@ -230,7 +245,7 @@ def generate_job_files(job_directory: str, database_entries: pd.DataFrame) -> No
     logger.info(f"Generate job files for {len(database_entries)} entries.")
 
     database_entries.apply(
-        lambda entry: generate_job_file(job_directory, entry), axis=1
+        lambda entry: generate_job_file(job_directory, entry, limit_samples), axis=1
     )
 
 
@@ -302,6 +317,10 @@ def get_squeue_dataframe() -> pd.DataFrame:
         # Parse the output into a list of rows
         rows = [line.split(",") for line in result.stdout.strip().split("\n")]
 
+        if len(rows) == 0 or (len(rows) == 1 and rows[0] == [""]):
+            logger.info("No jobs found in squeue.")
+            return pd.DataFrame(columns=["job_name", "job_id", "status_code", "status"])
+
         # Convert the rows into a DataFrame
         df = pd.DataFrame(rows, columns=["job_name", "job_id", "status_code", "status"])
         df["upload_uuid"] = df["job_name"].apply(extract_upload_uuid)
@@ -313,7 +332,11 @@ def get_squeue_dataframe() -> pd.DataFrame:
         return pd.DataFrame(columns=["job_name", "job_id", "status_code", "status"])
 
 
-def submit_jobs(database_entries: pd.DataFrame) -> None:
+def submit_jobs(
+    database_entries: pd.DataFrame,
+    limit_samples: int,
+    multi_jobs: bool = False,
+) -> None:
     """
     Submits jobs for each entry in the database that is not already in a valid or
     invalid state.
@@ -347,9 +370,17 @@ def submit_jobs(database_entries: pd.DataFrame) -> None:
             )
             continue
 
-        maximum_indizes = get_maximum_indizes(int(number_of_samples))
+        maximum_indizes = get_maximum_indizes(
+            number_of_samples=int(number_of_samples),
+            limit_samples=limit_samples,
+        )
 
         if len(maximum_indizes) == 1:
+            if multi_jobs:
+                logger.info(
+                    f"Skipping single job for {uuid} with {number_of_samples} samples."
+                )
+                continue
             logger.info(
                 f"No maximum indizes for {uuid} with {number_of_samples} samples."
             )
@@ -436,7 +467,7 @@ def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
     try:
         # Get the list of jobs and their statuses
         result = subprocess.run(
-            ["squeue", "--noheader", "--format=%i,%t"],
+            ["squeue", "--noheader", "--format=%j,%i,%t"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -447,7 +478,8 @@ def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
         rows = [line.split(",") for line in result.stdout.strip().split("\n")]
 
         # Convert the rows into a DataFrame
-        df = pd.DataFrame(rows, columns=["job_id", "status"])
+        df = pd.DataFrame(rows, columns=["job_name", "job_id", "status"])
+        df["upload_uuid"] = df["job_name"].apply(extract_upload_uuid)
 
         # Filter for running jobs (status 'R')
         jobs = df[df["status"] == state.value].copy()
@@ -524,6 +556,9 @@ if __name__ == "__main__":
         default=os.environ.get("VIRTUAL_ENV"),
         help="Path to the virtual environment directory",
     )
+    parser.add_argument(
+        "-m", "--multiple", action="store_true", help="Submit only multi-jobs"
+    )
     args = parser.parse_args()
 
     if args.debug:
@@ -563,11 +598,16 @@ if __name__ == "__main__":
     if args.action == "generate":
         logger.info(f"Generating job files into {args.job_directory}.")
         remove_all_job_files(args.job_directory)
-        generate_job_files(args.job_directory, database_entries)
+        generate_job_files(args.job_directory, database_entries, args.limit_samples)
 
     elif args.action == "submit":
         logger.info("Submitting jobs...")
-        submit_jobs(database_entries)
+        # database_entries = database_entries[
+        #    database_entries["system_upload_uuid"] ==
+        #    "18f82fd5-dad0-4b24-9664-622018acb9c5"]
+        # logger.info(database_entries)
+
+        submit_jobs(database_entries, args.limit_samples, args.multiple)
 
     elif args.action == "cancel":
         logger.info("Cancelling all jobs in certain states...")

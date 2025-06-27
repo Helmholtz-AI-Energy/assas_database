@@ -3,11 +3,11 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - feature_ruff_horeka_tools
+      - feature_refactoring_tests
       - main
   pull_request:
     branches:
-      - feature_ruff_horeka_tools
+      - feature_refactoring_tests
       - main
 
 jobs:

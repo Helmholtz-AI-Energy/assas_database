@@ -23,7 +23,7 @@ def copy2_verbose(
     source: str,
     destination: str,
 ) -> None:
-    logger.info(f"Copy file {source} to {destination}.")
+    logger.debug(f"Copy file {source} to {destination}.")
     copy2(source, destination)
 
 

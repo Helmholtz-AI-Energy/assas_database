@@ -67,7 +67,7 @@ class AssasOdessaNetCDF4Converter:
         logger.info(f"Read {len(self.time_points)} time points from ASTEC archive.")
         logger.debug(f"List of time points: {self.time_points}.")
 
-        self.variable_index = self.read_astec_variable_index_files(report=False)
+        self.variable_index = self.read_astec_variable_index_files(report=True)
 
         self.magma_debris_ids = self.read_vessel_magma_debris_ids(
             resource_file="astec_config/inr/assas_variables_vessel_magma_debris_ids.csv"
@@ -233,7 +233,7 @@ class AssasOdessaNetCDF4Converter:
         if report:
             output_file = (
                 os.path.dirname(os.path.realpath(__file__))
-                + "/assas_variables_wp2_report.csv"
+                + "/astec_config/assas_variables_wp2_report.csv"
             )
             dataframe.to_csv(output_file)
 
