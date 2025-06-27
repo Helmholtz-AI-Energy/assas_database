@@ -1,5 +1,4 @@
 black==25.1.0
-bson==0.5.10
 certifi==2025.4.26
 cfgv==3.4.0
 cftime==1.6.4.post1
