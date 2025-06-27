@@ -165,3 +165,6 @@ assasdb/results/
 assasdb/tools/jobs/
 assasdb/tools/logs/
 assasdb/tools/result/
+
+# VS Code
+.vscode/
