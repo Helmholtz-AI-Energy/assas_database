@@ -61,6 +61,8 @@ jobs:
 
        # Step 6: Run unit tests
        - name: Run tests
+         env:
+          PYTHONPATH: ${{ github.workspace }}/test:${{ env.PYTHONPATH }}
+          ASTEC_ROOT: ${{ github.workspace }}
          run: |
-          export ASTEC_ROOT=$(pwd)
           python -m unittest test
