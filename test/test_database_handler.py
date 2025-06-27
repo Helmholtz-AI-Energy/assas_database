@@ -12,8 +12,6 @@ from logging.handlers import RotatingFileHandler
 from assasdb import AssasDatabaseHandler
 from assasdb import AssasDocumentFile
 
-# logger = logging.getLogger("assas_app")
-
 
 class MockMongoClient:
     def __init__(self):
