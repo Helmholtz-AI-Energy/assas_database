@@ -8,8 +8,8 @@ setup(
     author="Jonas Dressner",
     author_email="jonas.dressner@kit.edu",
     license="MIT",
-    packages=["assasdb", "assasdb.data", "assasdb.data.inr"],
+    packages=["assasdb", "assasdb.astec_config", "assasdb.astec_config.inr"],
     zip_safe=False,
     include_package_data=True,
-    package_data={"assasdb": ["data/inr/*.csv"]},
+    package_data={"assasdb": ["astec_config/inr/*.csv"]},
 )

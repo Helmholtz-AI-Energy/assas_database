@@ -5,7 +5,6 @@ import os
 import time
 import netCDF4
 import logging
-import logging.handlers
 import numpy as np
 import pandas as pd
 import pkg_resources
@@ -71,16 +70,16 @@ class AssasOdessaNetCDF4Converter:
         self.variable_index = self.read_astec_variable_index_files(report=False)
 
         self.magma_debris_ids = self.read_vessel_magma_debris_ids(
-            resource_file="data/inr/assas_variables_vessel_magma_debris_ids.csv"
+            resource_file="astec_config/inr/assas_variables_vessel_magma_debris_ids.csv"
         )
         self.fuel_ids = self.read_csv_resource_file(
-            resource_file="data/inr/assas_variables_vessel_fuel_ids.csv"
+            resource_file="astec_config/inr/assas_variables_vessel_fuel_ids.csv"
         )
         self.clad_ids = self.read_csv_resource_file(
-            resource_file="data/inr/assas_variables_vessel_clad_ids.csv"
+            resource_file="astec_config/inr/assas_variables_vessel_clad_ids.csv"
         )
         self.component_states = self.read_csv_resource_file(
-            resource_file="data/inr/assas_variables_component_states.csv"
+            resource_file="astec_config/inr/assas_variables_component_states.csv"
         )
 
         self.variable_strategy_mapping = {
@@ -201,25 +200,25 @@ class AssasOdessaNetCDF4Converter:
 
     def read_astec_variable_index_files(self, report: bool = False) -> pd.DataFrame:
         file_list = [
-            "data/inr/assas_variables_cavity.csv",
-            "data/inr/assas_variables_containment.csv",
-            "data/inr/assas_variables_containment_dome_pool.csv",
-            "data/inr/assas_variables_lower_plenum.csv",
-            "data/inr/assas_variables_vessel.csv",
-            "data/inr/assas_variables_vessel_face_ther.csv",
-            "data/inr/assas_variables_vessel_general.csv",
-            "data/inr/assas_variables_vessel_mesh.csv",
-            "data/inr/assas_variables_primary_junction_ther.csv",
-            "data/inr/assas_variables_primary_pipe_ther.csv",
-            "data/inr/assas_variables_primary_volume_ther.csv",
-            "data/inr/assas_variables_primary_wall.csv",
-            "data/inr/assas_variables_primary_wall_ther.csv",
-            "data/inr/assas_variables_secondar_junction_ther.csv",
-            "data/inr/assas_variables_secondar_volume_ther.csv",
-            "data/inr/assas_variables_secondar_wall.csv",
-            "data/inr/assas_variables_secondar_wall_ther.csv",
-            "data/inr/assas_variables_connecti.csv",
-            "data/inr/assas_variables_connecti_source_fp.csv",
+            "astec_config/inr/assas_variables_cavity.csv",
+            "astec_config/inr/assas_variables_containment.csv",
+            "astec_config/inr/assas_variables_containment_dome_pool.csv",
+            "astec_config/inr/assas_variables_lower_plenum.csv",
+            "astec_config/inr/assas_variables_vessel.csv",
+            "astec_config/inr/assas_variables_vessel_face_ther.csv",
+            "astec_config/inr/assas_variables_vessel_general.csv",
+            "astec_config/inr/assas_variables_vessel_mesh.csv",
+            "astec_config/inr/assas_variables_primary_junction_ther.csv",
+            "astec_config/inr/assas_variables_primary_pipe_ther.csv",
+            "astec_config/inr/assas_variables_primary_volume_ther.csv",
+            "astec_config/inr/assas_variables_primary_wall.csv",
+            "astec_config/inr/assas_variables_primary_wall_ther.csv",
+            "astec_config/inr/assas_variables_secondar_junction_ther.csv",
+            "astec_config/inr/assas_variables_secondar_volume_ther.csv",
+            "astec_config/inr/assas_variables_secondar_wall.csv",
+            "astec_config/inr/assas_variables_secondar_wall_ther.csv",
+            "astec_config/inr/assas_variables_connecti.csv",
+            "astec_config/inr/assas_variables_connecti_source_fp.csv",
         ]
 
         dataframe_list = []

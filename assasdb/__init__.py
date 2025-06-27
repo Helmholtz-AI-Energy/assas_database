@@ -1,6 +1,6 @@
 from .assas_database_manager import AssasDatabaseManager, AssasAstecArchive
-from .assas_database_handler import AssasDatabaseHandler, AssasDocumentFile
-from .assas_database_handler import AssasDocumentFileStatus
+from .assas_database_handler import AssasDatabaseHandler
+from .assas_document_file import AssasDocumentFileStatus, AssasDocumentFile
 from .assas_odessa_netcdf4_converter import AssasOdessaNetCDF4Converter
 from .assas_utils import get_duration
 from .tools import assas_job_generator, assas_single_converter

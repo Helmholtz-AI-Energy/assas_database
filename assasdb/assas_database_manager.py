@@ -9,9 +9,10 @@ from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 from typing import List
+from pymongo import MongoClient
 
 from assasdb.assas_database_handler import AssasDatabaseHandler
-from assasdb.assas_database_handler import AssasDocumentFile, AssasDocumentFileStatus
+from assasdb.assas_document_file import AssasDocumentFile, AssasDocumentFileStatus
 from assasdb.assas_odessa_netcdf4_converter import AssasOdessaNetCDF4Converter
 
 logger = logging.getLogger("assas_app")
@@ -75,7 +76,7 @@ class AssasDatabaseManager:
         self.upload_directory = Path(upload_directory)
 
         self.database_handler = AssasDatabaseHandler(
-            connection_string=connection_string,
+            client=MongoClient(connection_string),
             backup_directory=backup_directory,
         )
 
