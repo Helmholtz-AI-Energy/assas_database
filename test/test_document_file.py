@@ -21,6 +21,7 @@ logging.basicConfig(
     handlers=[log_handler, logging.StreamHandler()],  # Log to file and console
 )
 
+
 class AssasDocumentFileTest(unittest.TestCase):
     def setUp(self):
         """

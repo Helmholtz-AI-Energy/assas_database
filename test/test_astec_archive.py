@@ -22,6 +22,7 @@ logging.basicConfig(
     handlers=[log_handler, logging.StreamHandler()],  # Log to file and console
 )
 
+
 class AssasAstecArchiveTest(unittest.TestCase):
     def setUp(self):
         self.upload_uuid = uuid4()
