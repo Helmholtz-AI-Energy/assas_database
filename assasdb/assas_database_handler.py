@@ -54,9 +54,8 @@ class AssasDatabaseHandler:
         if not self.backup_directory.exists():
             logger.warning(
                 f"Backup directory {self.backup_directory} does not exist. "
-                "Creating it now."
+                "Create it and check your setup."
             )
-            self.backup_directory.mkdir(parents=True, exist_ok=True)
 
     def dump_collections(
         self,
