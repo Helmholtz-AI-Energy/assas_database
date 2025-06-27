@@ -12,6 +12,22 @@ from logging.handlers import RotatingFileHandler
 from assasdb import AssasDatabaseHandler
 from assasdb import AssasDocumentFile
 
+# Configure rotating file logging
+log_dir = Path(__file__).parent / "log"
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / (Path(__file__).stem + ".log")
+log_handler = RotatingFileHandler(
+    log_file,
+    maxBytes=1024 * 1024,
+    backupCount=3,  # 1MB per file, 3 backups
+)
+log_format = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+log_handler.setFormatter(log_format)
+logging.basicConfig(
+    level=logging.DEBUG,
+    handlers=[log_handler, logging.StreamHandler()],  # Log to file and console
+)
+
 
 class MockMongoClient:
     def __init__(self):
@@ -43,28 +59,6 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.mock_client = MockMongoClient()
         mock_mongo_client.return_value = self.mock_client
 
-        # Configure logging
-        logger = logging.getLogger("assas_app")
-        logger.setLevel(logging.DEBUG)
-
-        file_handler = RotatingFileHandler(
-            f"{backup_directory}/test_database_handler.log",
-            maxBytes=1024 * 1024,  # 1 MB
-            backupCount=3,  # Keep 3 backup files
-            encoding="utf-8",
-        )
-
-        formatter = logging.Formatter(
-            "%(asctime)s %(module)s %(levelname)s: %(message)s"
-        )
-        file_handler.setFormatter(formatter)
-        # stream_handler.setFormatter(formatter)
-
-        logger.addHandler(file_handler)
-        # logger.addHandler(stream_handler)
-
-        logger.info("Starting AssasDatabaseHandlerTest...")
-
         # Initialize the AssasDatabaseHandler with test parameters
         # Ensure the MongoDB server is running and accessible
         self.database_handler = AssasDatabaseHandler(
@@ -78,11 +72,6 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
 
     def tearDown(self):
         self.database_handler = None
-
-        logger = logging.getLogger("assas_app")
-        for handler in logger.handlers:
-            handler.close()
-            logger.removeHandler(handler)
 
     def test_insert_file_document(self):
         # Mock document

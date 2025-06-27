@@ -26,8 +26,8 @@ class AssasDatabaseHandler:
 
     def __init__(
         self,
-        client: MongoClient,
-        backup_directory: str,
+        client: MongoClient = MongoClient("mongodb://localhost:27017/"),
+        backup_directory: str = "/mnt/ASSAS/backup_mongodb",
         database_name: str = "assas",
         file_collection_name: str = "files",
     ) -> None:
@@ -45,14 +45,18 @@ class AssasDatabaseHandler:
         Raises:
             ValueError: If the backup directory does not exist.
         """
-        if not Path(backup_directory).exists():
-            raise ValueError(f"Backup directory '{backup_directory}' does not exist.")
 
         self.client = client
-
-        self.backup_directory = Path(backup_directory)
         self.db_handle = self.client[database_name]
         self.file_collection = self.db_handle[file_collection_name]
+
+        self.backup_directory = Path(backup_directory)
+        if not self.backup_directory.exists():
+            logger.warning(
+                f"Backup directory {self.backup_directory} does not exist. "
+                "Creating it now."
+            )
+            self.backup_directory.mkdir(parents=True, exist_ok=True)
 
     def dump_collections(
         self,

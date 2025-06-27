@@ -9,7 +9,6 @@ from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 from typing import List
-from pymongo import MongoClient
 
 from assasdb.assas_astec_archive import AssasAstecArchive
 from assasdb.assas_database_handler import AssasDatabaseHandler
@@ -30,23 +29,23 @@ class AssasDatabaseManager:
 
     def __init__(
         self,
+        database_handler: AssasDatabaseHandler = AssasDatabaseHandler(),
         upload_directory: str = "/mnt/ASSAS/upload_test",
-        backup_directory: str = "/mnt/ASSAS/backup_mongodb",
-        connection_string: str = "mongodb://localhost:27017/",
     ) -> None:
         """
         Initialize the AssasDatabaseManager instance.
         Args:
+            database_handler (AssasDatabaseHandler): An instance of the database handler
             upload_directory (str): Directory where uploaded archives are stored.
-            backup_directory (str): Directory where database backups are stored.
-            connection_string (str): MongoDB connection string.
         """
+        self.database_handler = database_handler
         self.upload_directory = Path(upload_directory)
-
-        self.database_handler = AssasDatabaseHandler(
-            client=MongoClient(connection_string),
-            backup_directory=backup_directory,
-        )
+        if not self.upload_directory.exists():
+            logger.warning(
+                f"Upload directory {self.upload_directory} does not exist. "
+                "Creating it now."
+            )
+            self.upload_directory.mkdir(parents=True, exist_ok=True)
 
     def get_database_entry_by_upload_uuid(self, upload_uuid: uuid4):
         """

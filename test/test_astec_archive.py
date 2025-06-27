@@ -1,7 +1,26 @@
 import unittest
+import logging
+
+from pathlib import Path
+from logging.handlers import RotatingFileHandler
 from uuid import uuid4
 from assasdb import AssasAstecArchive
 
+# Configure rotating file logging
+log_dir = Path(__file__).parent / "log"
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / (Path(__file__).stem + ".log")
+log_handler = RotatingFileHandler(
+    log_file,
+    maxBytes=1024 * 1024,
+    backupCount=3,  # 1MB per file, 3 backups
+)
+log_format = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+log_handler.setFormatter(log_format)
+logging.basicConfig(
+    level=logging.DEBUG,
+    handlers=[log_handler, logging.StreamHandler()],  # Log to file and console
+)
 
 class AssasAstecArchiveTest(unittest.TestCase):
     def setUp(self):
