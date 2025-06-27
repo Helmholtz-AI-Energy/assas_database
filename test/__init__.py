@@ -1,4 +1,4 @@
-# from .test_database_manager import AssasDatabaseManagerTest
+from .test_database_manager import AssasDatabaseManagerIntegrationTest
 from .test_database_handler import AssasDatabaseHandlerTest
 from .test_astec_archive import AssasAstecArchiveTest
 
@@ -6,7 +6,7 @@ from .test_astec_archive import AssasAstecArchiveTest
 from .test_document_file import AssasDocumentFileTest
 
 __all__ = [
-    # "AssasDatabaseManagerTest",
+    "AssasDatabaseManagerIntegrationTest",
     "AssasDatabaseHandlerTest",
     "AssasAstecArchiveTest",
     # "AssasOdessaNetCDF4ConverterTest",
