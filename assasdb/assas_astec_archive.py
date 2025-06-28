@@ -20,13 +20,15 @@ class AssasAstecArchive:
     ) -> None:
         """
         Initialize the AssasAstecArchive instance.
-        :param upload_uuid: UUID of the upload.
-        :param name: Name of the archive.
-        :param date: Date of the upload.
-        :param user: User who uploaded the archive.
-        :param description: Description of the archive.
-        :param archive_path: Path to the archive.
-        :param result_path: Path to the result file.
+
+        Args:
+            upload_uuid (uuid4): UUID of the upload.
+            name (str): Name of the archive.
+            date (str): Date of the upload.
+            user (str): User who uploaded the archive.
+            description (str): Description of the archive.
+            archive_path (str): Path to the archive.
+            result_path (str): Path to the result file.
         """
         self._upload_uuid = upload_uuid
         self._name = name
@@ -40,7 +42,9 @@ class AssasAstecArchive:
     def upload_uuid(self):
         """
         Returns the UUID of the upload.
-        :return: UUID of the upload.
+
+        Returns:
+            UUID of the upload.
         """
         return self._upload_uuid
 
@@ -48,7 +52,9 @@ class AssasAstecArchive:
     def name(self):
         """
         Returns the name of the archive.
-        :return: Name of the archive.
+
+        Returns:
+            Name of the archive.
         """
         return self._name
 
@@ -56,7 +62,9 @@ class AssasAstecArchive:
     def date(self):
         """
         Returns the date of the upload.
-        :return: Date of the upload.
+
+        Returns:
+            Date of the upload.
         """
         return self._date
 
@@ -64,7 +72,9 @@ class AssasAstecArchive:
     def user(self):
         """
         Returns the user who uploaded the archive.
-        :return: User who uploaded the archive.
+
+        Returns:
+            User who uploaded the archive.
         """
         return self._user
 
@@ -72,7 +82,9 @@ class AssasAstecArchive:
     def description(self):
         """
         Returns the description of the archive.
-        :return: Description of the archive.
+
+        Returns:
+            Description of the archive.
         """
         return self._description
 
@@ -80,7 +92,9 @@ class AssasAstecArchive:
     def archive_path(self):
         """
         Returns the path to the archive.
-        :return: Path to the archive.
+
+        Returns:
+            Path to the archive.
         """
         return self._archive_path
 
@@ -88,6 +102,8 @@ class AssasAstecArchive:
     def result_path(self):
         """
         Returns the path to the result file.
-        :return: Path to the result file.
+
+        Returns:
+            Path to the result file.
         """
         return self._result_path

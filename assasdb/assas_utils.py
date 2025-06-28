@@ -20,6 +20,7 @@ class Duration(namedtuple("Duration", "weeks, days, hours, minutes, seconds")):
         Generates a list of formatted strings for each non-zero unit of the duration.
         Each unit is represented as "<value> <unit_name>", where the unit name is
         singular if the value is 1, and plural otherwise.
+
         Yields:
             str: A formatted string for each non-zero unit of the duration.
         """
@@ -34,8 +35,10 @@ def get_duration(seconds: int) -> Duration:
     """
     Converts a number of seconds into a Duration object representing weeks, days,
     hours, minutes, and seconds.
+
     Args:
         seconds (int): The total number of seconds to convert.
+
     Returns:
         Duration: An instance of the Duration class representing the converted time.
     """

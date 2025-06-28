@@ -34,9 +34,13 @@ class AssasDatabaseManager:
     ) -> None:
         """
         Initialize the AssasDatabaseManager instance.
+
         Args:
             database_handler (AssasDatabaseHandler): An instance of the database handler
             upload_directory (str): Directory where uploaded archives are stored.
+
+        Returns:
+            None
         """
         self.database_handler = database_handler
         self.upload_directory = Path(upload_directory)
@@ -49,8 +53,10 @@ class AssasDatabaseManager:
     def get_database_entry_by_upload_uuid(self, upload_uuid: uuid4):
         """
         Retrieve a database entry by its upload UUID.
+
         Args:
             upload_uuid (uuid4): The UUID of the upload.
+
         Returns:
             The database entry corresponding to the upload UUID.
         """
@@ -60,8 +66,10 @@ class AssasDatabaseManager:
     def get_database_entry_by_id(self, id: str):
         """
         Retrieve a database entry by its ID.
+
         Args:
             id (str): The ID of the database entry.
+
         Returns:
             The database entry corresponding to the ID.
         """
@@ -71,8 +79,10 @@ class AssasDatabaseManager:
     def get_database_entry_by_uuid(self, uuid: uuid4):
         """
         Retrieve a database entry by its UUID.
+
         Args:
             uuid (uuid4): The UUID of the database entry.
+
         Returns:
             The database entry corresponding to the UUID.
         """
@@ -82,8 +92,10 @@ class AssasDatabaseManager:
     def get_database_entry_by_path(self, path: str):
         """
         Retrieve a database entry by its file path.
+
         Args:
             path (str): The file path of the database entry.
+
         Returns:
             The database entry corresponding to the file path.
         """
@@ -93,6 +105,7 @@ class AssasDatabaseManager:
     def get_all_database_entries(self) -> pd.DataFrame:
         """
         Retrieve all entries from the internal database and return them as a DataFrame.
+
         Returns:
             pd.DataFrame: A DataFrame containing all entries from the internal database.
         """
@@ -115,6 +128,7 @@ class AssasDatabaseManager:
         """
         Retrieve all entries from the internal database backup and return them as
         a DataFrame.
+
         Returns:
             pd.DataFrame: A DataFrame containing all entries from the internal
             database backup.
@@ -136,6 +150,9 @@ class AssasDatabaseManager:
         """
         Create a backup of the internal database.
         This function dumps the 'files' collection to the backup directory.
+
+        Returns:
+            None
         """
         logger.info("Backup internal database.")
         self.database_handler.dump_collections(collection_names=["files"])
@@ -145,9 +162,13 @@ class AssasDatabaseManager:
     ) -> None:
         """
         Update the status of a file document in the database by its UUID.
+
         Args:
             uuid (uuid4): The UUID of the file document.
             status (AssasDocumentFileStatus): The new status to set for the document.
+
+        Returns:
+            None
         """
         update = {"system_status": f"{str(status)}"}
         logger.info(
@@ -170,9 +191,13 @@ class AssasDatabaseManager:
     ) -> None:
         """
         Update the size of the HDF5 file in the database by its UUID.
+
         Args:
             uuid (uuid4): The UUID of the file document.
             size (str): The size of the HDF5 file to set.
+
+        Returns:
+            None
         """
         update = {"system_size_hdf5": f"{str(size)}"}
         logger.info(
@@ -189,6 +214,7 @@ class AssasDatabaseManager:
     def add_internal_database_entry(self, document: dict) -> None:
         """
         Insert a document into the internal database.
+
         Args:
             document (dict): The document to insert into the database.
         """
@@ -199,6 +225,9 @@ class AssasDatabaseManager:
         """
         Drop the 'files' collection in the internal database.
         This will remove all entries from the database.
+
+        Returns:
+            None
         """
         self.database_handler.drop_file_collection()
 
@@ -209,6 +238,9 @@ class AssasDatabaseManager:
         converts them to AssasDocumentFile instances, and collects the number of samples
         from each archive using the AssasOdessaNetCDF4Converter.
         The results are stored back in the database.
+
+        Returns:
+            None
         """
         documents_uploaded = (
             self.database_handler.get_file_documents_to_collect_number_of_samples(
@@ -261,6 +293,7 @@ class AssasDatabaseManager:
     def get_overall_database_size(self) -> str:
         """
         Calculate the overall size of the database by summing the sizes of all entries.
+
         Returns:
             str: The total size of the database in a human-readable format.
         """
@@ -306,9 +339,11 @@ class AssasDatabaseManager:
     def convert_from_bytes(number_of_bytes: float, blocksize: float = 1024.0) -> str:
         """
         This function will convert Bytes to kB, MB, GB, and TB.
+
         Args:
             number_of_bytes (float): The number of bytes to convert.
             blocksize (float): The block size for conversion, default is 1024.0.
+
         Returns:
             str: The converted size in a human-readable format (e.g., '10.5 MB').
         """
@@ -325,8 +360,10 @@ class AssasDatabaseManager:
     def get_upload_time(directory: str) -> str:
         """
         Get the creation time of the archive directory.
+
         Args:
             directory (str): The path to the archive directory.
+
         Returns:
             str: The creation time of the archive in the format "MM/DD/YYYY, HH:MM:SS".
         """
@@ -343,8 +380,10 @@ class AssasDatabaseManager:
     def get_size_of_directory_in_bytes(directory: str) -> float:
         """
         Get the size of a directory in bytes.
+
         Args:
             directory (str): The path to the directory.
+
         Returns:
             float: The size of the directory in bytes.
         """
@@ -359,9 +398,11 @@ class AssasDatabaseManager:
         Update the sizes of archives in the database.
         This function retrieves all archives in the UPLOADED state without updated
         binary sizes, calculates their sizes, and updates the database entries.
+
         Args:
             number_of_archives (int | None): Optional limit on the number of archives
             to process.
+
         Returns:
             bool: True if the update was successful, False otherwise.
         """
@@ -415,6 +456,7 @@ class AssasDatabaseManager:
         upload directory that are not yet processed.
         It will check for the existence of the upload_info.pickle file in each
         archive directory.
+
         Returns:
             List[uuid4]: A list of UUIDs of new uploads to process.
         """
@@ -449,6 +491,9 @@ class AssasDatabaseManager:
         This function will update the status of all valid archives in the database.
         It will set the status of all archives in state UPLOADED to CONVERTING and
         all archives in state CONVERTING to VALID.
+
+        Returns:
+            None
         """
 
         converting_archives = self.get_upload_uuids_of_converting_archives()
@@ -517,6 +562,7 @@ class AssasDatabaseManager:
         upload directory.
         It will check for the existence of the upload_uuid_valid file in each
         archive directory.
+
         Returns:
             List[uuid4]: A list of UUIDs of valid uploads.
         """
@@ -555,6 +601,7 @@ class AssasDatabaseManager:
         upload directory that are currently being converted.
         It will check for the existence of the upload_uuid_converting file in each
         archive directory.
+
         Returns:
             List[uuid4]: A list of UUIDs of archives that are currently being converted.
         """
@@ -594,6 +641,7 @@ class AssasDatabaseManager:
         upload directory that have a reload flag.
         It will check for the existence of the upload_uuid_reload file in each
         archive directory.
+
         Returns:
             List[uuid4]: A list of UUIDs of archives to reload.
         """
@@ -631,8 +679,10 @@ class AssasDatabaseManager:
     def get_file_size(file_path: str) -> str:
         """
         Get the size of a file or directory in a human-readable format.
+
         Args:
             file_path (str): The path to the file or directory.
+
         Returns:
             str: The size of the file or directory in a human-readable format.
         """
@@ -660,6 +710,7 @@ class AssasDatabaseManager:
         This function will return a list of ASTEC archives that are not yet processed.
         It will check for the existence of the upload_info.pickle file in each
         archive directory and retrieve the upload UUIDs of new uploads.
+
         Returns:
             List[AssasAstecArchive]: A list of ASTEC archives to process.
         """
@@ -691,6 +742,7 @@ class AssasDatabaseManager:
         This function will return a list of ASTEC archives that need to be reloaded.
         It will check for the existence of the upload_info.pickle file in each
         archive directory and retrieve the upload UUIDs of archives to reload.
+
         Returns:
             List[AssasAstecArchive]: A list of ASTEC archives to reload.
         """
@@ -732,6 +784,7 @@ class AssasDatabaseManager:
         Process all uploaded archives that are not yet processed.
         This function retrieves the list of uploaded archives to process,
         registers them in the database, and updates their status.
+
         Returns:
             bool: True if the processing was successful, False otherwise.
         """
@@ -761,6 +814,7 @@ class AssasDatabaseManager:
         Process all uploaded archives that have a reload flag.
         This function retrieves the list of uploaded archives to reload,
         registers them in the database, and updates their status.
+
         Returns:
             bool: True if the processing was successful, False otherwise.
         """
@@ -791,11 +845,13 @@ class AssasDatabaseManager:
     ) -> bool:
         """
         Update the upload information in the upload_info.pickle file.
+
         Args:
             upload_uuid (uuid4): The UUID of the upload.
             key (str): The key to update in the upload information.
             value_list (List[str]): The list of values to set for the key.
             upload_info_file_name (str): The name of the upload info file.
+
         Returns:
             bool: True if the update was successful, False otherwise.
         """
@@ -839,8 +895,10 @@ class AssasDatabaseManager:
     def remove_lead_slash_from_path_string(path: str):
         """
         Remove the leading slash from a path string if it exists.
+
         Args:
             path (str): The path string to process.
+
         Returns:
             str: The path string without the leading slash.
         """
@@ -855,9 +913,11 @@ class AssasDatabaseManager:
     ) -> List[AssasAstecArchive]:
         """
         Read the upload information from the upload_info.pickle file.
+
         Args:
             upload_uuid (uuid4): The UUID of the upload.
             upload_info_file_name (str): The name of the upload info file.
+
         Returns:
             List[AssasAstecArchive]: A list of AssasAstecArchive instances
             representing the uploaded archives.
@@ -929,9 +989,13 @@ class AssasDatabaseManager:
     def register_archives(self, archive_list: List[AssasAstecArchive]) -> None:
         """
         Register a list of ASTEC archives in the internal database.
+
         Args:
             archive_list (List[AssasAstecArchive]): A list of ASTEC archives to
             register.
+
+        Returns:
+            None
         """
         logger.info(f"Start registering {len(archive_list)} archives.")
 
@@ -976,8 +1040,10 @@ class AssasDatabaseManager:
         """
         Check if the number of currently converting archives exceeds the
         maximum allowed.
+
         Args:
             maximum_conversions (int): The maximum number of allowed conversions.
+
         Returns:
             bool: True if the number of converting archives exceeds the maximum,
             False otherwise.
@@ -995,6 +1061,7 @@ class AssasDatabaseManager:
     ) -> None:
         """
         Convert the next archive that is in the UPLOADED state to NetCDF4 format.
+
         Args:
             explicit_times (List[int]): Optional list of explicit time points to use
             for conversion.
@@ -1052,6 +1119,9 @@ class AssasDatabaseManager:
         This function retrieves all file documents that are in the INVALID state,
         converts them to AssasDocumentFile instances, and updates their status
         to UPLOADED in the database.
+
+        Returns:
+            None
         """
         documents = self.database_handler.get_file_documents_by_status(
             AssasDocumentFileStatus.INVALID
@@ -1070,6 +1140,9 @@ class AssasDatabaseManager:
         This function retrieves all file documents that are in the CONVERTING state,
         converts them to AssasDocumentFile instances, and updates their status
         to UPLOADED in the database.
+
+        Returns:
+            None
         """
         logger.info("Reset status of all converting archives to UPLOADED.")
         documents = self.database_handler.get_file_documents_by_status(
@@ -1089,6 +1162,9 @@ class AssasDatabaseManager:
         This function retrieves all file documents that are in the VALID state,
         converts them to AssasDocumentFile instances, and updates their status
         to UPLOADED in the database.
+
+        Returns:
+            None
         """
         logger.info("Reset status of all valid archives to UPLOADED.")
         documents = self.database_handler.get_file_documents_by_status(
@@ -1105,6 +1181,9 @@ class AssasDatabaseManager:
     def reset_all_result_files(self) -> None:
         """
         Reset the result files of all archives in the database.
+
+        Returns:
+            None
         """
         documents = self.database_handler.get_all_file_documents()
         document_files = [AssasDocumentFile(document) for document in documents]
@@ -1122,8 +1201,12 @@ class AssasDatabaseManager:
     ) -> None:
         """
         Reset the result file of a specific archive by its UUID.
+
         Args:
             system_uuid (uuid4): The UUID of the archive to reset.
+
+        Returns:
+            None
         """
         logger.info(f"Reset result file of archive with uuid {system_uuid}.")
         document = self.database_handler.get_file_document_by_uuid(uuid=system_uuid)
@@ -1143,6 +1226,9 @@ class AssasDatabaseManager:
         converts them to AssasDocumentFile instances, and collects meta data
         from each archive using the AssasOdessaNetCDF4Converter.
         The results are stored back in the database.
+
+        Returns:
+            None
         """
         logger.info("Collect meta data from all valid archives in the database.")
         documents = self.database_handler.get_file_documents_to_collect_meta_data()
@@ -1185,8 +1271,12 @@ class AssasDatabaseManager:
     ) -> None:
         """
         Update the metadata of a specific archive by its UUID.
+
         Args:
             uuid (uuid4): The UUID of the archive to update.
+
+        Returns:
+            None
         """
         logger.info(f"Update meta data of archive with uuid {uuid}.")
         document = self.database_handler.get_file_document_by_uuid(uuid=uuid)
