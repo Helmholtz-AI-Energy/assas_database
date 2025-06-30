@@ -41,10 +41,7 @@ def copy2_verbose(
     copy2(source, destination)
 
 
-def sync_imput_and_tmp(
-    input_path: str,
-    tmp_path: str
-) -> None:
+def sync_imput_and_tmp(input_path: str, tmp_path: str) -> None:
     """Synchronize the input directory with the temporary directory.
 
     Args:
@@ -60,9 +57,7 @@ def sync_imput_and_tmp(
     sync(input_path, tmp_path, verbose=True)
 
 
-def remove_tmp(
-    tmp_path: str
-) -> None:
+def remove_tmp(tmp_path: str) -> None:
     """Remove the temporary directory if it exists.
 
     Args:
@@ -81,10 +76,7 @@ def remove_tmp(
         os.system(remove_string)
 
 
-def copytree_verbose_to_tmp(
-    input_path: str,
-    tmp_path: str
-) -> str:
+def copytree_verbose_to_tmp(input_path: str, tmp_path: str) -> str:
     """Copy the input directory to the temporary directory with verbose logging.
 
     Args:
@@ -105,10 +97,7 @@ def copytree_verbose_to_tmp(
         logger.error(f"Error when copy input to tmp: {exception}.")
 
 
-def save_hdf5_result(
-    local_output_path: str,
-    lsdf_output_path: str
-) -> None:
+def save_hdf5_result(local_output_path: str, lsdf_output_path: str) -> None:
     """Save the HDF5 result file from the local output path to the LSDF output path.
 
     Args:
