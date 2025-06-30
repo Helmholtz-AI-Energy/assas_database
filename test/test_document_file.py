@@ -1,3 +1,9 @@
+"""Test class for AssasDocumentFile.
+
+This module contains unit tests for the AssasDocumentFile class,
+which is part of the AssasDB package.
+"""
+
 import unittest
 import logging
 
@@ -23,6 +29,8 @@ logging.basicConfig(
 
 
 class AssasDocumentFileTest(unittest.TestCase):
+    """Unit tests for the AssasDocumentFile class."""
+
     def setUp(self):
         """Set up the test environment for AssasDocumentFile."""
         self.initial_document = {"key1": "value1", "key2": "value2"}

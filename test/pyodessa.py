@@ -1,3 +1,11 @@
+"""PyOdessa: Dummy PyOdessa Interface.
+
+This module provides a dummy interface for PyOdessa, which is used for testing purposes.
+It includes a dummy R1 class, a function to get saving times, and a function to
+restore an OdessaBase object.
+"""
+
+
 class R1(list):
     """Dummy R1 class, behaves like a list."""
 
@@ -18,13 +26,16 @@ class OdessaBase:
     """Dummy OdessaBase object with minimal interface for testing."""
 
     def __init__(self):
+        """Initialize an empty data structure."""
         self._data = {}
 
     def len(self, name):
+        """Return a dummy length for any structure."""
         # Return a dummy length for any structure
         return 2
 
     def get(self, name):
+        """Return dummy data based on the name."""
         # Return dummy data based on the name
         # For demonstration, return a list, float, or another OdessaBase as needed
         if (

@@ -1,3 +1,5 @@
+"""Test suite for AssasDatabaseManager."""
+
 import os
 import pickle
 import unittest
@@ -5,6 +7,7 @@ import tempfile
 import shutil
 import pandas as pd
 import logging
+import HtmlTestRunner
 
 from uuid import uuid4
 from pathlib import Path
@@ -35,6 +38,7 @@ logging.basicConfig(
 
 def create_fake_upload_archives(base_dir, num_archives=3):
     """Create fake upload archive folders with upload_info.pickle files inside.
+
     Each folder is named after a UUID.
     """
     os.makedirs(base_dir, exist_ok=True)
@@ -55,64 +59,87 @@ def create_fake_upload_archives(base_dir, num_archives=3):
 
 
 class FakeMongoCollection:
+    """A fake MongoDB collection for testing purposes."""
+
     def __init__(self, docs=None):
+        """Initialize the fake collection with optional documents."""
         self.docs = docs or []
 
     def find(self):
+        """Return all documents in the collection."""
         return self.docs
 
     def insert_one(self, doc):
+        """Insert a single document into the collection."""
         self.docs.append(doc)
 
     def drop(self):
+        """Drop the collection by clearing its documents."""
         self.docs = []
 
 
 class FakeDatabaseHandler:
+    """A fake database handler for testing purposes."""
+
     def __init__(
         self,
         client,
         backup_directory,
     ):
+        """Initialize the fake database handler with a client and backup directory."""
         self._collection = FakeMongoCollection()
         self._backup = []
 
     def get_file_collection(self):
+        """Return the fake collection."""
         return self._collection
 
     def get_file_document_by_upload_uuid(self, upload_uuid):
+        """Return a fake file document by upload UUID."""
         return {"upload_uuid": upload_uuid}
 
     def get_file_document(self, id):
+        """Return a fake file document by ID."""
         return {"_id": id}
 
     def get_file_document_by_uuid(self, uuid):
+        """Return a fake file document by UUID."""
         return {"uuid": uuid, "system_uuid": uuid}
 
     def get_file_document_by_path(self, path):
+        """Return a fake file document by system path."""
         return {"system_path": path}
 
     def read_collection_from_backup(self):
+        """Return the backup collection."""
         return self._backup
 
     def dump_collections(self, collection_names):
+        """Dump the current collection to the backup."""
         self._backup = list(self._collection.find())
 
     def insert_file_document(self, doc):
+        """Insert a document into the fake collection."""
         self._collection.insert_one(doc)
 
     def drop_file_collection(self):
+        """Drop the fake collection."""
         self._collection.drop()
 
     def update_file_document_by_uuid(self, uuid, update):
+        """Update a file document by UUID."""
         pass
 
     def update_file_document_by_path(self, path, doc):
+        """Update a file document by system path."""
         pass
 
 
 class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
+    """Integration test for AssasDatabaseManager."""
+
     def setUp(self):
+        """Set up the test environment."""
         # Create fake directories
         self.upload_dir = tempfile.mkdtemp()
         self.backup_dir = tempfile.mkdtemp()
@@ -136,11 +163,13 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         )
 
     def tearDown(self):
+        """Clean up the test environment."""
         shutil.rmtree(self.upload_dir)
         shutil.rmtree(self.backup_dir)
 
     def test_get_all_database_entries_empty(self):
         """Test getting all database entries when the collection is empty.
+
         This should return an empty DataFrame.
         """
         df = self.manager.get_all_database_entries()
@@ -149,6 +178,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
 
     def test_add_and_get_database_entry(self):
         """Test adding a document and retrieving it from the database.
+
         This should ensure that the document is correctly added and can be retrieved.
         """
         doc = {"_id": "1", "system_path": "/fake/path"}
@@ -159,6 +189,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
 
     def test_backup_and_restore(self):
         """Test backing up the database and restoring from backup.
+
         This should ensure that the data persists across backup and restore operations.
         """
         doc = {"_id": "2", "system_path": "/another/path"}
@@ -174,6 +205,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.assertEqual(df_backup.iloc[0]["system_path"], "/another/path")
 
     def test_get_database_entry_by_upload_uuid(self):
+        """Test getting a database entry by upload UUID."""
         self.mock_handler.get_file_document_by_upload_uuid.return_value = {
             "upload_uuid": "uuid"
         }
@@ -181,11 +213,13 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.assertEqual(result, {"upload_uuid": "uuid"})
 
     def test_get_database_entry_by_id(self):
+        """Test getting a database entry by ID."""
         self.mock_handler.get_file_document.return_value = {"_id": "id"}
         result = self.manager.get_database_entry_by_id("id")
         self.assertEqual(result, {"_id": "id"})
 
     def test_get_database_entry_by_uuid(self):
+        """Test getting a database entry by UUID."""
         uuid = uuid4()
         self.mock_handler.get_file_document_by_uuid.return_value = {
             "uuid": uuid,
@@ -195,6 +229,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.assertEqual(result, {"uuid": uuid, "system_uuid": uuid})
 
     def test_get_database_entry_by_path(self):
+        """Test getting a database entry by system path."""
         self.mock_handler.get_file_document_by_path.return_value = {
             "system_path": "path"
         }
@@ -202,6 +237,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.assertEqual(result, {"system_path": "path"})
 
     def test_get_all_database_entries(self):
+        """Test getting all database entries from the database."""
         mock_collection = MagicMock()
         mock_collection.find.return_value = []
         self.mock_handler.get_file_collection.return_value = mock_collection
@@ -209,15 +245,18 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.assertIsInstance(df, pd.DataFrame)
 
     def test_get_all_database_entries_from_backup(self):
+        """Test getting all database entries from the backup."""
         self.mock_handler.read_collection_from_backup.return_value = []
         df = self.manager.get_all_database_entries_from_backup()
         self.assertIsInstance(df, pd.DataFrame)
 
     def test_backup_internal_database(self):
+        """Test backing up the internal database."""
         self.manager.backup_internal_database()
         self.mock_handler.dump_collections.assert_called()
 
     def test_set_document_status_by_uuid(self):
+        """Test setting the status of a document by UUID."""
         self.mock_handler.get_file_document_by_uuid.return_value = {
             "system_uuid": "uuid"
         }
@@ -227,6 +266,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.mock_handler.update_file_document_by_uuid.assert_called()
 
     def test_set_hdf5_size_by_uuid(self):
+        """Test setting the HDF5 size of a document by UUID."""
         self.mock_handler.get_file_document_by_uuid.return_value = {
             "system_uuid": "uuid"
         }
@@ -234,20 +274,24 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.mock_handler.update_file_document_by_uuid.assert_called()
 
     def test_add_internal_database_entry(self):
+        """Test adding an internal database entry."""
         self.manager.add_internal_database_entry({"_id": "id"})
         self.mock_handler.insert_file_document.assert_called()
 
     def test_empty_internal_database(self):
+        """Test emptying the internal database."""
         self.manager.empty_internal_database()
         self.mock_handler.drop_file_collection.assert_called()
 
     def test_collect_number_of_samples_of_uploaded_archives(self):
+        """Test collecting the number of samples from uploaded archives."""
         method = self.mock_handler.get_file_documents_to_collect_number_of_samples
         method.return_value = []
         # Should not raise
         self.manager.collect_number_of_samples_of_uploaded_archives()
 
     def test_get_overall_database_size(self):
+        """Test getting the overall database size."""
         with patch.object(
             self.manager,
             "get_all_database_entries",
@@ -257,15 +301,18 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.assertIsInstance(size, str)
 
     def test_convert_to_bytes(self):
+        """Test converting human-readable sizes to bytes."""
         self.assertEqual(self.manager.convert_to_bytes("1 GB"), 1024**3)
         self.assertEqual(self.manager.convert_to_bytes("1 MB"), 1024**2)
         self.assertEqual(self.manager.convert_to_bytes("1 KB"), 1024)
         self.assertEqual(self.manager.convert_to_bytes("1 B"), 1)
 
     def test_convert_from_bytes(self):
+        """Test converting bytes to human-readable sizes."""
         self.assertEqual(self.manager.convert_from_bytes(1024), "1.0 KB")
 
     def test_get_upload_time(self):
+        """Test getting the upload time of a directory."""
         with patch("os.path.getctime", return_value=0):
             with patch("datetime.datetime") as mock_datetime:
                 mock_datetime.fromtimestamp.return_value.strftime.return_value = (
@@ -275,21 +322,25 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
                 self.assertIsInstance(result, str)
 
     def test_get_size_of_directory_in_bytes(self):
+        """Test getting the size of a directory in bytes."""
         with patch("subprocess.check_output", return_value=b"1234\ttest_dir"):
             size = self.manager.get_size_of_directory_in_bytes("test_dir")
             self.assertEqual(size, 1234.0)
 
     def test_update_archive_sizes(self):
+        """Test updating the sizes of archives."""
         self.mock_handler.get_file_documents_to_update_size.return_value = []
         result = self.manager.update_archive_sizes()
         self.assertIsInstance(result, bool)
 
     def test_get_new_upload_uuids_to_process(self):
+        """Test getting new upload UUIDs to process."""
         with patch("os.listdir", return_value=[]):
             result = self.manager.get_new_upload_uuids_to_process()
             self.assertIsInstance(result, list)
 
     def test_update_status_of_archives(self):
+        """Test updating the status of archives."""
         with (
             patch.object(
                 self.manager, "get_upload_uuids_of_converting_archives", return_value=[]
@@ -301,21 +352,25 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.manager.update_status_of_archives()
 
     def test_get_upload_uuids_of_valid_archives(self):
+        """Test getting upload UUIDs of valid archives."""
         with patch("os.listdir", return_value=[]):
             result = self.manager.get_upload_uuids_of_valid_archives()
             self.assertIsInstance(result, list)
 
     def test_get_upload_uuids_of_converting_archives(self):
+        """Test getting upload UUIDs of converting archives."""
         with patch("os.listdir", return_value=[]):
             result = self.manager.get_upload_uuids_of_converting_archives()
             self.assertIsInstance(result, list)
 
     def test_get_upload_uuids_to_reload(self):
+        """Test getting upload UUIDs to reload."""
         with patch("os.listdir", return_value=[]):
             result = self.manager.get_upload_uuids_to_reload()
             self.assertIsInstance(result, list)
 
     def test_get_file_size(self):
+        """Test getting the file size of a file."""
         with patch("os.path.isfile", return_value=True), patch("os.stat") as mock_stat:
             mock_stat.return_value.st_size = 1024
             with patch.object(
@@ -325,6 +380,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
                 self.assertEqual(size, "1.0 KB")
 
     def test_get_uploaded_archives_to_process(self):
+        """Test getting uploaded archives to process."""
         with patch.object(
             self.manager, "get_new_upload_uuids_to_process", return_value=[]
         ):
@@ -332,11 +388,13 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.assertIsInstance(result, list)
 
     def test_get_uploaded_archives_to_reload(self):
+        """Test getting uploaded archives to reload."""
         with patch.object(self.manager, "get_upload_uuids_to_reload", return_value=[]):
             result = self.manager.get_uploaded_archives_to_reload()
             self.assertIsInstance(result, list)
 
     def test_process_uploads(self):
+        """Test processing uploads."""
         with (
             patch.object(
                 self.manager, "get_uploaded_archives_to_process", return_value=[]
@@ -347,6 +405,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.assertIsInstance(result, bool)
 
     def test_process_uploads_with_reload_flag(self):
+        """Test processing uploads with the reload flag."""
         with (
             patch.object(
                 self.manager, "get_uploaded_archives_to_reload", return_value=[]
@@ -357,6 +416,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.assertIsInstance(result, bool)
 
     def test_update_upload_info(self):
+        """Test updating upload information."""
         with (
             patch("builtins.open", unittest.mock.mock_open(read_data=b"")),
             patch(
@@ -374,6 +434,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.assertIsInstance(result, bool)
 
     def test_remove_lead_slash_from_path_string(self):
+        """Test removing leading slashes from a path string."""
         self.assertEqual(
             self.manager.remove_lead_slash_from_path_string("/test"), "test"
         )
@@ -382,9 +443,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         )
 
     def test_read_upload_info_from_fake_archives(self):
-        """Integration test: create fake upload archives, then read upload_info
-        using AssasDatabaseManager.
-        """
+        """Test reading upload information from fake archives."""
         # Create 2 fake upload archives
         create_fake_upload_archives(self.upload_dir, num_archives=2)
         # List all created UUID folders
@@ -405,6 +464,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             # self.assertIn("description", result[0])
 
     def test_register_archives(self):
+        """Test registering archives with the database manager."""
         with (
             patch("assasdb.assas_database_manager.AssasDocumentFile"),
             patch("assasdb.assas_database_manager.AssasOdessaNetCDF4Converter"),
@@ -421,32 +481,39 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.mock_handler.insert_file_document.assert_called()
 
     def test_postpone_conversion(self):
+        """Test postponing conversion of archives."""
         self.mock_handler.get_file_documents_by_status.return_value = [{}] * 6
         self.assertTrue(self.manager.postpone_conversion(maximum_conversions=5))
 
     def test_convert_next_validated_archive(self):
+        """Test converting the next validated archive."""
         self.mock_handler.get_file_documents_by_status.return_value = []
         # Should not raise
         self.manager.convert_next_validated_archive()
 
     def test_reset_invalid_archives(self):
+        """Test resetting invalid archives."""
         self.mock_handler.get_file_documents_by_status.return_value = []
         self.manager.reset_invalid_archives()
 
     def test_reset_converting_archives(self):
+        """Test resetting converting archives."""
         self.mock_handler.get_file_documents_by_status.return_value = []
         self.manager.reset_converting_archives()
 
     def test_reset_valid_archives(self):
+        """Test resetting valid archives."""
         self.mock_handler.get_file_documents_by_status.return_value = []
         self.manager.reset_valid_archives()
 
     def test_reset_all_result_files(self):
+        """Test resetting all result files."""
         self.mock_handler.get_all_file_documents.return_value = []
         with patch("assasdb.assas_database_manager.AssasOdessaNetCDF4Converter"):
             self.manager.reset_all_result_files()
 
     def test_reset_result_file_by_uuid(self):
+        """Test resetting a result file by UUID."""
         uuid = uuid4()
         self.mock_handler.get_file_document_by_uuid.return_value = {
             "uuid": uuid,
@@ -459,6 +526,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.manager.reset_result_file_by_uuid(uuid)
 
     def test_update_meta_data_of_valid_archives(self):
+        """Test updating metadata of valid archives."""
         self.mock_handler.get_file_documents_to_collect_meta_data.return_value = []
         with patch(
             "assasdb.assas_database_manager.AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4",
@@ -467,6 +535,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
             self.manager.update_meta_data_of_valid_archives()
 
     def test_update_meta_data(self):
+        """Test updating metadata for a specific UUID."""
         self.mock_handler.get_file_document_by_uuid.return_value = {}
         with patch(
             "assasdb.assas_database_manager.AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4",
@@ -476,4 +545,10 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(
+        testRunner=HtmlTestRunner.HTMLTestRunner(
+            output="test_reports",  # Directory for HTML reports
+            report_title="AssasDatabaseManager Test Report",
+            descriptions=True,
+        )
+    )

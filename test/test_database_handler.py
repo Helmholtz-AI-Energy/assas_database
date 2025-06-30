@@ -1,3 +1,9 @@
+"""Test cases for AssasDatabaseHandler using a mocked MongoDB client.
+
+This module contains unit tests for the AssasDatabaseHandler class,
+which interacts with a MongoDB database.
+"""
+
 import unittest
 import logging
 
@@ -30,7 +36,10 @@ logging.basicConfig(
 
 
 class MockMongoClient:
+    """Mock MongoDB client for testing AssasDatabaseHandler."""
+
     def __init__(self):
+        """Initialize the mock MongoDB client."""
         # Mock the database and collection
         self.mock_db = MagicMock(spec=Database)
         self.mock_collection = MagicMock(spec=Collection)
@@ -39,16 +48,32 @@ class MockMongoClient:
         self.mock_db.__getitem__.return_value = self.mock_collection
 
     def __getitem__(self, name):
+        """Return the mocked collection for the given name.
+
+        Args:
+            name (str): The name of the collection to retrieve.
+
+        Returns:
+            MagicMock: The mocked collection.
+
+        """
         # Return the mocked database
         return self.mock_db
 
 
 class AssasDatabaseHandlerTest(unittest.TestCase):
+    """Unit tests for the AssasDatabaseHandler class."""
+
     @patch("pymongo.MongoClient")
     def setUp(self, mock_mongo_client):
         """Set up the test environment for AssasDatabaseHandler.
+
         This includes creating a mock MongoDB client, setting up the backup directory,
         and initializing the AssasDatabaseHandler with test parameters.
+
+        Args:
+            mock_mongo_client (MagicMock): The mocked MongoDB client.
+
         """
         # Create a backup directory for test logs
         backup_directory = Path(__file__).parent / "data" / "backup"
@@ -70,9 +95,11 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.database_handler.drop_file_collection()
 
     def tearDown(self):
+        """Clean up after each test case."""
         self.database_handler = None
 
     def test_insert_file_document(self):
+        """Test case to insert a document into the mocked database."""
         # Mock document
         document = {"system_uuid": "123e4567-e89b-12d3-a456-426614174000"}
 
@@ -103,8 +130,9 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.assertEqual(test_document, found_document)
 
     def test_insert_and_delete_document_with_mock(self):
-        """Test case to verify the insert and delete operations using a mocked
-        MongoDB client.
+        """Test case to verify the insert and delete operations.
+
+        This test case uses a mocked MongoDB client to simulate the database operations.
 
         Steps:
             1. Insert a document into the mocked database.
@@ -159,8 +187,10 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.assertIsNone(found_document)
 
     def test_get_file_document_by_uuid_with_mock(self):
-        """Test case to verify the get_file_document_by_uuid function using a
-        mocked MongoDB client.
+        """Test case to verify the get_file_document_by_uuid function.
+
+        This test case uses a mocked MongoDB client to simulate the find operation.
+
         Steps:
             1. Create a test document.
             2. Configure the mock to simulate the find operation.
@@ -187,8 +217,10 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         )
 
     def test_delete_file_document_by_upload_uuid_with_mock(self):
-        """Test case to verify the delete_file_document_by_upload_uuid function using a
-        mocked MongoDB client.
+        """Test case to verify the delete_file_document_by_upload_uuid function.
+
+        This test case uses a mocked MongoDB client to simulate the delete operation.
+
         Steps:
             1. Create a test document.
             2. Configure the mock to simulate the delete operation.
@@ -211,7 +243,10 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         )
 
     def test_dump_collections_with_mock(self):
-        """Test case to verify the dump_collections function using a mocked MongoDB client.
+        """Test case to verify the dump_collections function.
+
+        This test case uses a mocked MongoDB client to simulate the find operation.
+
         Steps:
             1. Configure the mock to simulate the find operation.
             2. Call the dump_collections function.
@@ -230,8 +265,10 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.mock_client.mock_collection.find.assert_called_once()
 
     def test_restore_collections_with_mock(self):
-        """Test case to verify the restore_collections function using a mocked
-        MongoDB client.
+        """Test case to verify the restore_collections function.
+
+        This test case uses a mocked MongoDB client to simulate the insert operation.
+
         Steps:
             1. Configure the mock to simulate the insert operation.
             2. Call the restore_collections function.
