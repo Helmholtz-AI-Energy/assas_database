@@ -8,7 +8,12 @@ select = [
     "W"
 ] # Enable specific linting rules (e.g., errors, warnings)
 ignore = []  # Add specific rules to ignore
-exclude = ["assasdb/data/", "assasdb/tools/jobs/", "test/", "assasdb/tools/", "assasdb/cron_jobs/"]  # Exclude specific directories
+exclude = [
+    "assasdb/data/",
+    "assasdb/tools/jobs/",
+    "test/",
+    "assasdb/cron_jobs/"
+]  # Exclude specific directories
 [tool.black]
 line-length = 88  # Set the maximum line length (default is 88)
 exclude = '''
