@@ -64,13 +64,11 @@ def notify_valid_conversion(
     upload_uuid: str,
     upload_directory: str,
 ) -> None:
-    """
-    Notify that the conversion has finished successfully by creating a touch file.
+    """Notify that the conversion has finished successfully by creating a touch file.
     This file can be used to track the conversion process.
     The file will be created in the upload directory with the name
     <upload_uuid>_valid.
     """
-
     touch_string = f"touch {upload_directory}/{upload_uuid}/{upload_uuid}_valid"
     logger.info(f"Execute command {touch_string}.")
 
@@ -81,14 +79,12 @@ def notify_conversion_start(
     upload_uuid: str,
     upload_directory: str,
 ) -> None:
-    """
-    Notify that the conversion has started by creating a touch file.
+    """Notify that the conversion has started by creating a touch file.
     This file can be used to track the conversion process.
     The file will be created in the upload directory with the name
     <upload_uuid>_converting.
 
     """
-
     touch_string = f"touch {upload_directory}/{upload_uuid}/{upload_uuid}_converting"
     logger.info(f"Execute command {touch_string}.")
 
@@ -99,12 +95,10 @@ def notify_invalid_conversion(
     upload_uuid: str,
     upload_directory: str,
 ) -> None:
-    """
-    Notify that the conversion has failed by creating a touch file.
+    """Notify that the conversion has failed by creating a touch file.
     This file can be used to track the conversion process.
     The file will be created in the upload directory with the name.
     """
-
     touch_string = f"touch {upload_directory}/{upload_uuid}/{upload_uuid}_invalid"
     logger.info(f"Execute command {touch_string}.")
 

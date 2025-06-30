@@ -1,9 +1,17 @@
+"""AssasAstecArchive class.
+
+Module to define the AssasAstecArchive class, which contains information
+about an archive uploaded to the ASSAS Astec database.
+It includes properties such as upload UUID, name, date, user, description,
+archive path, and result path.
+"""
+
 from uuid import uuid4
 
 
 class AssasAstecArchive:
-    """
-    This class represents an ASTEC archive with its metadata.
+    """AssasAstecArchive class.
+
     It contains information about the upload UUID, name, date, user, description,
     archive path, and result path.
     """
@@ -18,8 +26,7 @@ class AssasAstecArchive:
         archive_path: str,
         result_path: str,
     ) -> None:
-        """
-        Initialize the AssasAstecArchive instance.
+        """Initialize the AssasAstecArchive instance.
 
         Args:
             upload_uuid (uuid4): UUID of the upload.
@@ -29,6 +36,7 @@ class AssasAstecArchive:
             description (str): Description of the archive.
             archive_path (str): Path to the archive.
             result_path (str): Path to the result file.
+
         """
         self._upload_uuid = upload_uuid
         self._name = name
@@ -40,70 +48,70 @@ class AssasAstecArchive:
 
     @property
     def upload_uuid(self):
-        """
-        Returns the UUID of the upload.
+        """Returns the UUID of the upload.
 
         Returns:
             UUID of the upload.
+
         """
         return self._upload_uuid
 
     @property
     def name(self):
-        """
-        Returns the name of the archive.
+        """Returns the name of the archive.
 
         Returns:
             Name of the archive.
+
         """
         return self._name
 
     @property
     def date(self):
-        """
-        Returns the date of the upload.
+        """Returns the date of the upload.
 
         Returns:
             Date of the upload.
+
         """
         return self._date
 
     @property
     def user(self):
-        """
-        Returns the user who uploaded the archive.
+        """Returns the user who uploaded the archive.
 
         Returns:
             User who uploaded the archive.
+
         """
         return self._user
 
     @property
     def description(self):
-        """
-        Returns the description of the archive.
+        """Returns the description of the archive.
 
         Returns:
             Description of the archive.
+
         """
         return self._description
 
     @property
     def archive_path(self):
-        """
-        Returns the path to the archive.
+        """Returns the path to the archive.
 
         Returns:
             Path to the archive.
+
         """
         return self._archive_path
 
     @property
     def result_path(self):
-        """
-        Returns the path to the result file.
+        """Returns the path to the result file.
 
         Returns:
             Path to the result file.
+
         """
         return self._result_path

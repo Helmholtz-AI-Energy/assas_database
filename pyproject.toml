@@ -1,9 +1,14 @@
 # pyproject.toml
 [tool.ruff]
 line-length = 88  # Set the maximum line length (default is 88)
-select = ["E", "F", "W"]  # Enable specific linting rules (e.g., errors, warnings)
+select = [
+    "D", # Enable all pydocstyle (PEP 257) checks
+    "E",
+    "F",
+    "W"
+] # Enable specific linting rules (e.g., errors, warnings)
 ignore = []  # Add specific rules to ignore
-exclude = ["assasdb/data/", "assasdb/tools/jobs/"]  # Exclude specific directories
+exclude = ["assasdb/data/", "assasdb/tools/jobs/", "test/", "assasdb/tools/", "assasdb/cron_jobs/"]  # Exclude specific directories
 [tool.black]
 line-length = 88  # Set the maximum line length (default is 88)
 exclude = '''

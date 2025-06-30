@@ -19,9 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class SlurmJobState(Enum):
-    """
-    Enum representing SLURM job states.
-    """
+    """Enum representing SLURM job states."""
 
     PENDING = "PD"  # Job is waiting in the queue
     RUNNING = "R"  # Job is currently running
@@ -72,10 +70,7 @@ mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 
 
 def get_database_entries() -> pd.DataFrame:
-    """
-    Returns all database entries from the backup directory.
-    """
-
+    """Returns all database entries from the backup directory."""
     database_manager = AssasDatabaseManager(backup_directory=BACKUP_DIRECTORY)
 
     logger.info(f"Get all database entries from backup directory: {BACKUP_DIRECTORY}.")
@@ -89,10 +84,7 @@ def get_maximum_indizes(
     number_of_samples: int,
     limit_samples: int,
 ) -> List[int]:
-    """
-    Returns a list of maximum indizes for the job parameter list.
-    """
-
+    """Returns a list of maximum indizes for the job parameter list."""
     leng_of_list = number_of_samples // limit_samples
 
     if number_of_samples % limit_samples != 0:
@@ -116,12 +108,10 @@ def get_job_parameter_list(
     entry: pd.Series,
     limit_samples: int,
 ) -> List[dict]:
-    """
-    Returns a list of job parameters for the given entry.
+    """Returns a list of job parameters for the given entry.
     Each job parameter is a dictionary with the keys 'jobname', 'uuid'
     and 'new_time_command'.
     """
-
     job_parameter_list = []
 
     uuid = entry["system_upload_uuid"]
@@ -174,13 +164,11 @@ def generate_job_file(
     entry: pd.Series,
     limit_samples,
 ) -> None:
-    """
-    Generates a job file for the given entry.
+    """Generates a job file for the given entry.
     The job file is saved in the jobs directory with the name 'convert-{uuid}.sh'.
     If there are multiple job parameters, it generates multiple job files with the
     name 'convert-{uuid}-{i}.sh'.
     """
-
     uuid = entry["system_upload_uuid"]
     number_of_samples = entry["system_number_of_samples"]
 
@@ -231,12 +219,10 @@ def generate_job_files(
     database_entries: pd.DataFrame,
     limit_samples: int = LIMIT_SAMPLES,
 ) -> None:
-    """
-    Generates job files for all entries in the database that have the status 'Uploaded'.
+    """Generates job files for all entries in the database that have the status 'Uploaded'.
     It filters the database entries for those with the status 'Uploaded' and applies
     the generate_job_file function to each entry.
     """
-
     database_entries = database_entries[
         database_entries["system_status"].isin(
             [AssasDocumentFileStatus.UPLOADED, AssasDocumentFileStatus.CONVERTING]
@@ -250,8 +236,7 @@ def generate_job_files(
 
 
 def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
-    """
-    Cancels all running jobs by retrieving their job IDs using `squeue` and
+    """Cancels all running jobs by retrieving their job IDs using `squeue` and
     issuing `scancel` commands.
     """
     try:
@@ -285,12 +270,10 @@ def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
 
 
 def extract_upload_uuid(job_name):
-    """
-    Extracts the upload UUID from the job name.
+    """Extracts the upload UUID from the job name.
     Assumes the job name contains the UUID in a specific format.
     For example, if the job name is "convert-<upload_uuid>", it extracts <upload_uuid>.
     """
-
     if "convert-" in job_name:
         return job_name.split("convert-")[1]  # Extract the UUID
 
@@ -300,8 +283,7 @@ def extract_upload_uuid(job_name):
 
 
 def get_squeue_dataframe() -> pd.DataFrame:
-    """
-    Retrieves job IDs and statuses using the `squeue` command and returns them as a
+    """Retrieves job IDs and statuses using the `squeue` command and returns them as a
     Pandas DataFrame.
     """
     try:
@@ -337,13 +319,11 @@ def submit_jobs(
     limit_samples: int,
     multi_jobs: bool = False,
 ) -> None:
-    """
-    Submits jobs for each entry in the database that is not already in a valid or
+    """Submits jobs for each entry in the database that is not already in a valid or
     invalid state.
     It checks the status of each entry and submits jobs accordingly.
     If there are multiple jobs for an entry, it sets dependencies between them.
     """
-
     previous_job_id = None
 
     for _, database_entry in database_entries.iterrows():
@@ -426,11 +406,11 @@ def submit_jobs(
 
 
 def remove_all_job_files(job_directory: str) -> None:
-    """
-    Removes all job files in the specified job directory.
+    """Removes all job files in the specified job directory.
 
     Args:
         job_directory (str): Path to the directory containing job files.
+
     """
     try:
         # List all files in the job directory
@@ -451,18 +431,16 @@ def remove_all_job_files(job_directory: str) -> None:
 def count_entries_by_status(
     database_entries: pd.DataFrame, status: AssasDocumentFileStatus
 ) -> int:
-    """
-    Counts the number of entries in the database with the given status.
-    """
+    """Counts the number of entries in the database with the given status."""
     return len(database_entries[database_entries["system_status"] == status])
 
 
 def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
-    """
-    Retrieves the dependencies of all running SLURM jobs.
+    """Retrieves the dependencies of all running SLURM jobs.
 
     Returns:
         pd.DataFrame: A DataFrame containing job IDs and their dependencies.
+
     """
     try:
         # Get the list of jobs and their statuses

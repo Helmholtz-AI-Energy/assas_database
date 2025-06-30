@@ -34,8 +34,7 @@ logging.basicConfig(
 
 
 def create_fake_upload_archives(base_dir, num_archives=3):
-    """
-    Create fake upload archive folders with upload_info.pickle files inside.
+    """Create fake upload archive folders with upload_info.pickle files inside.
     Each folder is named after a UUID.
     """
     os.makedirs(base_dir, exist_ok=True)
@@ -141,8 +140,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         shutil.rmtree(self.backup_dir)
 
     def test_get_all_database_entries_empty(self):
-        """
-        Test getting all database entries when the collection is empty.
+        """Test getting all database entries when the collection is empty.
         This should return an empty DataFrame.
         """
         df = self.manager.get_all_database_entries()
@@ -150,8 +148,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.assertEqual(len(df), 0)
 
     def test_add_and_get_database_entry(self):
-        """
-        Test adding a document and retrieving it from the database.
+        """Test adding a document and retrieving it from the database.
         This should ensure that the document is correctly added and can be retrieved.
         """
         doc = {"_id": "1", "system_path": "/fake/path"}
@@ -161,8 +158,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.assertEqual(df.iloc[0]["system_path"], "/fake/path")
 
     def test_backup_and_restore(self):
-        """
-        Test backing up the database and restoring from backup.
+        """Test backing up the database and restoring from backup.
         This should ensure that the data persists across backup and restore operations.
         """
         doc = {"_id": "2", "system_path": "/another/path"}
@@ -386,8 +382,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         )
 
     def test_read_upload_info_from_fake_archives(self):
-        """
-        Integration test: create fake upload archives, then read upload_info
+        """Integration test: create fake upload archives, then read upload_info
         using AssasDatabaseManager.
         """
         # Create 2 fake upload archives
