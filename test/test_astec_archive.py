@@ -6,6 +6,7 @@ which is part of the AssasDB package.
 
 import unittest
 import logging
+import HtmlTestRunner
 
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
@@ -81,4 +82,10 @@ class AssasAstecArchiveTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(
+        testRunner=HtmlTestRunner.HTMLTestRunner(
+            output="test_reports",  # Directory for HTML reports
+            report_title="AssasAstecArchive Test Report",
+            descriptions=True,
+        )
+    )

@@ -6,6 +6,7 @@ which interacts with a MongoDB database.
 
 import unittest
 import logging
+import HtmlTestRunner
 
 from unittest.mock import patch
 from pathlib import Path
@@ -285,4 +286,10 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(
+        testRunner=HtmlTestRunner.HTMLTestRunner(
+            output="test_reports",  # Directory for HTML reports
+            report_title="AssasDatabaseHandler Test Report",
+            descriptions=True,
+        )
+    )

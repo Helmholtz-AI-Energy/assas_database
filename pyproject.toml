@@ -11,7 +11,7 @@ ignore = []  # Add specific rules to ignore
 exclude = [
     "assasdb/data/",
     "assasdb/tools/jobs/",
-    "test/dev_test",
+    "test/dev_test/",
 ]  # Exclude specific directories
 [tool.black]
 line-length = 88  # Set the maximum line length (default is 88)
