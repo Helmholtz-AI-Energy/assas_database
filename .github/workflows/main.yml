@@ -3,12 +3,10 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - feature_refactoring_tests
-      - main
+      - "**"  # Match all branches
   pull_request:
     branches:
-      - feature_refactoring_tests
-      - main
+      - "**"  # Match all branches
 
 jobs:
   

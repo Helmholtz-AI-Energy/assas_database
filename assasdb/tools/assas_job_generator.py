@@ -20,7 +20,7 @@ import argparse
 from enum import Enum
 from typing import List
 
-from assasdb import AssasDatabaseManager, AssasDocumentFileStatus
+from assasdb import AssasDatabaseManager, AssasDocumentFileStatus, AssasDatabaseHandler
 
 pd.set_option("display.max_rows", None)  # Show all rows
 pd.set_option("display.max_columns", None)  # Show all columns
@@ -61,7 +61,7 @@ TEMPLATE = """#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --time=3-00:00:00
-#SBATCH --mem=12800mb
+#SBATCH --mem=239400mb
 #SBATCH --constraint=LSDF
 #SBATCH --output={py_dir}/result/slurm-%j.out
 #SBATCH --error={py_dir}/result/slurm-error-%j.out
@@ -92,7 +92,11 @@ def get_database_entries() -> pd.DataFrame:
     This function initializes an instance of `AssasDatabaseManager` with the
     specified backup directory and retrieves all database entries.
     """
-    database_manager = AssasDatabaseManager(backup_directory=BACKUP_DIRECTORY)
+    database_manager = AssasDatabaseManager(
+        database_handler=AssasDatabaseHandler(
+            client=None, backup_directory=BACKUP_DIRECTORY
+        ),
+    )
 
     logger.info(f"Get all database entries from backup directory: {BACKUP_DIRECTORY}.")
     database_entries = database_manager.get_all_database_entries_from_backup()
@@ -370,6 +374,7 @@ def get_squeue_dataframe() -> pd.DataFrame:
 def submit_jobs(
     database_entries: pd.DataFrame,
     limit_samples: int,
+    single_jobs: bool = False,
     multi_jobs: bool = False,
 ) -> None:
     """Submit jobs for each entry in the database not in 'Valid' or 'Invalid' status.
@@ -380,7 +385,11 @@ def submit_jobs(
     Args:
         database_entries (pd.DataFrame): DataFrame containing database entries.
         limit_samples (int): Maximum number of samples per job.
+        single_jobs (bool): If True, allows single jobs for each entry.
         multi_jobs (bool): If True, allows multiple jobs for the same entry.
+
+    Returns:
+        None: This function does not return any value.
 
     """
     previous_job_id = None
@@ -432,6 +441,11 @@ def submit_jobs(
             os.system(submit_call)
 
         if len(maximum_indizes) > 1:
+            if single_jobs:
+                logger.info(
+                    f"Skipping multi-job for {uuid} with {number_of_samples} samples."
+                )
+                continue
             logger.info(f"Submit jobs for {uuid} with {number_of_samples} samples.")
 
             for i in range(len(maximum_indizes)):
@@ -605,6 +619,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-m", "--multiple", action="store_true", help="Submit only multi-jobs"
     )
+    parser.add_argument(
+        "-s", "--single", action="store_true", help="Submit only single-jobs"
+    )
     args = parser.parse_args()
 
     if args.debug:
@@ -653,7 +670,7 @@ if __name__ == "__main__":
         #    "18f82fd5-dad0-4b24-9664-622018acb9c5"]
         # logger.info(database_entries)
 
-        submit_jobs(database_entries, args.limit_samples, args.multiple)
+        submit_jobs(database_entries, args.limit_samples, args.single, args.multiple)
 
     elif args.action == "cancel":
         logger.info("Cancelling all jobs in certain states...")

@@ -15,12 +15,76 @@ from pathlib import Path
 from datetime import datetime
 
 from assasdb import AssasDatabaseManager, AssasOdessaNetCDF4Converter
+from assasdb import AssasDatabaseHandler
 from assasdb.assas_utils import get_duration
 
 logger = logging.getLogger("assas_app")
 
 LSDF_DATA_DIR = "ASSAS/upload_test"
 LSDF_BACKUP_DIR = "ASSAS/backup_mongodb"
+
+
+def copytree_verbose_to_tmp_with_process(input_path: str, tmp_path: str) -> str:
+    """Copy the input directory to the temporary directory.
+
+    This function copies the entire directory structure from the input path
+    to the temporary path, logging the progress of the copy operation.
+    It uses the `copy2` function to ensure that file metadata is preserved.
+
+    Args:
+        input_path (str): The path to the input directory.
+        tmp_path (str): The path to the temporary directory.
+
+    Returns:
+        str: The path to the copied directory in the temporary location.
+
+    """
+    input_path = Path(input_path)
+    tmp_path = Path(tmp_path)
+
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input path {input_path} does not exist.")
+
+    if not tmp_path.exists():
+        tmp_path.mkdir(parents=True, exist_ok=True)
+
+    # Calculate the total number of files to copy
+    total_files = sum(len(files) for _, _, files in os.walk(input_path))
+    copied_files = 0
+
+    logger.info(
+        f"Starting copy process from {input_path} to {tmp_path}. ",
+        f"Total files: {total_files}",
+    )
+
+    try:
+        for root, dirs, files in os.walk(input_path):
+            relative_root = Path(root).relative_to(input_path)
+            destination_root = tmp_path / relative_root
+
+            if not destination_root.exists():
+                destination_root.mkdir(parents=True, exist_ok=True)
+
+            for file in files:
+                source_file = Path(root) / file
+                destination_file = destination_root / file
+
+                copy2(source_file, destination_file)
+                copied_files += 1
+
+                # Calculate and log progress
+                progress = (copied_files / total_files) * 100
+                logger.info(
+                    f"Copied {source_file} to {destination_file} ",
+                    f"({progress:.2f}% complete)",
+                )
+
+        logger.info("Copy process completed successfully.")
+        return str(tmp_path)
+
+    except Exception as e:
+        logger.error(f"Error during copy process: {e}")
+        raise
 
 
 def copy2_verbose(
@@ -248,7 +312,9 @@ if __name__ == "__main__":
     tmp_dir = os.environ.get("TMPDIR")
 
     database_manager = AssasDatabaseManager(
-        backup_directory=f"{lsdf_project_dir}/{LSDF_BACKUP_DIR}"
+        database_handler=AssasDatabaseHandler(
+            client=None, backup_directory=f"{lsdf_project_dir}/{LSDF_BACKUP_DIR}"
+        )
     )
     dataframe = database_manager.get_all_database_entries_from_backup()
     assas_archive_meta = dataframe.loc[

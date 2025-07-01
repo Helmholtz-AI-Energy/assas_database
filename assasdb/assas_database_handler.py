@@ -55,9 +55,15 @@ class AssasDatabaseHandler:
             )
 
         """
-        self.client = client
-        self.db_handle = self.client[database_name]
-        self.file_collection = self.db_handle[file_collection_name]
+        if client is None:
+            logger.warning("No MongoDB client provided. Using a dummy client.")
+            self.client = None
+            self.db_handle = None
+            self.file_collection = None
+        else:
+            self.client = client
+            self.db_handle = self.client[database_name]
+            self.file_collection = self.db_handle[file_collection_name]
 
         self.backup_directory = Path(backup_directory)
         if not self.backup_directory.exists():
