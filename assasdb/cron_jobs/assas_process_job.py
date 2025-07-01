@@ -1,3 +1,9 @@
+"""Cron job to process uploads and update archive sizes in the Assas Database.
+
+This script is designed to be run as a cron job to periodically process uploads and
+update archive sizes in the Assas Database.
+"""
+
 import os
 import sys
 import datetime
@@ -7,21 +13,37 @@ os.environ["ASTEC_ROOT"] = "/root/astecV3.1.2"
 
 from assasdb import AssasDatabaseManager
 
-logger = logging.getLogger("assas_app")
 
-logging.basicConfig(
-    format="%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s",
-    level=logging.ERROR,
-    stream=sys.stdout,
-)
+def setup_logging(
+    level=logging.INFO,  # Default logging level
+) -> None:
+    """Set up logging configuration."""
+    logging.basicConfig(
+        format="%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s",
+        level=level,
+        stream=sys.stdout,
+    )
 
-now = datetime.datetime.now()
-logger.info(f"Start update of archive sizes as cron job at {now}")
 
-manager = AssasDatabaseManager()
+def main() -> None:
+    """Run the Assas Database Manager methods."""
+    setup_logging(logging.ERROR)
+    logger = logging.getLogger("assas_app")
 
-manager.process_uploads()
-manager.process_uploads_with_reload_flag()
+    start_time = datetime.datetime.now()
+    logger.info(f"Start update of archive sizes as cron job at {start_time}.")
 
-now = datetime.datetime.now()
-logger.info(f"Finished update of archives sizes at {now}")
+    manager = AssasDatabaseManager()
+
+    manager.process_uploads()
+    manager.process_uploads_with_reload_flag()
+
+    end_time = datetime.datetime.now()
+    logger.info(f"Finished update of archives sizes at {end_time}.")
+
+    elapsed_time = end_time - start_time
+    logger.info(f"Elapsed time: {elapsed_time.total_seconds()} seconds.")
+
+
+if __name__ == "__main__":
+    main()

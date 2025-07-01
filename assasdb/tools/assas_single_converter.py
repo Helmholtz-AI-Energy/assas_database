@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+"""ASSAS single converter script.
+
+This script is used to convert ASTEC binary archives to HDF5 format.
+"""
 
 import os
 import argparse
@@ -23,15 +27,48 @@ def copy2_verbose(
     source: str,
     destination: str,
 ) -> None:
-    logger.info(f"Copy file {source} to {destination}.")
+    """Copy a file from source to destination with verbose logging.
+
+    Args:
+        source (str): The path to the source file.
+        destination (str): The path to the destination file.
+
+    Returns:
+        None
+
+    """
+    logger.debug(f"Copy file {source} to {destination}.")
     copy2(source, destination)
 
 
 def sync_imput_and_tmp(input_path: str, tmp_path: str) -> None:
+    """Synchronize the input directory with the temporary directory.
+
+    Args:
+        input_path (str): The path to the input directory.
+        tmp_path (str): The path to the temporary directory.
+
+    Returns:
+        None
+
+    """
+    logger.info(f"Sync input directory {input_path} with tmp directory {tmp_path}.")
+
     sync(input_path, tmp_path, verbose=True)
 
 
 def remove_tmp(tmp_path: str) -> None:
+    """Remove the temporary directory if it exists.
+
+    Args:
+        tmp_path (str): The path to the temporary directory.
+
+    Returns:
+        None
+
+    """
+    logger.info(f"Remove tmp directory {tmp_path} if it exists.")
+
     remove_string = f"rm -rf {tmp_path}"
 
     if os.path.exists(tmp_path):
@@ -40,6 +77,17 @@ def remove_tmp(tmp_path: str) -> None:
 
 
 def copytree_verbose_to_tmp(input_path: str, tmp_path: str) -> str:
+    """Copy the input directory to the temporary directory with verbose logging.
+
+    Args:
+        input_path (str): The path to the input directory.
+        tmp_path (str): The path to the temporary directory.
+
+    Returns:
+        str: The path to the copied directory in the temporary location.
+
+    """
+    logger.info(f"Copy input directory {input_path} to tmp directory {tmp_path}.")
     try:
         destination_path = copytree(input_path, tmp_path, copy_function=copy2_verbose)
 
@@ -50,6 +98,16 @@ def copytree_verbose_to_tmp(input_path: str, tmp_path: str) -> str:
 
 
 def save_hdf5_result(local_output_path: str, lsdf_output_path: str) -> None:
+    """Save the HDF5 result file from the local output path to the LSDF output path.
+
+    Args:
+        local_output_path (str): The path to the local output file.
+        lsdf_output_path (str): The path to the LSDF output file.
+
+    Returns:
+        None
+
+    """
     try:
         logger.info(
             f"Copy hdf5 result file from {local_output_path} to {lsdf_output_path}."
@@ -64,13 +122,20 @@ def notify_valid_conversion(
     upload_uuid: str,
     upload_directory: str,
 ) -> None:
-    """
-    Notify that the conversion has finished successfully by creating a touch file.
+    """Notify that the conversion has finished successfully by creating a touch file.
+
     This file can be used to track the conversion process.
     The file will be created in the upload directory with the name
     <upload_uuid>_valid.
-    """
 
+    Args:
+        upload_uuid (str): The UUID of the upload.
+        upload_directory (str): The directory where the upload is stored.
+
+    Returns:
+        None
+
+    """
     touch_string = f"touch {upload_directory}/{upload_uuid}/{upload_uuid}_valid"
     logger.info(f"Execute command {touch_string}.")
 
@@ -81,14 +146,20 @@ def notify_conversion_start(
     upload_uuid: str,
     upload_directory: str,
 ) -> None:
-    """
-    Notify that the conversion has started by creating a touch file.
+    """Notify that the conversion has started by creating a touch file.
+
     This file can be used to track the conversion process.
     The file will be created in the upload directory with the name
     <upload_uuid>_converting.
 
-    """
+    Args:
+        upload_uuid (str): The UUID of the upload.
+        upload_directory (str): The directory where the upload is stored.
 
+    Returns:
+        None
+
+    """
     touch_string = f"touch {upload_directory}/{upload_uuid}/{upload_uuid}_converting"
     logger.info(f"Execute command {touch_string}.")
 
@@ -99,12 +170,19 @@ def notify_invalid_conversion(
     upload_uuid: str,
     upload_directory: str,
 ) -> None:
-    """
-    Notify that the conversion has failed by creating a touch file.
+    """Notify that the conversion has failed by creating a touch file.
+
     This file can be used to track the conversion process.
     The file will be created in the upload directory with the name.
-    """
 
+    Args:
+        upload_uuid (str): The UUID of the upload.
+        upload_directory (str): The directory where the upload is stored.
+
+    Returns:
+        None
+
+    """
     touch_string = f"touch {upload_directory}/{upload_uuid}/{upload_uuid}_invalid"
     logger.info(f"Execute command {touch_string}.")
 

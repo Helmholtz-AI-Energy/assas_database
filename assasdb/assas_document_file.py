@@ -1,11 +1,18 @@
+"""AssasDocumentFile class.
+
+This module provides the AssasDocumentFile class, which represents a document file in
+the NoSql database.
+"""
+
 from typing import List
 from uuid import uuid4
 from datetime import datetime
 
 
 class AssasDocumentFileStatus:
-    """
-    Represents the status of a document file in the ASSAS database.
+    """AssasDocumentFileStatus class.
+
+    Represent the status of a document file in the ASSAS database.
     This class provides constants for various file statuses.
     """
 
@@ -16,52 +23,56 @@ class AssasDocumentFileStatus:
 
 
 class AssasDocumentFile:
-    """
-    Represents a document file in the ASSAS database.
+    """AssasDocumentFile class.
 
-    Attributes:
-        document (dict): The internal representation of the document.
+    Represent a document file in the ASSAS database.
+    This class provide methods to manage the document's metadata, including
+    general metadata, system values, and key-value pairs within the document.
     """
 
     def __init__(self, document: dict = None) -> None:
-        """
-        -----------
-        Initializes the AssasDocumentFile instance.
+        """Initialize the AssasDocumentFile instance.
+
         Args:
-            document (dict, optional):
-            Initial document data. Defaults to an empty dictionary.
+            document (dict, optional): A dictionary representing the document.
+                If not provided, an empty dictionary will be used.
+
+        Returns:
+            None
+
         """
         self.document = document or {}
 
     def get_document(self) -> dict:
-        """
-        -----------
-        Returns a copy of the document.
+        """Return a copy of the document.
+
         Args:
             None
+
         Returns:
             dict: A copy of the document.
-        -----------
+
         Example:
             document_copy = AssasDocumentFile.get_document()
-        -----------
+
         """
         return self.document.copy()
 
     def set_document(self, document: dict) -> None:
-        """
-        -----------
-        Sets the document to the provided dictionary.
+        """Set the document to the provided dictionary.
+
         Args:
             document (dict): The new document data.
+
         Returns:
             None
+
         Raises:
             TypeError: If `document` is not a dictionary.
-        -----------
+
         Example:
             AssasDocumentFile.set_document({"key": "value"})
-        -----------
+
         """
         if not isinstance(document, dict):
             raise TypeError("Document must be a dictionary.")
@@ -69,14 +80,17 @@ class AssasDocumentFile:
         self.document = document
 
     def extend_document(self, add_document: dict) -> None:
-        """
-        -----------
-        Extends the current document with additional key-value pairs.
+        """Extend the current document with additional key-value pairs.
+
         Args:
             add_document (dict): The additional data to merge into the document.
+
+        Returns:
+            None
+
         Raises:
             TypeError: If `add_document` is not a dictionary.
-        -----------
+
         """
         if not isinstance(add_document, dict):
             raise TypeError("Additional document must be a dictionary.")
@@ -88,15 +102,22 @@ class AssasDocumentFile:
         meta_name: str,
         meta_description: str,
     ) -> None:
-        """
-        -----------
-        Sets general metadata values for the document.
+        """Set general metadata values for the document.
+
         Args:
             meta_name (str): The name of the document.
             meta_description (str): A description of the document.
-        -----------
-        """
 
+        Returns:
+            None
+
+        Example:
+            AssasDocumentFile.set_general_meta_values(
+                meta_name="Sample Document",
+                meta_description="This is a sample document description."
+            )
+
+        """
         self.document["meta_name"] = meta_name
         self.document["meta_description"] = meta_description
 
@@ -104,44 +125,70 @@ class AssasDocumentFile:
         self,
         meta_data_variables: List[dict],
     ) -> None:
-        """
-        Sets metadata variables for the document.
+        """Set metadata variables for the document.
+
         Args:
-            meta_data_variables (List[dict]):
-            A list of dictionaries containing metadata variables.
+            meta_data_variables (List[dict]): A list of dictionaries containing
+                metadata key-value pairs. Each dictionary should have the keys
+
+        Returns:
+            None
+
+        Example:
+            AssasDocumentFile.set_meta_data_values([
+                {"key": "author", "value": "John Doe"},
+                {"key": "version", "value": "1.0"},
+            ])
+
         """
         self.document["meta_data_variables"] = meta_data_variables
 
     def set_value(self, key: str, value: str) -> None:
-        """
-        Sets a key-value pair in the document.
+        """Set a key-value pair in the document.
+
         Args:
             key (str): The key to set.
             value (str): The value to set for the key.
+
+        Returns:
+            None
+
+        Example:
+            AssasDocumentFile.set_value("author", "John Doe")
+
         """
         self.document[key] = value
 
     def get_value(self, key: str) -> str:
-        """
-        Retrieves the value associated with a key in the document.
+        """Retrieve the value associated with a key in the document.
+
         Args:
             key (str): The key to retrieve the value for.
+
         Returns:
             str: The value associated with the key.
+
         Raises:
             KeyError: If the key does not exist in the document.
+
+        Example:
+            value = AssasDocumentFile.get_value("author")
+
         """
         return self.document[key]
 
     def delete_key(self, key: str) -> bool:
-        """
-        -----------
-        Deletes a key from the document.
+        """Delete a key from the document.
+
         Args:
             key (str): The key to delete.
+
         Returns:
             bool: True if the key was found and deleted, False otherwise.
-        -----------
+
+        Example:
+            was_deleted = AssasDocumentFile.delete_key("author")
+
         """
         is_in = False
         if key in self.document:
@@ -162,10 +209,8 @@ class AssasDocumentFile:
         system_download: str,
         system_status: str,
     ) -> None:
-        """
-        -----------
-        Sets system-related values for the document.
-        -----------
+        """Set system-related values for the document.
+
         Args:
             system_uuid (str): The UUID of the system.
             system_upload_uuid (str): The upload UUID of the system.
@@ -176,11 +221,24 @@ class AssasDocumentFile:
             system_user (str): The user associated with the system.
             system_download (str): The download link for the system file.
             system_status (str): The status of the system file.
+
         Returns:
             None
-        -----------
-        """
 
+        Example:
+            AssasDocumentFile.set_system_values(
+                system_uuid="123e4567-e89b-12d3-a456-426614174000",
+                system_upload_uuid="123e4567-e89b-12d3-a456-426614174001",
+                system_date=datetime.now().isoformat(),
+                system_path="/path/to/system/file",
+                system_result="success",
+                system_size="2048",
+                system_user="admin",
+                system_download="http://example.com/download",
+                system_status=AssasDocumentFileStatus.UPLOADED
+            )
+
+        """
         self.document["system_uuid"] = system_uuid
         self.document["system_upload_uuid"] = system_upload_uuid
         self.document["system_date"] = system_date
@@ -192,10 +250,8 @@ class AssasDocumentFile:
         self.document["system_status"] = system_status
 
     def set_system_values_dict(self, system_values: dict) -> None:
-        """
-        -----------
-        Sets system-related values for the document.
-        -----------
+        """Set system-related values for the document.
+
         Args:
             system_values (dict): A dictionary containing system-related values.
                 Required keys:
@@ -208,12 +264,27 @@ class AssasDocumentFile:
                     - "system_user"
                     - "system_download"
                     - "system_status"
+
         Raises:
             TypeError: If `system_values` is not a dictionary.
             KeyError: If required keys are missing in `system_values`.
+
         Returns:
             None
-        -----------
+
+        Example:
+            AssasDocumentFile.set_system_values_dict({
+                "system_uuid": "123e4567-e89b-12d3-a456-426614174000",
+                "system_upload_uuid": "123e4567-e89b-12d3-a456-426614174001",
+                "system_date": datetime.now().isoformat(),
+                "system_path": "/path/to/system/file",
+                "system_result": "success",
+                "system_size": "2048",
+                "system_user": "admin",
+                "system_download": "http://example.com/download",
+                "system_status": AssasDocumentFileStatus.UPLOADED
+            })
+
         """
         if not isinstance(system_values, dict):
             raise TypeError("system_values must be a dictionary.")
@@ -239,8 +310,7 @@ class AssasDocumentFile:
 
     @staticmethod
     def get_test_document_file(system_upload_uuid: str = None) -> dict:
-        """
-        Generates a test document with predefined values for testing purposes.
+        """Generate a test document with predefined values for testing purposes.
 
         Args:
             system_upload_uuid (str, optional): The UUID for the system upload.
@@ -248,6 +318,10 @@ class AssasDocumentFile:
 
         Returns:
             dict: A dictionary representing the test document.
+
+        Example:
+            test_document = AssasDocumentFile.get_test_document_file()
+
         """
         return {
             "system_uuid": str(uuid4()),

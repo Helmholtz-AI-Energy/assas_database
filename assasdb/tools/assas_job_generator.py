@@ -1,4 +1,15 @@
 #!/usr/bin/env python
+"""ASSAS Job Generator Script.
+
+This script is designed to generate, submit, and manage jobs for converting
+ASTEC binary archives. It provides functionality to create job files,
+submit jobs to a SLURM scheduler, cancel running jobs, and retrieve job
+information from the SLURM queue. The script uses the `AssasDatabaseManager`
+to interact with the ASSAS database and manage document files. It supports
+multiple job configurations based on the number of samples in the database
+and allows for job dependencies to be set when submitting multiple jobs
+for the same archive.
+"""
 
 import os
 import pandas as pd
@@ -19,8 +30,12 @@ logger = logging.getLogger(__name__)
 
 
 class SlurmJobState(Enum):
-    """
-    Enum representing SLURM job states.
+    """Enum representing SLURM job states.
+
+    This enum defines the possible states a SLURM job can be in, such as
+    PENDING, RUNNING, COMPLETED, CANCELLED, FAILED, TIMEOUT, NODE_FAIL,
+    PREEMPTED, and SUSPENDED. Each state is represented by a two-letter code
+    that corresponds to the SLURM job state codes.
     """
 
     PENDING = "PD"  # Job is waiting in the queue
@@ -34,10 +49,6 @@ class SlurmJobState(Enum):
     SUSPENDED = "S"  # Job is suspended
 
 
-# JOB_DIRECTORY = os.getenv(
-#    "ASSAS_JOB_DIRECTORY",
-#    os.path.join(os.path.dirname(os.path.realpath(__file__)), "jobs"),
-# )
 LIMIT_SAMPLES = 80000
 BACKUP_DIRECTORY = "/lsdf/kit/scc/projects/ASSAS/backup_mongodb"
 TEMPLATE = """#!/bin/bash
@@ -76,10 +87,11 @@ mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 
 
 def get_database_entries() -> pd.DataFrame:
-    """
-    Returns all database entries from the backup directory.
-    """
+    """Return all database entries from the backup directory.
 
+    This function initializes an instance of `AssasDatabaseManager` with the
+    specified backup directory and retrieves all database entries.
+    """
     database_manager = AssasDatabaseManager(backup_directory=BACKUP_DIRECTORY)
 
     logger.info(f"Get all database entries from backup directory: {BACKUP_DIRECTORY}.")
@@ -91,40 +103,50 @@ def get_database_entries() -> pd.DataFrame:
 
 def get_maximum_indizes(
     number_of_samples: int,
+    limit_samples: int,
 ) -> List[int]:
-    """
-    Returns a list of maximum indizes for the job parameter list.
-    """
+    """Return a list of maximum indizes for the job parameter list.
 
-    leng_of_list = number_of_samples // LIMIT_SAMPLES
+    This function calculates the maximum indices based on the total number of samples
+    and the limit for samples per job. It divides the total number of samples by the
+    limit and creates a list of maximum indices, ensuring that the last index does not
+    exceed the total number of samples.
+    """
+    leng_of_list = number_of_samples // limit_samples
 
-    if number_of_samples % LIMIT_SAMPLES != 0:
+    if number_of_samples % limit_samples != 0:
         leng_of_list = leng_of_list + 1
 
     maximum_indizes = list(range(0, leng_of_list))
+    logger.debug(f"Number of maximum indizes: {len(maximum_indizes)}.")
 
     for i in range(len(maximum_indizes)):
-        maximum_indizes[i] = LIMIT_SAMPLES * (i + 1)
+        maximum_indizes[i] = limit_samples * (i + 1)
 
         if maximum_indizes[i] > number_of_samples:
             maximum_indizes[i] = number_of_samples
 
-        logger.debug(f"File index {i} has maximum index {maximum_indizes[i]}.")
+        # logger.debug(f"File index {i} has maximum index {maximum_indizes[i]}.")
 
     return maximum_indizes
 
 
-def get_job_parameter_list(entry: pd.Series) -> List[dict]:
-    """
-    Returns a list of job parameters for the given entry.
+def get_job_parameter_list(
+    entry: pd.Series,
+    limit_samples: int,
+) -> List[dict]:
+    """Return a list of job parameters for the given entry.
+
     Each job parameter is a dictionary with the keys 'jobname', 'uuid'
     and 'new_time_command'.
     """
-
     job_parameter_list = []
 
     uuid = entry["system_upload_uuid"]
-    maximum_indizes = get_maximum_indizes(int(entry["system_number_of_samples"]))
+    maximum_indizes = get_maximum_indizes(
+        number_of_samples=int(entry["system_number_of_samples"]),
+        limit_samples=limit_samples,
+    )
 
     if len(maximum_indizes) == 1:
         job_parameters = {
@@ -165,14 +187,17 @@ def get_job_parameter_list(entry: pd.Series) -> List[dict]:
     return job_parameter_list
 
 
-def generate_job_file(job_directory: str, entry: pd.Series) -> None:
-    """
-    Generates a job file for the given entry.
+def generate_job_file(
+    job_directory: str,
+    entry: pd.Series,
+    limit_samples,
+) -> None:
+    """Generate a job file for the given entry.
+
     The job file is saved in the jobs directory with the name 'convert-{uuid}.sh'.
     If there are multiple job parameters, it generates multiple job files with the
     name 'convert-{uuid}-{i}.sh'.
     """
-
     uuid = entry["system_upload_uuid"]
     number_of_samples = entry["system_number_of_samples"]
 
@@ -186,7 +211,10 @@ def generate_job_file(job_directory: str, entry: pd.Series) -> None:
         print(f"Skipping {uuid} with negative number of samples: {number_of_samples}.")
         return
 
-    job_parameter_list = get_job_parameter_list(entry)
+    job_parameter_list = get_job_parameter_list(
+        entry=entry,
+        limit_samples=limit_samples,
+    )
     logger.debug(f"Job parameter list for {uuid}: {job_parameter_list}")
 
     if not job_parameter_list:
@@ -215,13 +243,16 @@ def generate_job_file(job_directory: str, entry: pd.Series) -> None:
                 handle.write(job_parameters)
 
 
-def generate_job_files(job_directory: str, database_entries: pd.DataFrame) -> None:
-    """
-    Generates job files for all entries in the database that have the status 'Uploaded'.
+def generate_job_files(
+    job_directory: str,
+    database_entries: pd.DataFrame,
+    limit_samples: int = LIMIT_SAMPLES,
+) -> None:
+    """Generate job files for all entries in the database with the status 'Uploaded'.
+
     It filters the database entries for those with the status 'Uploaded' and applies
     the generate_job_file function to each entry.
     """
-
     database_entries = database_entries[
         database_entries["system_status"].isin(
             [AssasDocumentFileStatus.UPLOADED, AssasDocumentFileStatus.CONVERTING]
@@ -230,14 +261,23 @@ def generate_job_files(job_directory: str, database_entries: pd.DataFrame) -> No
     logger.info(f"Generate job files for {len(database_entries)} entries.")
 
     database_entries.apply(
-        lambda entry: generate_job_file(job_directory, entry), axis=1
+        lambda entry: generate_job_file(job_directory, entry, limit_samples), axis=1
     )
 
 
 def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
-    """
-    Cancels all running jobs by retrieving their job IDs using `squeue` and
-    issuing `scancel` commands.
+    """Cancel all running jobs.
+
+    This function retrieves the list of jobs in the specified state from the SLURM queue
+    and cancels each job using the `scancel` command.
+
+    Args:
+        state (SlurmJobState): The state of the jobs to cancel (e.g.,
+        SlurmJobState.RUNNING).
+
+    Returns:
+        None: This function does not return any value.
+
     """
     try:
         # Get the list of jobs and their statuses
@@ -270,12 +310,11 @@ def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
 
 
 def extract_upload_uuid(job_name):
-    """
-    Extracts the upload UUID from the job name.
+    """Extract the upload UUID from the job name.
+
     Assumes the job name contains the UUID in a specific format.
     For example, if the job name is "convert-<upload_uuid>", it extracts <upload_uuid>.
     """
-
     if "convert-" in job_name:
         return job_name.split("convert-")[1]  # Extract the UUID
 
@@ -285,9 +324,20 @@ def extract_upload_uuid(job_name):
 
 
 def get_squeue_dataframe() -> pd.DataFrame:
-    """
-    Retrieves job IDs and statuses using the `squeue` command and returns them as a
-    Pandas DataFrame.
+    """Retrieve job IDs and statuses using the `squeue` command.
+
+    This function runs the `squeue` command to get the list of jobs in the SLURM queue,
+    extracts relevant information such as job name, job ID, status code, and status,
+    and returns it as a pandas DataFrame.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing job information with columns:
+            - job_name: Name of the job
+            - job_id: ID of the job
+            - status_code: Status code of the job
+            - status: Human-readable status of the job
+            - upload_uuid: Extracted UUID from the job name
+
     """
     try:
         # Run the squeue command and capture its output
@@ -302,6 +352,10 @@ def get_squeue_dataframe() -> pd.DataFrame:
         # Parse the output into a list of rows
         rows = [line.split(",") for line in result.stdout.strip().split("\n")]
 
+        if len(rows) == 0 or (len(rows) == 1 and rows[0] == [""]):
+            logger.info("No jobs found in squeue.")
+            return pd.DataFrame(columns=["job_name", "job_id", "status_code", "status"])
+
         # Convert the rows into a DataFrame
         df = pd.DataFrame(rows, columns=["job_name", "job_id", "status_code", "status"])
         df["upload_uuid"] = df["job_name"].apply(extract_upload_uuid)
@@ -313,14 +367,22 @@ def get_squeue_dataframe() -> pd.DataFrame:
         return pd.DataFrame(columns=["job_name", "job_id", "status_code", "status"])
 
 
-def submit_jobs(database_entries: pd.DataFrame) -> None:
-    """
-    Submits jobs for each entry in the database that is not already in a valid or
-    invalid state.
+def submit_jobs(
+    database_entries: pd.DataFrame,
+    limit_samples: int,
+    multi_jobs: bool = False,
+) -> None:
+    """Submit jobs for each entry in the database not in 'Valid' or 'Invalid' status.
+
     It checks the status of each entry and submits jobs accordingly.
     If there are multiple jobs for an entry, it sets dependencies between them.
-    """
 
+    Args:
+        database_entries (pd.DataFrame): DataFrame containing database entries.
+        limit_samples (int): Maximum number of samples per job.
+        multi_jobs (bool): If True, allows multiple jobs for the same entry.
+
+    """
     previous_job_id = None
 
     for _, database_entry in database_entries.iterrows():
@@ -347,9 +409,17 @@ def submit_jobs(database_entries: pd.DataFrame) -> None:
             )
             continue
 
-        maximum_indizes = get_maximum_indizes(int(number_of_samples))
+        maximum_indizes = get_maximum_indizes(
+            number_of_samples=int(number_of_samples),
+            limit_samples=limit_samples,
+        )
 
         if len(maximum_indizes) == 1:
+            if multi_jobs:
+                logger.info(
+                    f"Skipping single job for {uuid} with {number_of_samples} samples."
+                )
+                continue
             logger.info(
                 f"No maximum indizes for {uuid} with {number_of_samples} samples."
             )
@@ -395,11 +465,11 @@ def submit_jobs(database_entries: pd.DataFrame) -> None:
 
 
 def remove_all_job_files(job_directory: str) -> None:
-    """
-    Removes all job files in the specified job directory.
+    """Remove all job files in the specified job directory.
 
     Args:
         job_directory (str): Path to the directory containing job files.
+
     """
     try:
         # List all files in the job directory
@@ -420,23 +490,30 @@ def remove_all_job_files(job_directory: str) -> None:
 def count_entries_by_status(
     database_entries: pd.DataFrame, status: AssasDocumentFileStatus
 ) -> int:
-    """
-    Counts the number of entries in the database with the given status.
+    """Count the number of entries in the database with the given status.
+
+    Args:
+        database_entries (pd.DataFrame): DataFrame containing database entries.
+        status (AssasDocumentFileStatus): The status to count entries for.
+
+    Returns:
+        int: The count of entries with the specified status.
+
     """
     return len(database_entries[database_entries["system_status"] == status])
 
 
 def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
-    """
-    Retrieves the dependencies of all running SLURM jobs.
+    """Retrieve the dependencies of all running SLURM jobs.
 
     Returns:
         pd.DataFrame: A DataFrame containing job IDs and their dependencies.
+
     """
     try:
         # Get the list of jobs and their statuses
         result = subprocess.run(
-            ["squeue", "--noheader", "--format=%i,%t"],
+            ["squeue", "--noheader", "--format=%j,%i,%t"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -447,7 +524,8 @@ def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
         rows = [line.split(",") for line in result.stdout.strip().split("\n")]
 
         # Convert the rows into a DataFrame
-        df = pd.DataFrame(rows, columns=["job_id", "status"])
+        df = pd.DataFrame(rows, columns=["job_name", "job_id", "status"])
+        df["upload_uuid"] = df["job_name"].apply(extract_upload_uuid)
 
         # Filter for running jobs (status 'R')
         jobs = df[df["status"] == state.value].copy()
@@ -524,6 +602,9 @@ if __name__ == "__main__":
         default=os.environ.get("VIRTUAL_ENV"),
         help="Path to the virtual environment directory",
     )
+    parser.add_argument(
+        "-m", "--multiple", action="store_true", help="Submit only multi-jobs"
+    )
     args = parser.parse_args()
 
     if args.debug:
@@ -563,11 +644,16 @@ if __name__ == "__main__":
     if args.action == "generate":
         logger.info(f"Generating job files into {args.job_directory}.")
         remove_all_job_files(args.job_directory)
-        generate_job_files(args.job_directory, database_entries)
+        generate_job_files(args.job_directory, database_entries, args.limit_samples)
 
     elif args.action == "submit":
         logger.info("Submitting jobs...")
-        submit_jobs(database_entries)
+        # database_entries = database_entries[
+        #    database_entries["system_upload_uuid"] ==
+        #    "18f82fd5-dad0-4b24-9664-622018acb9c5"]
+        # logger.info(database_entries)
+
+        submit_jobs(database_entries, args.limit_samples, args.multiple)
 
     elif args.action == "cancel":
         logger.info("Cancelling all jobs in certain states...")

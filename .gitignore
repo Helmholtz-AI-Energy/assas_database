@@ -162,6 +162,11 @@ cython_debug/
 /data/
 assasdb/results/
 /test/data
+/test/log/
 assasdb/tools/jobs/
 assasdb/tools/logs/
 assasdb/tools/result/
+test_reports/
+
+# VS Code
+.vscode/
