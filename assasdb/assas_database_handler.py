@@ -10,6 +10,7 @@ import logging
 import bson
 
 from pymongo import MongoClient
+from pymongo.errors import BulkWriteError
 from bson.objectid import ObjectId
 from uuid import uuid4
 from pathlib import Path
@@ -34,6 +35,7 @@ class AssasDatabaseHandler:
         backup_directory: str = "/mnt/ASSAS/backup_mongodb",
         database_name: str = "assas",
         file_collection_name: str = "files",
+        restore_from_backup: bool = False,
     ) -> None:
         """Initialize the AssasDatabaseHandler instance.
 
@@ -42,6 +44,7 @@ class AssasDatabaseHandler:
             backup_directory (str): The directory where backup files will be stored.
             database_name (str): The name of the database to connect to.
             file_collection_name (str): The name of the file collection.
+            restore_from_backup (bool): Whether to restore collections from backup.
 
         Returns:
             None
@@ -64,6 +67,10 @@ class AssasDatabaseHandler:
             self.client = client
             self.db_handle = self.client[database_name]
             self.file_collection = self.db_handle[file_collection_name]
+            logger.info(
+                f"Connected to MongoDB database '{database_name}' "
+                f"and collection '{file_collection_name}'."
+            )
 
         self.backup_directory = Path(backup_directory)
         if not self.backup_directory.exists():
@@ -71,6 +78,10 @@ class AssasDatabaseHandler:
                 f"Backup directory {self.backup_directory} does not exist. "
                 "Create it and check your setup."
             )
+
+        if restore_from_backup:
+            logger.info("Restoring collections from backup files.")
+            self.restore_collections()
 
     def dump_collections(
         self,
@@ -115,9 +126,33 @@ class AssasDatabaseHandler:
         for collection in os.listdir(self.backup_directory):
             if collection.endswith(".bson"):
                 with open(Path.joinpath(self.backup_directory, collection), "rb+") as f:
-                    self.db_handle[collection.split(".")[0]].insert_many(
-                        bson.decode_all(f.read())
+                    documents = bson.decode_all(f.read())
+                    logger.debug(
+                        f"Restoring collection {collection.split('.')[0]} ",
+                        f"with {len(documents)} documents.",
                     )
+                    if not documents:
+                        logger.warning(
+                            "No documents found in collection ",
+                            f"{collection.split('.')[0]}.",
+                        )
+                        continue
+                    for doc in documents:
+                        try:
+                            # Use upsert to handle duplicates
+                            self.file_collection.replace_one(
+                                {"_id": doc["_id"]}, doc, upsert=True
+                            )
+                        except KeyError:
+                            logger.error(f"Document missing '_id': {doc}")
+                        except Exception as e:
+                            logger.error(f"Error restoring document: {e}")
+                        except BulkWriteError as e:
+                            logger.error(f"BulkWriteError occurred: {e.details}")
+
+            logger.info(
+                f"Restored collection {collection.split('.')[0]} from backup file."
+            )
 
     def read_collection_from_backup(self, collection_file="files.bson") -> None:
         """Read a collection from a backup file.
@@ -138,6 +173,27 @@ class AssasDatabaseHandler:
             collection = bson.decode_all(f.read())
 
         return collection
+
+    def list_database_names(self):
+        """List all database names in the MongoDB client.
+
+        Args:
+            None
+
+        Returns:
+            List[str]: A list of database names.
+
+        Example:
+            db_names = AssasDatabaseHandler.list_database_names()
+
+        """
+        if self.client is None:
+            logger.warning("MongoDB client is not initialized. Returning empty list.")
+            return []
+
+        db_names = self.client.list_database_names()
+        logger.info(f"Listing database names: {db_names}")
+        return db_names
 
     def get_db_handle(self):
         """Return the database handle.
@@ -167,7 +223,7 @@ class AssasDatabaseHandler:
             file_collection = AssasDatabaseHandler.get_file_collection()
 
         """
-        if not self.file_collection:
+        if self.file_collection is None:
             logger.warning("File collection is not initialized. Returning None.")
             return None
 
@@ -387,7 +443,7 @@ class AssasDatabaseHandler:
             {
                 "$and": [
                     {"meta_data_variables": {"$exists": False}},
-                    {"system_status": AssasDocumentFileStatus.VALID},
+                    {"system_status": AssasDocumentFileStatus.VALID.value},
                 ]
             }
         )

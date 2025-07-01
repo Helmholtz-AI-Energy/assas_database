@@ -259,7 +259,10 @@ def generate_job_files(
     """
     database_entries = database_entries[
         database_entries["system_status"].isin(
-            [AssasDocumentFileStatus.UPLOADED, AssasDocumentFileStatus.CONVERTING]
+            [
+                AssasDocumentFileStatus.UPLOADED.value,
+                AssasDocumentFileStatus.CONVERTING.value,
+            ]
         )
     ]
     logger.info(f"Generate job files for {len(database_entries)} entries.")
@@ -514,7 +517,7 @@ def count_entries_by_status(
         int: The count of entries with the specified status.
 
     """
-    return len(database_entries[database_entries["system_status"] == status])
+    return len(database_entries[database_entries["system_status"] == status.value])
 
 
 def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:

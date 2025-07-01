@@ -7,6 +7,7 @@ which interacts with a MongoDB database.
 import unittest
 import logging
 import HtmlTestRunner
+import pandas as pd
 
 from unittest.mock import patch
 from pathlib import Path
@@ -282,7 +283,39 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.database_handler.restore_collections()
 
         # Step 3: Verify the insert operation was called for each document
-        self.mock_client.mock_collection.insert_many.assert_called()
+        self.mock_client.mock_collection.replace_one.assert_called()
+
+    @unittest.skip("Skipping test_restore_collection_from_backup for now.")
+    def test_restore_collection_from_backup(self):
+        """Test case to verify the restore_collection_from_backup function."""
+        database_handler = AssasDatabaseHandler(
+            database_name="assas_dev",
+        )
+        data_frame = pd.DataFrame(list(database_handler.get_file_collection().find()))
+
+        database_handler_compare = AssasDatabaseHandler()
+        data_frame_compare = pd.DataFrame(
+            list(database_handler_compare.get_file_collection().find())
+        )
+
+        (
+            self.assertEqual(data_frame.size, data_frame_compare.size),
+            "Data frames should have the same size",
+        )
+        (
+            self.assertEqual(data_frame.shape, data_frame_compare.shape),
+            "Data frames should have the same shape",
+        )
+        (
+            self.assertEqual(
+                data_frame.columns.tolist(), data_frame_compare.columns.tolist()
+            ),
+            "Data frames should have the same columns",
+        )
+        (
+            self.assertTrue(data_frame.equals(data_frame_compare)),
+            "Data frames should be equal",
+        )
 
 
 if __name__ == "__main__":

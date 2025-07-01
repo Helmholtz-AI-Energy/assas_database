@@ -128,6 +128,17 @@ class AssasDatabaseManager:
         if data_frame.size == 0:
             return data_frame
 
+        if "system_date" in data_frame.columns:
+            data_frame["system_datetime"] = pd.to_datetime(
+                arg=data_frame["system_date"], errors="coerce"
+            )
+
+            # Drop rows with invalid dates (optional)
+            data_frame = data_frame.dropna(subset=["system_datetime"])
+
+            # Sort the DataFrame by the 'date' column
+            data_frame = data_frame.sort_values(by="system_datetime", ascending=True)
+
         data_frame["system_index"] = range(1, len(data_frame) + 1)
         data_frame["_id"] = data_frame["_id"].astype(str)
 
@@ -182,7 +193,7 @@ class AssasDatabaseManager:
             None
 
         """
-        update = {"system_status": f"{str(status)}"}
+        update = {"system_status": f"{str(status.value)}"}
         logger.info(
             f"Update file document with uuid {uuid} with update string {update}."
         )
@@ -193,7 +204,7 @@ class AssasDatabaseManager:
 
         self.database_handler.update_file_document_by_uuid(uuid, update)
         logger.info(
-            f"Update file document with uuid {uuid} and set status to {status}."
+            f"Update file document with uuid {uuid} and set status to {status.value}."
         )
 
     def set_hdf5_size_by_uuid(
@@ -258,7 +269,7 @@ class AssasDatabaseManager:
         """
         documents_uploaded = (
             self.database_handler.get_file_documents_to_collect_number_of_samples(
-                system_status=AssasDocumentFileStatus.UPLOADED
+                system_status=AssasDocumentFileStatus.UPLOADED.value
             )
         )
         document_files_uploaded = [
@@ -266,7 +277,7 @@ class AssasDatabaseManager:
         ]
         documents_valid = (
             self.database_handler.get_file_documents_to_collect_number_of_samples(
-                system_status=AssasDocumentFileStatus.VALID
+                system_status=AssasDocumentFileStatus.VALID.value
             )
         )
 
@@ -529,7 +540,7 @@ class AssasDatabaseManager:
                 document_file
                 for document_file in document_files
                 if document_file.get_value("system_status")
-                == AssasDocumentFileStatus.UPLOADED
+                == AssasDocumentFileStatus.UPLOADED.value
             ]
 
             for document_file in document_files:
@@ -539,7 +550,7 @@ class AssasDatabaseManager:
                 )
 
                 document_file.set_value(
-                    "system_status", AssasDocumentFileStatus.CONVERTING
+                    key="system_status", value=AssasDocumentFileStatus.CONVERTING.value
                 )
                 self.database_handler.update_file_document_by_path(
                     document_file.get_value("system_path"), document_file.get_document()
@@ -558,7 +569,7 @@ class AssasDatabaseManager:
                 document_file
                 for document_file in document_files
                 if document_file.get_value("system_status")
-                == AssasDocumentFileStatus.CONVERTING
+                == AssasDocumentFileStatus.CONVERTING.value
             ]
 
             for document_file in document_files:
@@ -567,7 +578,9 @@ class AssasDatabaseManager:
                     f"{document_file.get_value('system_path')} to VALID."
                 )
 
-                document_file.set_value("system_status", AssasDocumentFileStatus.VALID)
+                document_file.set_value(
+                    key="system_status", value=AssasDocumentFileStatus.VALID.value
+                )
                 self.database_handler.update_file_document_by_path(
                     document_file.get_value("system_path"), document_file.get_document()
                 )
@@ -1023,7 +1036,7 @@ class AssasDatabaseManager:
 
         for _, archive in enumerate(archive_list):
             logger.info(f"Set status of archive to UPLOADED {archive.archive_path}.")
-            system_status = AssasDocumentFileStatus.UPLOADED
+            system_status = AssasDocumentFileStatus.UPLOADED.value
 
             document_file = AssasDocumentFile()
 
@@ -1074,7 +1087,7 @@ class AssasDatabaseManager:
 
         """
         documents = self.database_handler.get_file_documents_by_status(
-            AssasDocumentFileStatus.CONVERTING
+            AssasDocumentFileStatus.CONVERTING.value
         )
         document_files = [AssasDocumentFile(document) for document in documents]
 
@@ -1093,7 +1106,7 @@ class AssasDatabaseManager:
         """
         logger.info("Convert next validated archive to NetCDF4 format.")
         documents = self.database_handler.get_file_documents_by_status(
-            AssasDocumentFileStatus.UPLOADED
+            AssasDocumentFileStatus.UPLOADED.value
         )
         document_files = [AssasDocumentFile(document) for document in documents]
 
@@ -1107,7 +1120,9 @@ class AssasDatabaseManager:
 
         document_file = document_files[0]  # take first in list
 
-        document_file.set_value("system_status", AssasDocumentFileStatus.CONVERTING)
+        document_file.set_value(
+            key="system_status", value=AssasDocumentFileStatus.CONVERTING.value
+        )
         self.database_handler.update_file_document_by_path(
             document_file.get_value("system_path"), document_file.get_document()
         )
@@ -1118,10 +1133,12 @@ class AssasDatabaseManager:
                 output_path=document_file.get_value("system_result"),
             ).convert_astec_variables_to_netcdf4(explicit_times=explicit_times)
 
-            document_file.set_value("system_status", AssasDocumentFileStatus.VALID)
             document_file.set_value(
-                "system_size_hdf5",
-                AssasDatabaseManager.get_file_size(
+                key="system_status", value=AssasDocumentFileStatus.VALID.value
+            )
+            document_file.set_value(
+                key="system_size_hdf5",
+                value=AssasDatabaseManager.get_file_size(
                     document_file.get_value("system_result")
                 ),
             )
@@ -1133,7 +1150,9 @@ class AssasDatabaseManager:
         except Exception as exception:
             logger.error(f"Update status to INVALID due to exception: {exception}.")
 
-            document_file.set_value("system_status", AssasDocumentFileStatus.INVALID)
+            document_file.set_value(
+                key="system_status", value=AssasDocumentFileStatus.INVALID.value
+            )
             self.database_handler.update_file_document_by_path(
                 document_file.get_value("system_path"), document_file.get_document()
             )
@@ -1155,7 +1174,9 @@ class AssasDatabaseManager:
         document_files = [AssasDocumentFile(document) for document in documents]
 
         for document in document_files:
-            document.set_value("system_status", AssasDocumentFileStatus.UPLOADED)
+            document.set_value(
+                key="system_status", value=AssasDocumentFileStatus.UPLOADED
+            )
             self.database_handler.update_file_document_by_path(
                 document.get_value("system_path"), document.get_document()
             )
@@ -1173,12 +1194,14 @@ class AssasDatabaseManager:
         """
         logger.info("Reset status of all converting archives to UPLOADED.")
         documents = self.database_handler.get_file_documents_by_status(
-            AssasDocumentFileStatus.CONVERTING
+            AssasDocumentFileStatus.CONVERTING.value
         )
         document_files = [AssasDocumentFile(document) for document in documents]
 
         for document in document_files:
-            document.set_value("system_status", AssasDocumentFileStatus.UPLOADED)
+            document.set_value(
+                key="system_status", value=AssasDocumentFileStatus.UPLOADED.value
+            )
             self.database_handler.update_file_document_by_path(
                 document.get_value("system_path"), document.get_document()
             )
@@ -1196,12 +1219,14 @@ class AssasDatabaseManager:
         """
         logger.info("Reset status of all valid archives to UPLOADED.")
         documents = self.database_handler.get_file_documents_by_status(
-            AssasDocumentFileStatus.VALID
+            AssasDocumentFileStatus.VALID.value
         )
         document_files = [AssasDocumentFile(document) for document in documents]
 
         for document in document_files:
-            document.set_value("system_status", AssasDocumentFileStatus.UPLOADED)
+            document.set_value(
+                key="system_status", value=AssasDocumentFileStatus.UPLOADED.value
+            )
             self.database_handler.update_file_document_by_path(
                 document.get_value("system_path"), document.get_document()
             )

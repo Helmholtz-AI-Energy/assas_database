@@ -11,7 +11,7 @@ import logging
 
 os.environ["ASTEC_ROOT"] = "/root/astecV3.1.2"
 
-from assasdb import AssasDatabaseManager
+from assasdb import AssasDatabaseManager, AssasDatabaseHandler
 
 
 def setup_logging(
@@ -33,9 +33,13 @@ def main() -> None:
     start_time = datetime.datetime.now()
     logger.info(f"Start update of archive sizes as cron job at {start_time}.")
 
-    manager = AssasDatabaseManager()
+    database_manager = AssasDatabaseManager(
+        database_handler=AssasDatabaseHandler(
+            database_name="assas_dev",
+        )
+    )
 
-    manager.convert_next_validated_archive()
+    database_manager.convert_next_validated_archive()
 
     end_time = datetime.datetime.now()
     logger.info(f"Finished update of archives sizes at {end_time}.")
