@@ -270,7 +270,7 @@ if __name__ == "__main__":
     unittest.main(
         testRunner=HtmlTestRunner.HTMLTestRunner(
             output="test_reports",  # Directory for HTML reports
-            report_title="AssasDatabaseHandler Test Report",
+            report_title="AssasConversionHandler Test Report",
             descriptions=True,
         )
     )
