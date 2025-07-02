@@ -75,8 +75,8 @@ jobs:
           name: html-test-report
           path: test_reports/
 
-       - name: Upload test logs
+       - name: Upload test log
          uses: actions/upload-artifact@v4
          with:
-          name: test-logs
-          path: test/logs/
+          name: test-log
+          path: test/log/
