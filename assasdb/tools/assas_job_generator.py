@@ -80,7 +80,7 @@ export ASTEC_ROOT={astec_root}
 mkdir ${{LOGDIR}}
 cd ${{LOGDIR}}
 
-srun python ${{PYDIR}}/assas_single_converter.py -uuid {uuid} {new_time_command}
+srun python ${{PYDIR}}/assas_conversion_handler.py -uuid {uuid} {new_time_command}
 mv ../slurm-${{SLURM_JOBID}}.out ${{LOGDIR}}
 mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 """  # noqa: E501

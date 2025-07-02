@@ -83,6 +83,12 @@ class AssasDatabaseHandler:
             logger.info("Restoring collections from backup files.")
             self.restore_collections()
 
+    def close(self):
+        """Safely close the MongoClient."""
+        if self.client:
+            logger.info("Closing MongoDB client.")
+            self.client.close()
+
     def dump_collections(
         self,
         collection_names,

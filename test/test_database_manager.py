@@ -134,6 +134,10 @@ class FakeDatabaseHandler:
         """Update a file document by system path."""
         pass
 
+    def close(self):
+        """Close the database connection."""
+        pass
+
 
 class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
     """Integration test for AssasDatabaseManager."""
@@ -166,6 +170,9 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         """Clean up the test environment."""
         shutil.rmtree(self.upload_dir)
         shutil.rmtree(self.backup_dir)
+
+        self.manager.close_resources()
+        self.manager_faked.close_resources()
 
     def test_get_all_database_entries_empty(self):
         """Test getting all database entries when the collection is empty.

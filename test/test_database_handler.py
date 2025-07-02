@@ -317,6 +317,17 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
             "Data frames should be equal",
         )
 
+    def test_close_resources(self):
+        """Test that MongoClient.close() is called."""
+        mock_client = MagicMock()
+        handler = AssasDatabaseHandler(client=mock_client)
+
+        # Call the close method
+        handler.close()
+
+        # Assert that close was called on the mock client
+        mock_client.close.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main(

@@ -56,6 +56,10 @@ class AssasDatabaseManager:
                 "Create it and check your setup."
             )
 
+    def close_resources(self):
+        """Close resources used by the handler."""
+        self.database_handler.close()
+
     def get_database_entry_by_upload_uuid(self, upload_uuid: uuid4):
         """Retrieve a database entry by its upload UUID.
 
