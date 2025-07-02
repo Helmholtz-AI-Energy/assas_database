@@ -49,6 +49,17 @@ class AssasDatabaseManager:
 
         """
         self.database_handler = database_handler
+        logger.info(
+            f"Initialize AssasDatabaseManager with database handler {database_handler} "
+            f"and upload directory {upload_directory}."
+        )
+
+        if not isinstance(self.database_handler, AssasDatabaseHandler):
+            logger.warning(
+                "The provided database_handler is not an instance of "
+                "AssasDatabaseHandler. Please check your setup."
+            )
+
         self.upload_directory = Path(upload_directory)
         if not self.upload_directory.exists():
             logger.warning(
@@ -613,8 +624,8 @@ class AssasDatabaseManager:
                     )
                 ):
                     logger.debug(
-                        f"""Detected valid archive
-                        {Path.joinpath(self.upload_directory, directory)}."""
+                        f"Detected valid archive "
+                        f"{Path.joinpath(self.upload_directory, directory)}."
                     )
 
                     try:
@@ -653,8 +664,8 @@ class AssasDatabaseManager:
                     )
                 ):
                     logger.debug(
-                        f"""Detected valid archive:
-                        {Path.joinpath(self.upload_directory, directory)}."""
+                        f"Detected valid archive: "
+                        f"{Path.joinpath(self.upload_directory, directory)}."
                     )
 
                     try:
@@ -706,8 +717,8 @@ class AssasDatabaseManager:
                         logger.error("Received univalid uuid.")
 
         logger.debug(
-            f"""Read {len(upload_uuid_list)} upload uuids
-            {upload_uuid_list} in {self.upload_directory} to reload."""
+            f"Read {len(upload_uuid_list)} upload uuids "
+            f"{upload_uuid_list} in {self.upload_directory} to reload."
         )
 
         return upload_uuid_list
@@ -726,8 +737,8 @@ class AssasDatabaseManager:
         if os.path.isfile(file_path):
             file_info = os.stat(file_path)
             logger.info(
-                f"""File size: {file_info.st_size}
-                Os.path.getsize: {os.path.getsize(file_path)}."""
+                f"File size: {file_info.st_size} "
+                f"Os.path.getsize: {os.path.getsize(file_path)}."
             )
 
             converted_in_bytes = AssasDatabaseManager.convert_from_bytes(
