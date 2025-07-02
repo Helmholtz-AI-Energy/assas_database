@@ -35,7 +35,7 @@ class AssasDatabaseManager:
 
     def __init__(
         self,
-        database_handler: AssasDatabaseHandler = AssasDatabaseHandler(),
+        database_handler: AssasDatabaseHandler,
         upload_directory: str = "/mnt/ASSAS/upload_test",
     ) -> None:
         """Initialize the AssasDatabaseManager instance.

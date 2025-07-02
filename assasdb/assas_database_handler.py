@@ -85,7 +85,7 @@ class AssasDatabaseHandler:
 
     def close(self):
         """Safely close the MongoClient."""
-        if self.client:
+        if self.client is not None:
             logger.info("Closing MongoDB client.")
             self.client.close()
 

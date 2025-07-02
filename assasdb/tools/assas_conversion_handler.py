@@ -13,7 +13,6 @@ from dirsync import sync
 from shutil import copytree, copy2
 from pathlib import Path
 from datetime import datetime
-from pymongo import MongoClient
 
 from assasdb import AssasDatabaseManager, AssasOdessaNetCDF4Converter
 from assasdb import AssasDatabaseHandler
@@ -51,7 +50,7 @@ class AssasConversionHandler:
         self.tmp_dir = os.environ.get("TMPDIR")
 
         self.database_handler = AssasDatabaseHandler(
-            client=MongoClient("mongodb://localhost:27017/"),
+            client=None,
             backup_directory=f"{self.lsdf_project_dir}/{LSDF_BACKUP_DIR}",
         )
         database_manager = AssasDatabaseManager(
@@ -215,7 +214,7 @@ class AssasConversionHandler:
             else:
                 logger.info(f"Using existing output file {str(self.tmp_output_path)}.")
 
-            odessa_converter.convert_astec_variables_to_netcdf4(maximum_index=args.time)
+            odessa_converter.convert_astec_variables_to_netcdf4(maximum_index=self.time)
 
             self.save_hdf5_result(
                 local_output_path=self.tmp_output_path,
@@ -238,12 +237,12 @@ class AssasConversionHandler:
             if self.time is not None:
                 if self.time == number_of_samples:
                     finished = True
-                    logger.info(f"Converted all {args.time} time points.")
+                    logger.info(f"Converted all {self.time} time points.")
 
                 else:
                     finished = False
                     logger.info(
-                        f"Converted only {args.time} time points, "
+                        f"Converted only {self.time} time points, "
                         f"but {number_of_samples} are available."
                     )
 
@@ -347,6 +346,7 @@ class AssasConversionHandler:
         """
         logger.debug(f"Copy file {source} to {destination}.")
         copy2(source, destination)
+        logger.debug(f"Copyied file {source} to {destination}.")
 
     def sync_imput_and_tmp(self, input_path: str, tmp_path: str) -> None:
         """Synchronize the input directory with the temporary directory.

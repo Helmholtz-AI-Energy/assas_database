@@ -67,6 +67,7 @@ jobs:
           python test/test_database_handler.py
           python test/test_document_file.py
           python test/test_database_manager.py
+          python test/test_conversion_handler.py
        
        - name: Upload HTML test report
          uses: actions/upload-artifact@v4
