@@ -134,13 +134,13 @@ class AssasDatabaseHandler:
                 with open(Path.joinpath(self.backup_directory, collection), "rb+") as f:
                     documents = bson.decode_all(f.read())
                     logger.debug(
-                        f"Restoring collection {collection.split('.')[0]} ",
-                        f"with {len(documents)} documents.",
+                        f"Restoring collection {collection.split('.')[0]} "
+                        f"with {len(documents)} documents."
                     )
                     if not documents:
                         logger.warning(
-                            "No documents found in collection ",
-                            f"{collection.split('.')[0]}.",
+                            "No documents found in collection "
+                            f"{collection.split('.')[0]}."
                         )
                         continue
                     for doc in documents:
@@ -424,6 +424,32 @@ class AssasDatabaseHandler:
             {
                 "$and": [
                     {"system_number_of_samples": {"$exists": False}},
+                    {"system_status": system_status},
+                ]
+            }
+        )
+
+    def get_file_documents_to_collect_completed_number_of_samples(
+        self, system_status: str
+    ):
+        """Return file documents that need their number of samples collected.
+
+        Args:
+            system_status (str): The system status of the file documents.
+
+        Returns:
+            A cursor to the file documents that need their number of samples collected.
+
+        Example:
+            file_documents =
+            AssasDatabaseHandler.
+            get_file_documents_to_collect_number_of_samples(system_status)
+
+        """
+        return self.file_collection.find(
+            {
+                "$and": [
+                    {"system_number_of_samples_completed": {"$exists": False}},
                     {"system_status": system_status},
                 ]
             }

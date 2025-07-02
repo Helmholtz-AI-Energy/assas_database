@@ -2259,6 +2259,35 @@ class AssasOdessaNetCDF4Converter:
 
         return result
 
+    @staticmethod
+    def get_completed_index_from_netcdf4_file(
+        netcdf4_file: str,
+    ) -> int:
+        """Get the completed index from a netCDF4 file.
+
+        Args:
+            netcdf4_file (str): Path to the netCDF4 file.
+
+        Returns:
+            int: The completed index of time points.
+
+        """
+        logger.info(
+            f"Get completed index from hdf5 file with path {str(netcdf4_file)}."
+        )
+
+        completed_index = 0
+        with netCDF4.Dataset(f"{netcdf4_file}", "r", format="NETCDF4") as ncfile:
+            if "time_points" in list(ncfile.variables.keys()):
+                completed_index = ncfile.variables["time_points"].getncattr(
+                    "completed_index"
+                )
+                logger.info(f"Completed index is {completed_index}.")
+            else:
+                logger.warning("No time points found in the netCDF4 file.")
+
+        return completed_index
+
     def convert_astec_variables_to_netcdf4(
         self,
         maximum_index: int = None,
