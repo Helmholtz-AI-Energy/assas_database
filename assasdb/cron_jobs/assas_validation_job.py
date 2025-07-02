@@ -40,10 +40,10 @@ def main() -> None:
     )
 
     database_manager.update_archive_sizes(number_of_archives=10)
-    database_manager.update_status_of_archives()
     database_manager.update_meta_data_of_valid_archives()
     database_manager.collect_number_of_samples_of_uploaded_archives()
     database_manager.collect_maximum_index_value_from_valid_archives()
+    database_manager.update_status_of_archives()
 
     end_time = datetime.datetime.now()
     logger.info(f"Finished update of archives sizes at {end_time}.")

@@ -574,6 +574,8 @@ class AssasDatabaseManager:
                 for document_file in document_files
                 if document_file.get_value("system_status")
                 == AssasDocumentFileStatus.CONVERTING.value
+                if document_file.get_value("system_number_of_samples")
+                == document_file.get_value("system_number_of_samples_completed")
             ]
 
             for document_file in document_files:
@@ -1429,38 +1431,51 @@ class AssasDatabaseManager:
             "Update maximum index value from all valid archives in the database."
         )
         handler = self.database_handler
-        documents = handler.get_file_documents_to_collect_completed_number_of_samples(
-            system_status=AssasDocumentFileStatus.VALID.value
+        documents_valid = (
+            handler.get_file_documents_to_collect_completed_number_of_samples(
+                system_status=AssasDocumentFileStatus.VALID.value
+            )
         )
-        document_files = [AssasDocumentFile(document) for document in documents]
+        document_files_valid = [
+            AssasDocumentFile(document) for document in documents_valid
+        ]
+        documents_converting = (
+            handler.get_file_documents_to_collect_completed_number_of_samples(
+                system_status=AssasDocumentFileStatus.CONVERTING.value
+            )
+        )
+        document_files_converting = [
+            AssasDocumentFile(document) for document in documents_converting
+        ]
+        document_files = document_files_valid + document_files_converting
 
         if len(document_files) == 0:
             logger.info("Found no new archive to collect maximum index value.")
             return
 
-        try:
-            for document_file in document_files:
-                logger.info(
-                    f"Collect maximum index value from file, "
-                    f"filename is {document_file.get_value('system_result')}."
-                )
-
+        for document_file in document_files:
+            logger.info(
+                f"Collect maximum index value from file, "
+                f"filename is {document_file.get_value('system_result')}."
+            )
+            try:
                 max_index = (
                     AssasOdessaNetCDF4Converter.get_completed_index_from_netcdf4_file(
                         netcdf4_file=document_file.get_value("system_result")
                     )
                 )
 
-                document_file.set_value(
-                    key="system_number_of_samples_completed", value=str(max_index + 1)
+            except Exception as exception:
+                logger.error(
+                    f"Update maximum index value failed due to exception: {exception}."
                 )
+                max_index = -1
 
-                handler.update_file_document_by_path(
-                    path=document_file.get_value("system_path"),
-                    document=document_file.get_document(),
-                )
+            document_file.set_value(
+                key="system_number_of_samples_completed", value=str(max_index + 1)
+            )
 
-        except Exception as exception:
-            logger.error(
-                f"Update maximum index value failed due to exception: {exception}."
+            handler.update_file_document_by_path(
+                path=document_file.get_value("system_path"),
+                update=document_file.get_document(),
             )
