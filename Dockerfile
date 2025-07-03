@@ -15,11 +15,6 @@ RUN apt-get update && apt-get install -y \
     git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
-COPY github /root/.ssh/github
-RUN chmod 600 /root/.ssh/github && \
-    mkdir -p /root/.ssh && \
-    ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
-
 # Clone the main repository
 WORKDIR /app
 COPY . /app
