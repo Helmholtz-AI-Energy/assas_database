@@ -40,7 +40,7 @@ jobs:
 
       # Step 3: Run Ruff linting inside the Docker container
       - name: Run Ruff
-        run: docker run --rm assas-database-ruff ruff check . --exclude /app/astecV3.1.2
+        run: docker run --rm assas-database-ruff ruff check . --exclude /app/astecV3.1.2,/app/test/dev_test/
 
   test:
      name: Run Unit Tests
