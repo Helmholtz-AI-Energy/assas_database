@@ -34,38 +34,40 @@ RUN mkdir -p /root/.ssh && \
 
 # Clone the repository and initialize submodules
 #RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git $REPO_PATH
-RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git /app
+RUN git clone git@github.com:ke4920/assas_database.git /app
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y sshpass
+RUN sshpass -p "R.adio_!1234" ssh -o StrictHostKeyChecking=no ke4920@os-login.lsdf.kit.edu "ls -l"
 # Install Python dependencies
 #WORKDIR $REPO_PATH
-RUN git checkout origin/feature_improve_netcdf4_conversion
-RUN git submodule update --init --recursive
-RUN git lfs install
-RUN git lfs pull
-RUN ls -l test
-RUN ls -l test/astec_installer
-RUN ls -l /app
-RUN ls -l /app/test
-RUN ls -l /app/test/astec_installer
+#RUN git checkout origin/feature_improve_netcdf4_conversion
+#RUN git submodule update --init --recursive
+#RUN git lfs install
+#RUN git lfs pull
+#RUN ls -l test
+#RUN ls -l test/astec_installer
+#RUN ls -l /app
+#RUN ls -l /app/test
+#RUN ls -l /app/test/astec_installer
 
-COPY requirements.txt .
-COPY test/test_data/* /app/test/test_data/
-RUN pip3 install --no-cache-dir -r requirements.txt
-RUN pip install ruff
+#COPY requirements.txt .
+#COPY test/test_data/* /app/test/test_data/
+#RUN pip3 install --no-cache-dir -r requirements.txt
+#RUN pip install ruff
 
 # Install C shell for ASTEC installer
-RUN apt-get update && apt-get install -y csh
+#RUN apt-get update && apt-get install -y csh
 
 # Move the submodule to the desired location
-RUN mkdir -p $ASTEC_ROOT && cp -r -v test/astec_installer/* $ASTEC_ROOT && ls -l $ASTEC_ROOT
-RUN tar -xzf $ASTEC_ROOT/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT 
-RUN ls -l $ASTEC_ROOT
-RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64
-RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
-RUN file $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
-RUN chmod +x $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
-RUN csh $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+#RUN mkdir -p $ASTEC_ROOT && cp -r -v test/astec_installer/* $ASTEC_ROOT && ls -l $ASTEC_ROOT
+#RUN tar -xzf $ASTEC_ROOT/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT 
+#RUN ls -l $ASTEC_ROOT
+#RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64
+#RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+#RUN file $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+#RUN chmod +x $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+#RUN csh $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
 
 # Copy the ASTEC installer into the container
 #COPY ./test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
