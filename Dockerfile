@@ -4,6 +4,7 @@ FROM ubuntu:20.04
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ASTEC_ROOT=/opt/astec_installer
+ENV REPO_PATH=/app
 
 # Install dependencies and Python 3.11
 RUN apt-get update && apt-get install -y \
@@ -31,22 +32,18 @@ RUN mkdir -p /root/.ssh && \
     chmod 600 /root/.ssh/id_rsa && \
     ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
-# Clone the main repository
-WORKDIR /app
-#COPY . /app
-#RUN echo "Listing files in /app:" && ls -l /app/
+# Clone the repository and initialize submodules
+RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git $REPO_PATH
+
+# Pull LFS files for the repository and submodules
+RUN cd $REPO_PATH && git lfs install && git lfs pull
 
 # Install Python dependencies
+WORKDIR $REPO_PATH
 COPY requirements.txt .
-#RUN pip3 install --no-cache-dir -r requirements.txt
-RUN git clone --recurse-submodules git@github.com:ke4920/astec_installer.git /app/astec_installer
-RUN cd /app/astec_installer && git lfs pull
-
-# Initialize and update the submodule
-RUN git submodule update --init --recursive
 
 # Pull LFS files for the submodule
-RUN git lfs install && git lfs pull
+#RUN git lfs install && git lfs pull
 
 # Copy the ASTEC installer into the container
 #COPY test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
