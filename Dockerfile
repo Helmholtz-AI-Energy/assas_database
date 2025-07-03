@@ -42,7 +42,7 @@ WORKDIR /app
 
 # Install Python dependencies
 #WORKDIR $REPO_PATH
-
+RUN git checkout origin/feature_improve_netcdf4_conversion
 RUN git submodule update --init --recursive
 RUN git lfs install
 RUN git lfs pull
