@@ -5,14 +5,24 @@ FROM ubuntu:20.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ASTEC_ROOT=/opt/astec_installer
 
+# Install dependencies and Python 3.11
 RUN apt-get update && apt-get install -y \
+    software-properties-common \
     git \
     openssh-client \
     wget \
-    python3 \
-    python3-pip \
     git-lfs \
+    && add-apt-repository ppa:deadsnakes/ppa -y && \
+    apt-get update && apt-get install -y \
+    python3.11 \
+    python3.11-venv \
+    python3.11-distutils \
     && rm -rf /var/lib/apt/lists/*
+
+# Install pip for Python 3.11
+RUN wget https://bootstrap.pypa.io/get-pip.py && \
+    python3.11 get-pip.py && \
+    rm get-pip.py
 
 # Add SSH key from build argument
 ARG SSH_PRIVATE_KEY
