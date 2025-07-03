@@ -1,3 +1,3 @@
 [submodule "test/astec_installer"]
 	path = test/astec_installer
-	url = https://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github.com/ke4920/astec_installer.git
+	url = git@github.com:ke4920/astec_installer.git
