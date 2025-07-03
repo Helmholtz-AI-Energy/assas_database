@@ -18,11 +18,25 @@ jobs:
       # Step 1: Check out the code
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      # Step 2
+      - name: Debug Secrets
+        run: echo "${{ secrets.SSH_PRIVATE_KEY }}" | wc -c
+      
+      # Step 3: Set up SSH key
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
       # Step 2: Build the Docker container
       - name: Build Docker container for Ruff
         run: |
-          docker build --build-arg GITHUB_TOKEN=${{secrets.PAT_ASSAS}} -t assas-database-ruff .
+          docker build -ssh -t assas-database-ruff .
 
       # Step 3: Run Ruff linting inside the Docker container
       - name: Run Ruff

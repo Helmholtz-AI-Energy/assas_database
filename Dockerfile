@@ -15,9 +15,8 @@ RUN apt-get update && apt-get install -y \
     git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
-ARG PAT_ASSAS
-
-RUN git config --global url."https://${PAT_ASSAS}@github.com/".insteadOf "git@github.com:"
+# Enable SSH forwarding
+RUN --mount=type=ssh git submodule update --init --recursive
 
 # Clone the main repository
 WORKDIR /app
