@@ -54,7 +54,7 @@ jobs:
        # Step 2: Build the Docker container for Unit Tests
        - name: Build Docker container for Unit Tests
          run: |
-          docker build --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" -t assas-database-test .
+          docker build --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" --progress=plain -t assas-database-test .
       
        # Step 3: Set up Python
        - name: Set up Python

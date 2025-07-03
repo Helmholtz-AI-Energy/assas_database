@@ -34,7 +34,7 @@ RUN mkdir -p /root/.ssh && \
 # Clone the main repository
 WORKDIR /app
 COPY . /app
-RUN ls -l /app
+RUN echo "Listing files in /app:" && ls -l /app/
 
 # Initialize and update the submodule
 RUN git submodule update --init --recursive
