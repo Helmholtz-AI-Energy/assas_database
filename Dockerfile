@@ -34,12 +34,15 @@ RUN mkdir -p /root/.ssh && \
 
 # Clone the repository and initialize submodules
 #RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git $REPO_PATH
+RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git /app
+WORKDIR /app
 
 # Pull LFS files for the repository and submodules
 #RUN cd $REPO_PATH && git lfs install && git lfs pull
 
 # Install Python dependencies
 #WORKDIR $REPO_PATH
+
 RUN git submodule update --init --recursive
 RUN git lfs install
 RUN git lfs pull
