@@ -45,7 +45,7 @@ RUN git lfs install && git lfs pull
 RUN mkdir -p $ASTEC_ROOT && cp -r test/astec_installer/* $ASTEC_ROOT
 
 # Copy the ASTEC installer into the container
-COPY astecV3.1.2_linux64.tar.gz /tmp/
+COPY $ASTEC_ROOT/astecV3.1.2_linux64.tar.gz /tmp/
 
 # Unzip and install ASTEC
 RUN tar -xzf /tmp/astecV3.1.2_linux64.tar.gz -C $ASTEC_ROOT && \
