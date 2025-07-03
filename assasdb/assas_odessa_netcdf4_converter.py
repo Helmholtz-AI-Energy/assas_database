@@ -28,6 +28,7 @@ logger = logging.getLogger("assas_app")
 
 LOG_INTERVAL = 100
 ASTEC_ROOT = os.environ.get("ASTEC_ROOT")
+print(f"ASTEC_ROOT is {ASTEC_ROOT}")
 ASTEC_TYPE = "linux_64"
 ASTEC_PYTHON_ODESSA = os.path.join(
     ASTEC_ROOT, "odessa", "bin", ASTEC_TYPE + "-release", "wrap_python"
