@@ -37,9 +37,6 @@ RUN mkdir -p /root/.ssh && \
 RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git /app
 WORKDIR /app
 
-# Pull LFS files for the repository and submodules
-#RUN cd $REPO_PATH && git lfs install && git lfs pull
-
 # Install Python dependencies
 #WORKDIR $REPO_PATH
 RUN git checkout origin/feature_improve_netcdf4_conversion
@@ -54,13 +51,10 @@ RUN ls -l /app/test/astec_installer
 
 COPY requirements.txt .
 COPY test/test_data/* /app/test/test_data/
-#COPY test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
+RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip install ruff
 
-# Pull LFS files for the submodule
-#RUN git lfs install && git lfs pull
-
-# Copy the ASTEC installer into the container
-#COPY test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
+# Install C shell for ASTEC installer
 RUN apt-get update && apt-get install -y csh
 
 # Move the submodule to the desired location
@@ -92,4 +86,4 @@ RUN csh $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
 #WORKDIR /app
 
 # Copy the repository files into the container
-#COPY . /app
+#COPY . ./app
