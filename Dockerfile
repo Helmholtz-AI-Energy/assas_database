@@ -27,6 +27,9 @@ RUN wget https://bootstrap.pypa.io/get-pip.py && \
 
 # Add SSH key from build argument
 ARG SSH_PRIVATE_KEY
+ARG LSDF_USER
+ARG LSDF_PWD
+
 RUN mkdir -p /root/.ssh && \
     echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
     chmod 600 /root/.ssh/id_rsa && \
@@ -39,7 +42,7 @@ WORKDIR /app
 
 RUN mkdir -p ${ASTEC_ROOT}
 RUN apt-get update && apt-get install -y sshpass
-RUN sshpass -p "R.adio_!1234" scp -r -o StrictHostKeyChecking=no ke4920@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/backup_mongodb ${ASTEC_ROOT}
+RUN sshpass -p "${LSDF_PWD}" scp -r -o StrictHostKeyChecking=no ${LSDF_USER}@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/backup_mongodb ${ASTEC_ROOT}
 RUN ls -l /opt/astec_installer/backup_mongodb
 
 RUN pip3 install --no-cache-dir -r requirements.txt

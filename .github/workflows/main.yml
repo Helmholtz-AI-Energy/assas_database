@@ -38,6 +38,8 @@ jobs:
         run: |
           docker build \
             --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
+            --build-arg LSDF_USER="${{ secrets.LSDF_USER }}" \
+            --build-arg LSDF_PWD="${{ secrets.LSDF_PWD }}" \
             -t assas-database-ruff .
 
       # Step 3: Run Ruff linting inside the Docker container
