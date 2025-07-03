@@ -32,9 +32,9 @@ RUN mkdir -p /root/.ssh && \
     ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
 # Clone the main repository
-WORKDIR /app
-COPY . /app
-RUN echo "Listing files in /app:" && ls -l /app/
+#WORKDIR /app
+#COPY . /app
+#RUN echo "Listing files in /app:" && ls -l /app/
 
 # Initialize and update the submodule
 RUN git submodule update --init --recursive
@@ -42,21 +42,24 @@ RUN git submodule update --init --recursive
 # Pull LFS files for the submodule
 RUN git lfs install && git lfs pull
 
-# Move the submodule to the desired location
-RUN mkdir -p $ASTEC_ROOT && cp -r -v ./test/astec_installer/* $ASTEC_ROOT && ls -l $ASTEC_ROOT
-
 # Copy the ASTEC installer into the container
 COPY ./test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
 
+# Move the submodule to the desired location
+#RUN mkdir -p $ASTEC_ROOT && cp -r -v ./test/astec_installer/* $ASTEC_ROOT && ls -l $ASTEC_ROOT
+
+# Copy the ASTEC installer into the container
+#COPY ./test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
+
 # Unzip and install ASTEC
-RUN tar -xzf /tmp/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT && \
-    rm /tmp/astecV3.1.2_linux64.tgz && \
-    chmod +x $ASTEC_ROOT/install.sh && \
-    $ASTEC_ROOT/install.sh
+#RUN tar -xzf /tmp/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT && \
+#    rm /tmp/astecV3.1.2_linux64.tgz && \
+#    chmod +x $ASTEC_ROOT/install.sh && \
+#    $ASTEC_ROOT/install.sh
 
 # Install Python dependencies
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+#COPY requirements.txt .
+#RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Set the working directory
 #WORKDIR /app
