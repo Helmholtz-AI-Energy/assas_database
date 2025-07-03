@@ -36,7 +36,7 @@ jobs:
       # Step 2: Build the Docker container
       - name: Build Docker container for Ruff
         run: |
-          docker build --no-cache --progress=plain --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" -t assas-database-ruff .
+          docker build --no-cache --progress=plain --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" -t assas-database-ruff . | tee build_ruff.log
 
       # Step 3: Run Ruff linting inside the Docker container
       - name: Run Ruff
@@ -54,7 +54,7 @@ jobs:
        # Step 2: Build the Docker container for Unit Tests
        - name: Build Docker container for Unit Tests
          run: |
-          docker build --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" --progress=plain -t assas-database-test .
+          docker build --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" --progress=plain -t assas-database-test . | tee build.log
       
        # Step 3: Set up Python
        - name: Set up Python
