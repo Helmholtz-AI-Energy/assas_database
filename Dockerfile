@@ -41,6 +41,8 @@ RUN cd $REPO_PATH && git lfs install && git lfs pull
 # Install Python dependencies
 WORKDIR $REPO_PATH
 COPY requirements.txt .
+COPY test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
+
 
 # Pull LFS files for the submodule
 #RUN git lfs install && git lfs pull
