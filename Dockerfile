@@ -67,8 +67,8 @@ RUN mkdir -p $ASTEC_ROOT && cp -r -v test/astec_installer/* $ASTEC_ROOT && ls -l
 RUN tar -xzf $ASTEC_ROOT/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT 
 RUN ls -l $ASTEC_ROOT
 RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64
-RUN chmod +x $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux && \
-    $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
 
 # Copy the ASTEC installer into the container
 #COPY ./test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
