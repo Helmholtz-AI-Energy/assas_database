@@ -37,8 +37,9 @@ RUN mkdir -p /root/.ssh && \
 RUN git clone git@github.com:ke4920/assas_database.git /app
 WORKDIR /app
 
+RUN mkdir -p ${ASTEC_ROOT}/backup_mongodb
 RUN apt-get update && apt-get install -y sshpass
-RUN sshpass -p "R.adio_!1234" scp -o StrictHostKeyChecking=no ke4920@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/backup_mongodb/* /opt/astec_installer/backup_mongodb/*
+RUN sshpass -p "R.adio_!1234" scp -r -o StrictHostKeyChecking=no ke4920@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/backup_mongodb ${ASTEC_ROOT}/backup_mongodb
 RUN ls -l /opt/astec_installer/backup_mongodb
 
 RUN pip3 install --no-cache-dir -r requirements.txt
