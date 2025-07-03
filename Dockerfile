@@ -44,6 +44,15 @@ RUN git lfs install && git lfs pull
 # Move the submodule to the desired location
 RUN mkdir -p $ASTEC_ROOT && cp -r test/astec_installer/* $ASTEC_ROOT
 
+# Copy the ASTEC installer into the container
+COPY astecV3.1.2_linux64.tar.gz /tmp/
+
+# Unzip and install ASTEC
+RUN tar -xzf /tmp/astecV3.1.2_linux64.tar.gz -C $ASTEC_ROOT && \
+    rm /tmp/astecV3.1.2_linux64.tar.gz && \
+    chmod +x $ASTEC_ROOT/install.sh && \
+    $ASTEC_ROOT/install.sh
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt

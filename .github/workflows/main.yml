@@ -51,9 +51,10 @@ jobs:
        - name: Checkout code
          uses: actions/checkout@v3
 
-       # Step 2: Build the Docker container
-       - name: Build Docker container for tests
-         run: docker build -t assas-database-test .
+       # Step 2: Build the Docker container for Unit Tests
+       - name: Build Docker container for Unit Tests
+         run: |
+          docker build --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" -t assas-database-test .
       
        # Step 3: Set up Python
        - name: Set up Python
