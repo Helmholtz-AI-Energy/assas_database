@@ -46,7 +46,7 @@ WORKDIR /app
 RUN git submodule update --init --recursive
 RUN git lfs install
 RUN git lfs pull
-RUN ls -l /app/test/test_data/
+RUN ls -l assas_database/test/test_data/
 RUN cat /test/astec_installer/astecV3.1.2_linux64.tgz
 
 COPY requirements.txt .
