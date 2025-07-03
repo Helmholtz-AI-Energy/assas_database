@@ -33,16 +33,22 @@ RUN mkdir -p /root/.ssh && \
     ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
 # Clone the repository and initialize submodules
-RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git $REPO_PATH
+#RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git $REPO_PATH
 
 # Pull LFS files for the repository and submodules
-RUN cd $REPO_PATH && git lfs install && git lfs pull
+#RUN cd $REPO_PATH && git lfs install && git lfs pull
 
 # Install Python dependencies
-WORKDIR $REPO_PATH
+#WORKDIR $REPO_PATH
+RUN git submodule update --init --recursive
+RUN git lfs install
+RUN git lfs pull
+RUN ls -l /test/astec_installer
+RUN cat /test/astec_installer/astecV3.1.2_linux64.tgz
+
 COPY requirements.txt .
 COPY test/test_data/* /app/test/test_data/
-COPY test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
+#COPY test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
 
 
 # Pull LFS files for the submodule
