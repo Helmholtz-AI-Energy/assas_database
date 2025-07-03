@@ -38,7 +38,12 @@ RUN git clone git@github.com:ke4920/assas_database.git /app
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y sshpass
-RUN sshpass -p "R.adio_!1234" ssh -o StrictHostKeyChecking=no ke4920@os-login.lsdf.kit.edu "ls -l"
+RUN sshpass -p "R.adio_!1234" scp -o StrictHostKeyChecking=no ke4920@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/backup_mongodb/* /opt/astec_installer/backup_mongodb/*
+RUN ls -l /opt/astec_installer/backup_mongodb
+
+RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip install ruff
+
 # Install Python dependencies
 #WORKDIR $REPO_PATH
 #RUN git checkout origin/feature_improve_netcdf4_conversion
