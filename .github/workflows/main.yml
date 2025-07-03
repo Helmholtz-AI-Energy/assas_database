@@ -36,11 +36,15 @@ jobs:
       # Step 2: Build the Docker container
       - name: Build Docker container for Ruff
         run: |
-          docker build --no-cache --progress=plain --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" -t assas-database-ruff . | tee build_ruff.log
+          docker build \
+            --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
+            -t assas-database-ruff .
 
       # Step 3: Run Ruff linting inside the Docker container
       - name: Run Ruff
-        run: docker run --rm assas-database-ruff ruff check . --exclude /app/astecV3.1.2,/app/test/dev_test/
+        run: |
+          docker run --rm assas-database-ruff \
+            ruff check . --exclude /app/astecV3.1.2,/app/test/dev_test/
 
   test:
      name: Run Unit Tests
@@ -54,45 +58,19 @@ jobs:
        # Step 2: Build the Docker container for Unit Tests
        - name: Build Docker container for Unit Tests
          run: |
-          docker build --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" --progress=plain -t assas-database-test . | tee build.log
+          docker build \
+            --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
+            -t assas-database-test .
       
-       # Step 3: Set up Python
-       - name: Set up Python
-         uses: actions/setup-python@v4
-         with:
-           python-version: 3.11  # Specify the Python version
-      
-       # Step 4: Install dependencies
-       - name: Install dependencies
+       # Step 3: Run tests in Docker container
+       - name: Run tests in Docker container
          run: |
-           python -m pip install --upgrade pip
-           pip install -r requirements.txt
-      
-       # Step 5: Change directory to `assas_database`
-       - name: Install assas_database package
-         run: |
-          pip install -e .
-
-       # Step 6: Run unit tests
-       - name: Run tests
-         env:
-          ASTEC_ROOT: /app/astecV3.1.2
-         run: |
-          python test/test_astec_archive.py
-          python test/test_database_handler.py
-          python test/test_document_file.py
-          python test/test_database_manager.py
-          python test/test_conversion_handler.py
-          python test/test_odessa_netcdf4_converter.py
-       
-       - name: Upload HTML test report
-         uses: actions/upload-artifact@v4
-         with:
-          name: html-test-report
-          path: test_reports/
-
-       - name: Upload test log
-         uses: actions/upload-artifact@v4
-         with:
-          name: test-log
-          path: test/log/
+          docker run --rm \
+            -e ASTEC_ROOT=/app/astecV3.1.2 \
+            assas-database-test \
+            bash -c "python test/test_astec_archive.py && \
+                     python test/test_database_handler.py && \
+                     python test/test_document_file.py && \
+                     python test/test_database_manager.py && \
+                     python test/test_conversion_handler.py && \
+                     python test/test_odessa_netcdf4_converter.py"
