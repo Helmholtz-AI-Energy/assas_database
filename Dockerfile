@@ -47,8 +47,10 @@ RUN git submodule update --init --recursive
 RUN git lfs install
 RUN git lfs pull
 RUN ls -l test
+RUN ls -l test/astec_installer
 RUN ls -l /app
 RUN ls -l /app/test
+RUN ls -l /app/test/astec_installer
 
 COPY requirements.txt .
 COPY test/test_data/* /app/test/test_data/
