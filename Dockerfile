@@ -32,9 +32,13 @@ RUN mkdir -p /root/.ssh && \
     ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
 # Clone the main repository
-#WORKDIR /app
+WORKDIR /app
 #COPY . /app
 #RUN echo "Listing files in /app:" && ls -l /app/
+
+# Install Python dependencies
+COPY requirements.txt .
+#RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Initialize and update the submodule
 RUN git submodule update --init --recursive
@@ -43,7 +47,7 @@ RUN git submodule update --init --recursive
 RUN git lfs install && git lfs pull
 
 # Copy the ASTEC installer into the container
-COPY ./test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
+COPY test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
 
 # Move the submodule to the desired location
 #RUN mkdir -p $ASTEC_ROOT && cp -r -v ./test/astec_installer/* $ASTEC_ROOT && ls -l $ASTEC_ROOT
