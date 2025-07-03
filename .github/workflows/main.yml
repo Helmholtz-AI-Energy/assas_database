@@ -36,7 +36,7 @@ jobs:
       # Step 2: Build the Docker container
       - name: Build Docker container for Ruff
         run: |
-          docker build --ssh default -t assas-database-ruff .
+          docker build --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" -t assas-database-ruff .
 
       # Step 3: Run Ruff linting inside the Docker container
       - name: Run Ruff

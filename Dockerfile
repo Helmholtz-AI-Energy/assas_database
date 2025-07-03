@@ -5,7 +5,6 @@ FROM ubuntu:20.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ASTEC_ROOT=/opt/astec_installer
 
-# Install dependencies
 RUN apt-get update && apt-get install -y \
     git \
     openssh-client \
@@ -15,8 +14,12 @@ RUN apt-get update && apt-get install -y \
     git-lfs \
     && rm -rf /var/lib/apt/lists/*
 
-# Enable SSH forwarding
-RUN --mount=type=ssh git submodule update --init --recursive
+# Add SSH key from build argument
+ARG SSH_PRIVATE_KEY
+RUN mkdir -p /root/.ssh && \
+    echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
+    chmod 600 /root/.ssh/id_rsa && \
+    ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
 
 # Clone the main repository
 WORKDIR /app
