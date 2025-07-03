@@ -61,6 +61,7 @@ COPY test/test_data/* /app/test/test_data/
 
 # Copy the ASTEC installer into the container
 #COPY test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
+RUN apt-get update && apt-get install -y csh
 
 # Move the submodule to the desired location
 RUN mkdir -p $ASTEC_ROOT && cp -r -v test/astec_installer/* $ASTEC_ROOT && ls -l $ASTEC_ROOT
@@ -70,7 +71,7 @@ RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64
 RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
 RUN file $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
 RUN chmod +x $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
-RUN $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN csh $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
 
 # Copy the ASTEC installer into the container
 #COPY ./test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
