@@ -5,10 +5,31 @@ the AssasOdessaNetCDF4Converter class.
 """
 
 import unittest
-from pathlib import Path
+import logging
 import shutil
 import tempfile
+import HtmlTestRunner
+
+from pathlib import Path
+from logging.handlers import RotatingFileHandler
+
 from assasdb import AssasOdessaNetCDF4Converter
+
+# Configure rotating file logging
+log_dir = Path(__file__).parent / "log"
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / (Path(__file__).stem + ".log")
+log_handler = RotatingFileHandler(
+    log_file,
+    maxBytes=1024 * 1024,
+    backupCount=3,  # 1MB per file, 3 backups
+)
+log_format = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+log_handler.setFormatter(log_format)
+logging.basicConfig(
+    level=logging.DEBUG,
+    handlers=[log_handler, logging.StreamHandler()],  # Log to file and console
+)
 
 
 class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
@@ -50,7 +71,6 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         """Clean up temporary directories and files."""
         shutil.rmtree(self.fake_tmp_dir, ignore_errors=True)
 
-    @unittest.skip("skip test unit docker has astec installation")
     def test_convert_astec_archive(self):
         """Test converting the ASTEC archive to NetCDF4 format."""
         # Ensure the input file exists
@@ -83,4 +103,10 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(
+        testRunner=HtmlTestRunner.HTMLTestRunner(
+            output="test_reports",  # Directory for HTML reports
+            report_title="AssasOdessaNetCDF4Converter Test Report",
+            descriptions=True,
+        )
+    )
