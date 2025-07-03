@@ -170,5 +170,3 @@ test_reports/
 
 # VS Code
 .vscode/
-
-/test/astec_installer/astecV3.1.2_linux64.tgz

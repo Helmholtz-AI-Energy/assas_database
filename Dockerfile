@@ -1,14 +1,35 @@
-FROM python:3.11-slim
+# Use a base image
+FROM ubuntu:20.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ASTEC_ROOT=/opt/astec_installer
 
 # Install dependencies
-RUN apt-get update && apt-get install -y git && apt-get clean
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    python3 \
+    python3-pip \
+    git-lfs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone the main repository
+WORKDIR /app
+COPY . /app
+
+# Initialize and update the submodule
+RUN git submodule update --init --recursive
+
+# Pull LFS files for the submodule
+RUN git lfs install && git lfs pull
+
+# Move the submodule to the desired location
+RUN mkdir -p $ASTEC_ROOT && cp -r test/astec_installer/* $ASTEC_ROOT
 
 # Install Python dependencies
-#COPY requirements.txt /app/requirements.txt
-#RUN pip install --no-cache-dir -r /app/requirements.txt
-
-# Install Ruff and pytest explicitly
-RUN pip install --no-cache-dir ruff pytest
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Set the working directory
 WORKDIR /app
