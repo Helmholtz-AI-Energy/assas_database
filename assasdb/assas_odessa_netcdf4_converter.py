@@ -207,7 +207,7 @@ class AssasOdessaNetCDF4Converter:
             "vessel_fuel_stat": self.parse_variable_vessel_fuel_stat,
             "vessel_trup": AssasOdessaNetCDF4Converter.parse_variable_vessel_trup,
             "private_assas_param": (
-                AssasOdessaNetCDF4Converter.parse_variable_private_assas_param,
+                AssasOdessaNetCDF4Converter.parse_variable_private_assas_param
             ),
         }
 
