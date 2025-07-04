@@ -46,7 +46,9 @@ RUN sshpass -p "${LSDF_PWD}" scp -r -o StrictHostKeyChecking=no ${LSDF_USER}@os-
 RUN ls -l ${ASTEC_ROOT}
 
 RUN pip3 install --no-cache-dir -r requirements.txt
-RUN pip install ruff
+RUN pip3 install ruff
+RUN pip3 install -e .
+RUN pip3 list
 
 # Altervative via gitlfs submodule if budget is available
 #WORKDIR $REPO_PATH

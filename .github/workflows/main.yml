@@ -44,7 +44,7 @@ jobs:
       - name: Run Ruff
         run: |
           docker run --rm assas-database-ruff \
-            ruff check . --exclude /app/astecV3.1.2,/app/test/dev_test/
+            ruff check . --exclude /app/test/dev_test/
 
   test:
      name: Run Unit Tests
@@ -70,9 +70,9 @@ jobs:
           docker run --rm \
             -e ASTEC_ROOT=/app/astecV3.1.2 \
             assas-database-test \
-            bash -c "python test/test_astec_archive.py && \
-                     python test/test_database_handler.py && \
-                     python test/test_document_file.py && \
-                     python test/test_database_manager.py && \
-                     python test/test_conversion_handler.py && \
-                     python test/test_odessa_netcdf4_converter.py"
+            bash -c "python3.11 test/test_astec_archive.py && \
+                     python3.11 test/test_database_handler.py && \
+                     python3.11 test/test_document_file.py && \
+                     python3.11 test/test_database_manager.py && \
+                     python3.11 test/test_conversion_handler.py && \
+                     python3.11 test/test_odessa_netcdf4_converter.py"
