@@ -42,8 +42,8 @@ WORKDIR /app
 
 RUN mkdir -p ${ASTEC_ROOT}
 RUN apt-get update && apt-get install -y sshpass
-RUN sshpass -p "${LSDF_PWD}" scp -r -o StrictHostKeyChecking=no ${LSDF_USER}@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/backup_mongodb ${ASTEC_ROOT}
-RUN ls -l /opt/astec_installer/backup_mongodb
+RUN sshpass -p "${LSDF_PWD}" scp -r -o StrictHostKeyChecking=no ${LSDF_USER}@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/tmp/astec_installer/astecV3.1.2_linux64.tgz ${ASTEC_ROOT}
+RUN ls -l ${ASTEC_ROOT}
 
 RUN pip3 install --no-cache-dir -r requirements.txt
 RUN pip install ruff
@@ -66,17 +66,17 @@ RUN pip install ruff
 #RUN pip install ruff
 
 # Install C shell for ASTEC installer
-#RUN apt-get update && apt-get install -y csh
+RUN apt-get update && apt-get install -y csh
 
 # Move the submodule to the desired location
 #RUN mkdir -p $ASTEC_ROOT && cp -r -v test/astec_installer/* $ASTEC_ROOT && ls -l $ASTEC_ROOT
-#RUN tar -xzf $ASTEC_ROOT/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT 
-#RUN ls -l $ASTEC_ROOT
-#RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64
-#RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
-#RUN file $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
-#RUN chmod +x $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
-#RUN csh $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN tar -xzf $ASTEC_ROOT/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT 
+RUN ls -l $ASTEC_ROOT
+RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64
+RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN file $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN chmod +x $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN csh $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
 
 # Copy the ASTEC installer into the container
 #COPY ./test/astec_installer/astecV3.1.2_linux64.tgz /tmp/
