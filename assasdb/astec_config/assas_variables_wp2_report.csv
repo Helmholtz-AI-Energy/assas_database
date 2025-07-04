@@ -230,3 +230,8 @@
 51,Q_fp_Zn,mean mass flowrate of Zn,55,[kg/s],connecti fp,connecti_source_fp,none,
 52,Q_fp_Zr,mean mass flowrate of Zr,56,[kg/s],connecti fp,connecti_source_fp,none,
 0,vessel_rupture_time,time of vessel rupture,trup,[s],global,vessel_trup,none,
+0,opensrv,opensrv,opensrv,[-],private,private_assas_param,none,
+1,p_u5,p_u5,p_u5,[-],private,private_assas_param,none,
+2,t1_srv,t1_srv,t1_srv,[-],private,private_assas_param,none,
+3,t2_srv,t2_srv,t2_srv,[-],private,private_assas_param,none,
+4,t_fbseb,t_fbseb,t_fbseb,[-],private,private_assas_param,none,

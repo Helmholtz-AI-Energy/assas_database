@@ -206,6 +206,9 @@ class AssasOdessaNetCDF4Converter:
             "vessel_clad_stat": self.parse_variable_vessel_clad_stat,
             "vessel_fuel_stat": self.parse_variable_vessel_fuel_stat,
             "vessel_trup": AssasOdessaNetCDF4Converter.parse_variable_vessel_trup,
+            "private_assas_param": (
+                AssasOdessaNetCDF4Converter.parse_variable_private_assas_param,
+            ),
         }
 
     def get_time_points(self) -> List[int]:
@@ -278,6 +281,7 @@ class AssasOdessaNetCDF4Converter:
             "astec_config/inr/assas_variables_connecti.csv",
             "astec_config/inr/assas_variables_connecti_source_fp.csv",
             "astec_config/inr/assas_variables_sequence.csv",
+            "astec_config/inr/assas_variables_private_assas_param.csv",
         ]
 
         dataframe_list = []
@@ -2392,6 +2396,40 @@ class AssasOdessaNetCDF4Converter:
         if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
             odessa_base=odessa_base,
             odessa_path=odessa_path,
+        ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f"Collect variable structure {variable_structure}.")
+            array = np.array([variable_structure])
+
+        else:
+            logger.debug(
+                f"Variable {variable_name} not in odessa base, fill array with np.nan."
+            )
+            array = np.array([np.nan])
+
+        return array
+
+    @staticmethod
+    def parse_variable_private_assas_param(
+        odessa_base,  # TODO: fix type hint
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from private ASSAS parameters.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(f"Parse ASTEC variable {variable_name}, type private_assas_param.")
+
+        odessa_path = f"PRIVATE 1: ASSASpar 1: {variable_name} 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base, odessa_path
         ):
             variable_structure = odessa_base.get(odessa_path)
             logger.debug(f"Collect variable structure {variable_structure}.")
