@@ -47,7 +47,7 @@ class AssasAstecArchive:
         self._result_path = result_path
 
     @property
-    def upload_uuid(self):
+    def upload_uuid(self) -> uuid4:
         """Return the UUID of the upload.
 
         Returns:
@@ -57,7 +57,7 @@ class AssasAstecArchive:
         return self._upload_uuid
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Return the name of the archive.
 
         Returns:
@@ -67,7 +67,7 @@ class AssasAstecArchive:
         return self._name
 
     @property
-    def date(self):
+    def date(self) -> str:
         """Return the date of the upload.
 
         Returns:
@@ -77,7 +77,7 @@ class AssasAstecArchive:
         return self._date
 
     @property
-    def user(self):
+    def user(self) -> str:
         """Return the user who uploaded the archive.
 
         Returns:
@@ -87,7 +87,7 @@ class AssasAstecArchive:
         return self._user
 
     @property
-    def description(self):
+    def description(self) -> str:
         """Return the description of the archive.
 
         Returns:
@@ -97,7 +97,7 @@ class AssasAstecArchive:
         return self._description
 
     @property
-    def archive_path(self):
+    def archive_path(self) -> str:
         """Return the path to the archive.
 
         Returns:
@@ -107,7 +107,7 @@ class AssasAstecArchive:
         return self._archive_path
 
     @property
-    def result_path(self):
+    def result_path(self) -> str:
         """Return the path to the result file.
 
         Returns:

@@ -41,7 +41,7 @@ class AssasConversionHandler:
         debug: bool = False,
         lsdf_data_dir: str = LSDF_DATA_DIR,
         lsdf_backup_dir: str = LSDF_BACKUP_DIR,
-    ):
+    ) -> None:
         """Initialize the AssasSingleConverter class."""
         self.lsdf_data_dir = lsdf_data_dir
         self.lsdf_backup_dir = lsdf_backup_dir
@@ -92,11 +92,11 @@ class AssasConversionHandler:
         )
         self.log_config_info()
 
-    def close_resources(self):
+    def close_resources(self) -> None:
         """Close resources used by the handler."""
         self.database_handler.close()
 
-    def log_config_info(self):
+    def log_config_info(self) -> None:
         """Log the configuration information."""
         logger.info(f"upload_uuid: {str(self.upload_uuid)}")
         logger.info(f"input_path: {str(self.input_path)}")

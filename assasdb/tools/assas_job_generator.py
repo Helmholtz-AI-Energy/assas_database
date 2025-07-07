@@ -194,7 +194,7 @@ def get_job_parameter_list(
 def generate_job_file(
     job_directory: str,
     entry: pd.Series,
-    limit_samples,
+    limit_samples: int,
 ) -> None:
     """Generate a job file for the given entry.
 
@@ -316,7 +316,7 @@ def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
         logger.error(f"Unexpected error: {e}")
 
 
-def extract_upload_uuid(job_name):
+def extract_upload_uuid(job_name: str) -> str:
     """Extract the upload UUID from the job name.
 
     Assumes the job name contains the UUID in a specific format.
@@ -694,11 +694,11 @@ if __name__ == "__main__":
             squeue_df[squeue_df["status_code"] == SlurmJobState.COMPLETED.value]
         )
         logger.info(
-            f"""Information from squeue:
-                Total number of jobs in squeue: {len(squeue_df)}.
-                Number of running jobs in squeue: {running_jobs}.
-                Number of pending jobs in squeue: {pending_jobs}.
-                Number of completed jobs in squeue: {completed_jobs}."""
+            f"Information from squeue:\n"
+            f"Total number of jobs in squeue: {len(squeue_df)}.\n"
+            f"Number of running jobs in squeue: {running_jobs}.\n"
+            f"Number of pending jobs in squeue: {pending_jobs}.\n"
+            f"Number of completed jobs in squeue: {completed_jobs}."
         )
 
     elif args.action == "dependencies":
@@ -712,8 +712,8 @@ if __name__ == "__main__":
 
     else:
         logger.error(
-            f"""Invalid action: {args.action}.
-            Choose from 'generate', 'submit', 'cancel', or 'dependencies'."""
+            f"Invalid action: {args.action}. "
+            "Choose from 'generate', 'submit', 'cancel', or 'dependencies'."
         )
 
     logger.info("Script execution completed.")

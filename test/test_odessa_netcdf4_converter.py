@@ -27,8 +27,9 @@ log_handler = RotatingFileHandler(
 log_format = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
 log_handler.setFormatter(log_format)
 logging.basicConfig(
-    level=logging.DEBUG,
-    handlers=[log_handler, logging.StreamHandler()],  # Log to file and console
+    level=logging.INFO,
+    handlers=[log_handler, logging.StreamHandler()],
+    force=True  # Log to file and console
 )
 
 
@@ -38,7 +39,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
     This class tests the conversion of ASTEC archives to NetCDF4 format.
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up the test environment."""
         # Path to the test ASTEC archive
 
@@ -67,11 +68,11 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             output_path=self.fake_output_path,
         )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary directories and files."""
         shutil.rmtree(self.fake_tmp_dir, ignore_errors=True)
 
-    def test_convert_astec_archive(self):
+    def test_convert_astec_archive(self) -> None:
         """Test converting the ASTEC archive to NetCDF4 format."""
         # Ensure the input file exists
         self.assertTrue(
@@ -82,7 +83,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         try:
             self.converter.convert_astec_variables_to_netcdf4()
         except Exception as e:
-            self.fail(f"Conversion failed with exception: {e}")
+            self.fail(f"Conversion failed with exception: {e}.")
 
         # Verify that the output file is created
         self.assertTrue(

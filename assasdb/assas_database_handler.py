@@ -9,8 +9,13 @@ import os
 import logging
 import bson
 
+from typing import List
 from pymongo import MongoClient
+from pymongo.collection import Collection
 from pymongo.errors import BulkWriteError
+from pymongo.database import Database
+from pymongo.cursor import Cursor
+from pymongo.results import InsertOneResult, UpdateResult, DeleteResult
 from bson.objectid import ObjectId
 from uuid import uuid4
 from pathlib import Path
@@ -83,7 +88,7 @@ class AssasDatabaseHandler:
             logger.info("Restoring collections from backup files.")
             self.restore_collections()
 
-    def close(self):
+    def close(self)-> None:
         """Safely close the MongoClient."""
         if self.client is not None:
             logger.info("Closing MongoDB client.")
@@ -91,7 +96,7 @@ class AssasDatabaseHandler:
 
     def dump_collections(
         self,
-        collection_names,
+        collection_names: List[str],
     ) -> None:
         """Dump specified collections into backup files in the backup directory.
 
@@ -160,7 +165,10 @@ class AssasDatabaseHandler:
                 f"Restored collection {collection.split('.')[0]} from backup file."
             )
 
-    def read_collection_from_backup(self, collection_file="files.bson") -> None:
+    def read_collection_from_backup(
+        self,
+        collection_file: str = "files.bson",
+    ) -> List[dict]:
         """Read a collection from a backup file.
 
         Args:
@@ -180,7 +188,7 @@ class AssasDatabaseHandler:
 
         return collection
 
-    def list_database_names(self):
+    def list_database_names(self)-> List[str]:
         """List all database names in the MongoDB client.
 
         Args:
@@ -201,7 +209,7 @@ class AssasDatabaseHandler:
         logger.info(f"Listing database names: {db_names}")
         return db_names
 
-    def get_db_handle(self):
+    def get_db_handle(self)-> Database:
         """Return the database handle.
 
         Args:
@@ -216,7 +224,7 @@ class AssasDatabaseHandler:
         """
         return self.db_handle
 
-    def get_file_collection(self):
+    def get_file_collection(self) -> Collection | None:
         """Return the file collection.
 
         Args:
@@ -236,7 +244,7 @@ class AssasDatabaseHandler:
         logger.info("Returning file collection.")
         return self.file_collection
 
-    def get_all_file_documents(self):
+    def get_all_file_documents(self) -> Cursor | None:
         """Return all file documents in the file collection.
 
         Args:
@@ -256,7 +264,7 @@ class AssasDatabaseHandler:
         logger.info("Returning all file documents.")
         return self.file_collection.find()
 
-    def insert_file_document(self, file: dict):
+    def insert_file_document(self, file: dict) -> InsertOneResult:
         """Insert a file document into the file collection.
 
         Args:
@@ -270,9 +278,9 @@ class AssasDatabaseHandler:
 
         """
         logger.info(f"Insert file document: {file}.")
-        self.file_collection.insert_one(file)
+        return self.file_collection.insert_one(file)
 
-    def drop_file_collection(self):
+    def drop_file_collection(self) -> None:
         """Drop the file collection.
 
         Args:
@@ -288,7 +296,7 @@ class AssasDatabaseHandler:
         logger.info("Dropping file collection.")
         self.file_collection.drop()
 
-    def get_file_document(self, id: str):
+    def get_file_document(self, id: str) -> dict | None:
         """Return a file document by its ID.
 
         Args:
@@ -303,7 +311,7 @@ class AssasDatabaseHandler:
         """
         return self.file_collection.find_one(ObjectId(id))
 
-    def get_file_document_by_uuid(self, uuid: uuid4):
+    def get_file_document_by_uuid(self, uuid: uuid4) -> dict | None:
         """Return a file document by its UUID.
 
         Args:
@@ -321,7 +329,7 @@ class AssasDatabaseHandler:
     def get_file_document_by_upload_uuid(
         self,
         upload_uuid: uuid4,
-    ):
+    ) -> dict | None:
         """Return a file document by its upload UUID.
 
         Args:
@@ -340,7 +348,7 @@ class AssasDatabaseHandler:
     def get_file_documents_by_upload_uuid(
         self,
         upload_uuid: uuid4,
-    ):
+    ) -> dict | None:
         """Return file documents by their upload UUID.
 
         Args:
@@ -356,7 +364,7 @@ class AssasDatabaseHandler:
         """
         return self.file_collection.find({"system_upload_uuid": str(upload_uuid)})
 
-    def get_file_document_by_path(self, path: str):
+    def get_file_document_by_path(self, path: str) -> dict | None:
         """Return a file document by its system path.
 
         Args:
@@ -371,7 +379,7 @@ class AssasDatabaseHandler:
         """
         return self.file_collection.find_one({"system_path": path})
 
-    def get_file_documents_by_status(self, status: str):
+    def get_file_documents_by_status(self, status: str) -> Cursor:
         """Return file documents by their system status.
 
         Args:
@@ -389,7 +397,7 @@ class AssasDatabaseHandler:
     def get_file_documents_to_update_size(
         self,
         update_key: str = "...",
-    ):
+    ) -> Cursor:
         """Return file documents that need their system size updated.
 
         Args:
@@ -405,7 +413,10 @@ class AssasDatabaseHandler:
         """
         return self.file_collection.find({"system_size": update_key})
 
-    def get_file_documents_to_collect_number_of_samples(self, system_status: str):
+    def get_file_documents_to_collect_number_of_samples(
+        self,
+        system_status: str
+    ) -> Cursor:
         """Return file documents that need their number of samples collected.
 
         Args:
@@ -431,7 +442,7 @@ class AssasDatabaseHandler:
 
     def get_file_documents_to_collect_completed_number_of_samples(
         self, system_status: str
-    ):
+    )-> Cursor:
         """Return file documents that need their number of samples collected.
 
         Args:
@@ -457,7 +468,7 @@ class AssasDatabaseHandler:
 
     def get_file_documents_to_collect_meta_data(
         self,
-    ):
+    ) -> Cursor:
         """Return file documents that need their meta data collected.
 
         Args:
@@ -480,7 +491,7 @@ class AssasDatabaseHandler:
             }
         )
 
-    def update_file_document_by_uuid(self, uuid: uuid4, update: dict):
+    def update_file_document_by_uuid(self, uuid: uuid4, update: dict) -> UpdateResult:
         """Update a file document by its UUID.
 
         Args:
@@ -497,7 +508,7 @@ class AssasDatabaseHandler:
         post = {"$set": update}
         return self.file_collection.update_one({"system_uuid": str(uuid)}, post)
 
-    def update_file_document_by_path(self, path: str, update: dict):
+    def update_file_document_by_path(self, path: str, update: dict) -> UpdateResult:
         """Update a file document by its system path.
 
         Args:
@@ -514,7 +525,11 @@ class AssasDatabaseHandler:
         post = {"$set": update}
         return self.file_collection.update_one({"system_path": path}, post)
 
-    def update_file_document_by_upload_uuid(self, upload_uuid: uuid4, update: dict):
+    def update_file_document_by_upload_uuid(
+        self,
+        upload_uuid: uuid4,
+        update: dict
+    ) -> UpdateResult:
         """Update a file document by its upload UUID.
 
         Args:
@@ -538,7 +553,7 @@ class AssasDatabaseHandler:
     def unset_meta_data_variables(
         self,
         system_uuid: uuid4,
-    ):
+    ) -> UpdateResult:
         """Unset the meta data variables for a file document by its system UUID.
 
         Args:
@@ -555,7 +570,7 @@ class AssasDatabaseHandler:
             {"system_uuid": str(system_uuid)}, {"$unset": {"meta_data_variables": ""}}
         )
 
-    def delete_file_document(self, id: str):
+    def delete_file_document(self, id: str) -> DeleteResult:
         """Delete a file document by its ID.
 
         Args:
@@ -570,7 +585,7 @@ class AssasDatabaseHandler:
         """
         return self.file_collection.delete_one({"_id": ObjectId(id)})
 
-    def delete_file_document_by_uuid(self, uuid: uuid4):
+    def delete_file_document_by_uuid(self, uuid: uuid4) -> DeleteResult:
         """Delete a file document by its UUID.
 
         Args:
@@ -585,7 +600,7 @@ class AssasDatabaseHandler:
         """
         return self.file_collection.delete_one({"system_uuid": str(uuid)})
 
-    def delete_file_document_by_upload_uuid(self, upload_uuid: uuid4):
+    def delete_file_document_by_upload_uuid(self, upload_uuid: uuid4) -> DeleteResult:
         """Delete a file document by its upload UUID.
 
         Args:
@@ -601,7 +616,7 @@ class AssasDatabaseHandler:
         """
         return self.file_collection.delete_one({"system_upload_uuid": str(upload_uuid)})
 
-    def delete_file_documents_by_upload_uuid(self, upload_uuid: uuid4):
+    def delete_file_documents_by_upload_uuid(self, upload_uuid: uuid4) -> DeleteResult:
         """Delete all file documents by their upload UUID.
 
         Args:

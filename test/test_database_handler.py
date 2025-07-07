@@ -40,7 +40,7 @@ logging.basicConfig(
 class MockMongoClient:
     """Mock MongoDB client for testing AssasDatabaseHandler."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the mock MongoDB client."""
         # Mock the database and collection
         self.mock_db = MagicMock(spec=Database)
@@ -49,7 +49,7 @@ class MockMongoClient:
         # Configure the database to return the mocked collection
         self.mock_db.__getitem__.return_value = self.mock_collection
 
-    def __getitem__(self, name):
+    def __getitem__(self, name: str) -> MagicMock:
         """Return the mocked collection for the given name.
 
         Args:
@@ -67,7 +67,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
     """Unit tests for the AssasDatabaseHandler class."""
 
     @patch("pymongo.MongoClient")
-    def setUp(self, mock_mongo_client):
+    def setUp(self, mock_mongo_client: MagicMock) -> None:
         """Set up the test environment for AssasDatabaseHandler.
 
         This includes creating a mock MongoDB client, setting up the backup directory,
@@ -96,11 +96,11 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
 
         self.database_handler.drop_file_collection()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up after each test case."""
         self.database_handler = None
 
-    def test_insert_file_document(self):
+    def test_insert_file_document(self) -> None:
         """Test case to insert a document into the mocked database."""
         # Mock document
         document = {"system_uuid": "123e4567-e89b-12d3-a456-426614174000"}
@@ -112,7 +112,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         collection = self.mock_client.mock_collection
         collection.insert_one.assert_called_once_with(document)
 
-    def test_database_handler_insert_and_find(self):
+    def test_database_handler_insert_and_find(self) -> None:
         """Test case to insert a document into the mocked database and retrieve it."""
         # Step 1: Create a test document
         test_document = AssasDocumentFile.get_test_document_file()
@@ -131,7 +131,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         # Step 5: Assert that the retrieved document matches the test document
         self.assertEqual(test_document, found_document)
 
-    def test_insert_and_delete_document_with_mock(self):
+    def test_insert_and_delete_document_with_mock(self) -> None:
         """Test case to verify the insert and delete operations.
 
         This test case uses a mocked MongoDB client to simulate the database operations.
@@ -188,7 +188,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         )
         self.assertIsNone(found_document)
 
-    def test_get_file_document_by_uuid_with_mock(self):
+    def test_get_file_document_by_uuid_with_mock(self) -> None:
         """Test case to verify the get_file_document_by_uuid function.
 
         This test case uses a mocked MongoDB client to simulate the find operation.
@@ -218,7 +218,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
             {"system_uuid": uuid}
         )
 
-    def test_delete_file_document_by_upload_uuid_with_mock(self):
+    def test_delete_file_document_by_upload_uuid_with_mock(self) -> None:
         """Test case to verify the delete_file_document_by_upload_uuid function.
 
         This test case uses a mocked MongoDB client to simulate the delete operation.
@@ -244,7 +244,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
             {"system_upload_uuid": str(upload_uuid)}
         )
 
-    def test_dump_collections_with_mock(self):
+    def test_dump_collections_with_mock(self) -> None:
         """Test case to verify the dump_collections function.
 
         This test case uses a mocked MongoDB client to simulate the find operation.
@@ -266,7 +266,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         # Step 3: Verify the find operation was called on the correct collection
         self.mock_client.mock_collection.find.assert_called_once()
 
-    def test_restore_collections_with_mock(self):
+    def test_restore_collections_with_mock(self) -> None:
         """Test case to verify the restore_collections function.
 
         This test case uses a mocked MongoDB client to simulate the insert operation.
@@ -286,7 +286,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         self.mock_client.mock_collection.replace_one.assert_called()
 
     @unittest.skip("Skipping test_restore_collection_from_backup for now.")
-    def test_restore_collection_from_backup(self):
+    def test_restore_collection_from_backup(self) -> None:
         """Test case to verify the restore_collection_from_backup function."""
         database_handler = AssasDatabaseHandler(
             database_name="assas_dev",
@@ -317,7 +317,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
             "Data frames should be equal",
         )
 
-    def test_close_resources(self):
+    def test_close_resources(self) -> None:
         """Test that MongoClient.close() is called."""
         mock_client = MagicMock()
         handler = AssasDatabaseHandler(client=mock_client)

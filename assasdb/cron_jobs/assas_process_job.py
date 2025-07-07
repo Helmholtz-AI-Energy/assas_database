@@ -10,12 +10,13 @@ import datetime
 import logging
 
 os.environ["ASTEC_ROOT"] = "/root/astecV3.1.2"
+os.environ["ASTEC_TYPE"] = "linux64"
 
 from assasdb import AssasDatabaseManager, AssasDatabaseHandler
 
 
 def setup_logging(
-    level=logging.INFO,  # Default logging level
+    level: int = logging.INFO,
 ) -> None:
     """Set up logging configuration."""
     logging.basicConfig(

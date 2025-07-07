@@ -11,6 +11,8 @@ import shutil
 from logging.handlers import RotatingFileHandler
 from unittest.mock import patch
 from pathlib import Path
+from unittest.mock import MagicMock
+
 from assasdb.tools.assas_conversion_handler import AssasConversionHandler
 
 # Configure rotating file logging
@@ -39,7 +41,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
     """
 
     @patch("assasdb.tools.assas_conversion_handler.LSDF_BACKUP_DIR", new="")
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up the test environment with fake directories and mocked dependencies."""
         self.fake_lsdf_data_dir = tempfile.mkdtemp()
         self.fake_tmp_dir = tempfile.mkdtemp()
@@ -104,7 +106,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
             lsdf_backup_dir=self.fake_mongodb_backup_dir,
         )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         """Clean up temporary directories and files."""
         # Call the handler's cleanup method if it exists
 
@@ -118,13 +120,13 @@ class AssasConversionHandlerTest(unittest.TestCase):
         shutil.rmtree(self.fake_tmp_dir, ignore_errors=True)
         shutil.rmtree(self.fake_mongodb_backup_dir, ignore_errors=True)
 
-    def test_lsdf_backup_dir_override(self):
+    def test_lsdf_backup_dir_override(self) -> None:
         """Test that LSDF_BACKUP_DIR is correctly overridden."""
         # self.assertEqual(os.environ["LSDF_BACKUP_DIR"], self.fake_mongodb_backup_dir)
         self.assertEqual(self.handler.lsdf_backup_dir, self.fake_mongodb_backup_dir)
 
     @patch("os.makedirs")
-    def test_setup_logging(self, mock_makedirs):
+    def test_setup_logging(self, mock_makedirs: MagicMock) -> None:
         """Test the setup_logging method."""
         self.handler.setup_logging(custom_level=logging.DEBUG)
 
@@ -133,7 +135,11 @@ class AssasConversionHandlerTest(unittest.TestCase):
 
     @patch("shutil.copy2")
     @patch("os.walk")
-    def test_copytree_verbose_to_tmp_with_process(self, mock_os_walk, mock_copy2):
+    def test_copytree_verbose_to_tmp_with_process(
+        self,
+        mock_os_walk: MagicMock,
+        mock_copy2: MagicMock,
+    ) -> None:
         """Test the copytree_verbose_to_tmp_with_process method."""
         file_list = [
             "file1.txt",
@@ -154,7 +160,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
         self.assertEqual(tmp_path, str(self.fake_tmp_path))
 
     @patch("assasdb.tools.assas_conversion_handler.copy2")
-    def test_copy2_verbose(self, mock_copy2):
+    def test_copy2_verbose(self, mock_copy2: MagicMock) -> None:
         """Test the copy2_verbose method."""
         source = str(self.fake_input_path / "file1.txt")
         destination = str(self.fake_tmp_path / "file1.txt")
@@ -166,7 +172,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
         mock_copy2.assert_called_once_with(source, destination)
 
     @patch("assasdb.tools.assas_conversion_handler.sync")
-    def test_sync_imput_and_tmp(self, mock_sync):
+    def test_sync_imput_and_tmp(self, mock_sync: MagicMock) -> None:
         """Test the sync_imput_and_tmp method."""
         # Call the method
         self.handler.sync_imput_and_tmp(
@@ -180,7 +186,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
         )
 
     @patch("os.system")
-    def test_remove_tmp(self, mock_os_system):
+    def test_remove_tmp(self, mock_os_system: MagicMock) -> None:
         """Test the remove_tmp method."""
         # Call the method
         self.handler.remove_tmp(tmp_path=str(self.fake_tmp_path))
@@ -195,11 +201,11 @@ class AssasConversionHandlerTest(unittest.TestCase):
     @patch.object(AssasConversionHandler, "remove_tmp")
     def test_handle_conversion(
         self,
-        mock_remove_tmp,
-        mock_odessa_converter,
-        mock_notify_start,
-        notify_invalid_conversion,
-    ):
+        mock_remove_tmp: MagicMock,
+        mock_odessa_converter: MagicMock,
+        mock_notify_start: MagicMock,
+        notify_invalid_conversion: MagicMock,
+    ) -> None:
         """Test the handle_conversion method with mocked AssasOdessaNetCDF4Converter."""
         # Mock the Odessa converter
         mock_converter_instance = mock_odessa_converter.return_value
@@ -218,7 +224,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
         # method.assert_called_once()
 
     @patch("os.system")
-    def test_notify_conversion_start(self, mock_os_system):
+    def test_notify_conversion_start(self, mock_os_system: MagicMock) -> None:
         """Test the notify_valid_conversion method."""
         upload_directory = str(self.fake_lsdf_data_dir)
         upload_uuid = self.fake_upload_uuid
@@ -234,7 +240,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
         )
 
     @patch("os.system")
-    def test_notify_valid_conversion(self, mock_os_system):
+    def test_notify_valid_conversion(self, mock_os_system: MagicMock) -> None:
         """Test the notify_valid_conversion method."""
         upload_directory = str(self.fake_lsdf_data_dir)
         upload_uuid = self.fake_upload_uuid
@@ -250,7 +256,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
         )
 
     @patch("os.system")
-    def test_notify_invalid_conversion(self, mock_os_system):
+    def test_notify_invalid_conversion(self, mock_os_system: MagicMock) -> None:
         """Test the notify_invalid_conversion method."""
         upload_directory = str(self.fake_lsdf_data_dir)
         upload_uuid = self.fake_upload_uuid

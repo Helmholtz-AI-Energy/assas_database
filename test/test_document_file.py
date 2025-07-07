@@ -32,29 +32,29 @@ logging.basicConfig(
 class AssasDocumentFileTest(unittest.TestCase):
     """Unit tests for the AssasDocumentFile class."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up the test environment for AssasDocumentFile."""
         self.initial_document = {"key1": "value1", "key2": "value2"}
         self.assas_document = AssasDocumentFile(self.initial_document)
 
-    def test_get_document(self):
+    def test_get_document(self) -> None:
         """Test the get_document method."""
         document = self.assas_document.get_document()
         self.assertEqual(document, self.initial_document)
         self.assertIsInstance(document, dict)
 
-    def test_set_document(self):
+    def test_set_document(self) -> None:
         """Test the set_document method."""
         new_document = {"key3": "value3", "key4": "value4"}
         self.assas_document.set_document(new_document)
         self.assertEqual(self.assas_document.get_document(), new_document)
 
-    def test_set_document_invalid_type(self):
+    def test_set_document_invalid_type(self) -> None:
         """Test the set_document method with an invalid type."""
         with self.assertRaises(TypeError):
             self.assas_document.set_document(["invalid", "type"])
 
-    def test_extend_document(self):
+    def test_extend_document(self) -> None:
         """Test the extend_document method."""
         additional_data = {"key3": "value3", "key4": "value4"}
         self.assas_document.extend_document(additional_data)
@@ -66,12 +66,12 @@ class AssasDocumentFileTest(unittest.TestCase):
         }
         self.assertEqual(self.assas_document.get_document(), expected_document)
 
-    def test_extend_document_invalid_type(self):
+    def test_extend_document_invalid_type(self) -> None:
         """Test the extend_document method with an invalid type."""
         with self.assertRaises(TypeError):
             self.assas_document.extend_document(["invalid", "type"])
 
-    def test_set_general_meta_values(self):
+    def test_set_general_meta_values(self) -> None:
         """Test the set_general_meta_values method."""
         meta_values = {"meta_name": "meta_value1", "meta_description": "meta_value2"}
         self.assas_document.set_general_meta_values(
@@ -86,7 +86,7 @@ class AssasDocumentFileTest(unittest.TestCase):
         }
         self.assertEqual(self.assas_document.get_document(), expected_document)
 
-    def test_set_general_meta_values_invalid_type(self):
+    def test_set_general_meta_values_invalid_type(self) -> None:
         """Test the set_general_meta_values method with an invalid type."""
         with self.assertRaises(TypeError):
             self.assas_document.set_general_meta_values(["invalid", "type"])

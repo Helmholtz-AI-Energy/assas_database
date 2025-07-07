@@ -67,11 +67,11 @@ class AssasDatabaseManager:
                 "Create it and check your setup."
             )
 
-    def close_resources(self):
+    def close_resources(self) -> None:
         """Close resources used by the handler."""
         self.database_handler.close()
 
-    def get_database_entry_by_upload_uuid(self, upload_uuid: uuid4):
+    def get_database_entry_by_upload_uuid(self, upload_uuid: uuid4) -> dict:
         """Retrieve a database entry by its upload UUID.
 
         Args:
@@ -84,7 +84,7 @@ class AssasDatabaseManager:
         logger.info(f"Get database entry by upload uuid {upload_uuid}.")
         return self.database_handler.get_file_document_by_upload_uuid(upload_uuid)
 
-    def get_database_entry_by_id(self, id: str):
+    def get_database_entry_by_id(self, id: str) -> dict:
         """Retrieve a database entry by its ID.
 
         Args:
@@ -97,7 +97,7 @@ class AssasDatabaseManager:
         logger.info(f"Get database entry by id {id}.")
         return self.database_handler.get_file_document(id)
 
-    def get_database_entry_by_uuid(self, uuid: uuid4):
+    def get_database_entry_by_uuid(self, uuid: uuid4) -> dict:
         """Retrieve a database entry by its UUID.
 
         Args:
@@ -110,7 +110,7 @@ class AssasDatabaseManager:
         logger.info(f"Get database entry by uuid {uuid}.")
         return self.database_handler.get_file_document_by_uuid(uuid)
 
-    def get_database_entry_by_path(self, path: str):
+    def get_database_entry_by_path(self, path: str) -> dict:
         """Retrieve a database entry by its file path.
 
         Args:
@@ -357,7 +357,7 @@ class AssasDatabaseManager:
         return size
 
     @staticmethod
-    def convert_to_bytes(size_str) -> int:
+    def convert_to_bytes(size_str: str) -> int:
         """Convert a size string (e.g., '10 GB', '500 MB', '20 KB') into bytes.
 
         Args:
@@ -944,7 +944,7 @@ class AssasDatabaseManager:
         return success
 
     @staticmethod
-    def remove_lead_slash_from_path_string(path: str):
+    def remove_lead_slash_from_path_string(path: str) -> str:
         """Remove the leading slash from a path string if it exists.
 
         Args:
@@ -1376,7 +1376,7 @@ class AssasDatabaseManager:
         except Exception as exception:
             logger.error(f"Update meta info failed due to exception: {exception}.")
 
-    def update_maximum_index_value_from_valid_archives(self):
+    def update_maximum_index_value_from_valid_archives(self) -> None:
         """Update the maximum index value from all valid archives in the database.
 
         This function retrieves all file documents that are in the VALID state,
@@ -1426,7 +1426,7 @@ class AssasDatabaseManager:
                 f"Update maximum index value failed due to exception: {exception}."
             )
 
-    def collect_maximum_index_value_from_valid_archives(self):
+    def collect_maximum_index_value_from_valid_archives(self) -> None:
         """Update the maximum index value from all valid archives in the database.
 
         This function retrieves all file documents that are in the VALID state,
