@@ -30,9 +30,6 @@ LOG_INTERVAL = 100
 ASTEC_ROOT = os.environ.get("ASTEC_ROOT")
 ASTEC_TYPE = os.environ.get("ASTEC_TYPE")
 
-print("ASTEC_ROOT:", os.environ.get("ASTEC_ROOT"))
-print("ASTEC_TYPE:", os.environ.get("ASTEC_TYPE"))
-
 ASTEC_PYTHON_ODESSA = os.path.join(
     ASTEC_ROOT, "odessa", "bin", ASTEC_TYPE + "-release", "wrap_python"
 )

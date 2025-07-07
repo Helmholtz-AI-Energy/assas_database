@@ -69,10 +69,9 @@ jobs:
          run: |
           docker run --rm \
             -e ASTEC_ROOT=/app/astecV3.1.2 \
-            -e ASTEC_TYPE=linux64 \
+            -e ASTEC_TYPE=linux_64 \
             assas-database-test \
-            bash -c "echo \$ASTEC_ROOT; echo \$ASTEC_TYPE; \
-                     python3.11 test/test_astec_archive.py && \
+            bash -c  python3.11 test/test_astec_archive.py && \
                      python3.11 test/test_database_handler.py && \
                      python3.11 test/test_document_file.py && \
                      python3.11 test/test_database_manager.py && \
