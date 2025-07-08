@@ -88,7 +88,7 @@ class AssasDatabaseHandler:
             logger.info("Restoring collections from backup files.")
             self.restore_collections()
 
-    def close(self)-> None:
+    def close(self) -> None:
         """Safely close the MongoClient."""
         if self.client is not None:
             logger.info("Closing MongoDB client.")
@@ -188,7 +188,7 @@ class AssasDatabaseHandler:
 
         return collection
 
-    def list_database_names(self)-> List[str]:
+    def list_database_names(self) -> List[str]:
         """List all database names in the MongoDB client.
 
         Args:
@@ -209,7 +209,7 @@ class AssasDatabaseHandler:
         logger.info(f"Listing database names: {db_names}")
         return db_names
 
-    def get_db_handle(self)-> Database:
+    def get_db_handle(self) -> Database:
         """Return the database handle.
 
         Args:
@@ -414,8 +414,7 @@ class AssasDatabaseHandler:
         return self.file_collection.find({"system_size": update_key})
 
     def get_file_documents_to_collect_number_of_samples(
-        self,
-        system_status: str
+        self, system_status: str
     ) -> Cursor:
         """Return file documents that need their number of samples collected.
 
@@ -442,7 +441,7 @@ class AssasDatabaseHandler:
 
     def get_file_documents_to_collect_completed_number_of_samples(
         self, system_status: str
-    )-> Cursor:
+    ) -> Cursor:
         """Return file documents that need their number of samples collected.
 
         Args:
@@ -526,9 +525,7 @@ class AssasDatabaseHandler:
         return self.file_collection.update_one({"system_path": path}, post)
 
     def update_file_document_by_upload_uuid(
-        self,
-        upload_uuid: uuid4,
-        update: dict
+        self, upload_uuid: uuid4, update: dict
     ) -> UpdateResult:
         """Update a file document by its upload UUID.
 

@@ -86,7 +86,7 @@ class FakeDatabaseHandler:
         self,
         client: MagicMock,
         backup_directory: str = None,
-    )-> None:
+    ) -> None:
         """Initialize the fake database handler with a client and backup directory."""
         self._collection = FakeMongoCollection()
         self._backup = []

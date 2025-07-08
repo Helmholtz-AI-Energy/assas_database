@@ -7,6 +7,7 @@ and converting seconds into a more human-readable format.
 from collections import namedtuple
 from typing import Iterator
 
+
 class Duration(namedtuple("Duration", "weeks, days, hours, minutes, seconds")):
     """Represent a duration in weeks, days, hours, minutes, and seconds.
 

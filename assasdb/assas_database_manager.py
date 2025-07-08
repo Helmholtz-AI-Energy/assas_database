@@ -1439,26 +1439,24 @@ class AssasDatabaseManager:
 
         """
         logger.info(
-            "Update maximum index value from all valid archives in the database."
+            "Update maximum index value from all converting archives in the database."
         )
         handler = self.database_handler
-        documents_valid = (
-            handler.get_file_documents_to_collect_completed_number_of_samples(
-                system_status=AssasDocumentFileStatus.VALID.value
-            )
+        # documents_valid = (
+        #    handler.get_file_documents_to_collect_completed_number_of_samples(
+        #        system_status=AssasDocumentFileStatus.VALID.value
+        #    )
+        # )
+        # document_files_valid = [
+        #    AssasDocumentFile(document) for document in documents_valid
+        # ]
+        documents_converting = handler.get_file_documents_by_status(
+            status=AssasDocumentFileStatus.CONVERTING.value
         )
-        document_files_valid = [
-            AssasDocumentFile(document) for document in documents_valid
-        ]
-        documents_converting = (
-            handler.get_file_documents_to_collect_completed_number_of_samples(
-                system_status=AssasDocumentFileStatus.CONVERTING.value
-            )
-        )
-        document_files_converting = [
+        document_files = [
             AssasDocumentFile(document) for document in documents_converting
         ]
-        document_files = document_files_valid + document_files_converting
+        # document_files = document_files_valid + document_files_converting
 
         if len(document_files) == 0:
             logger.info("Found no new archive to collect maximum index value.")
@@ -1469,6 +1467,16 @@ class AssasDatabaseManager:
                 f"Collect maximum index value from file, "
                 f"filename is {document_file.get_value('system_result')}."
             )
+            actual_max_index = document_file.get_value(
+                "system_number_of_samples_completed"
+            )
+            if actual_max_index is None:
+                actual_max_index = -1
+            else:
+                actual_max_index = int(actual_max_index)
+
+            logger.info(f"Actual maximum index value is {actual_max_index}.")
+
             try:
                 max_index = (
                     AssasOdessaNetCDF4Converter.get_completed_index_from_netcdf4_file(
@@ -1481,6 +1489,17 @@ class AssasDatabaseManager:
                     f"Update maximum index value failed due to exception: {exception}."
                 )
                 max_index = -1
+
+            if (max_index + 1) == actual_max_index:
+                logger.info(
+                    "Maximum index value is already up to date, "
+                    "skip update of maximum index value."
+                )
+                continue
+
+            logger.info(
+                f"Update maximum index value from {actual_max_index} to {max_index}."
+            )
 
             document_file.set_value(
                 key="system_number_of_samples_completed", value=str(max_index + 1)

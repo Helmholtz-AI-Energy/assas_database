@@ -29,7 +29,7 @@ log_handler.setFormatter(log_format)
 logging.basicConfig(
     level=logging.INFO,
     handlers=[log_handler, logging.StreamHandler()],
-    force=True  # Log to file and console
+    force=True,
 )
 
 

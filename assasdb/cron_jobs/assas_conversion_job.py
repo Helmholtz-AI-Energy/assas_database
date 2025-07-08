@@ -10,7 +10,7 @@ import datetime
 import logging
 
 os.environ["ASTEC_ROOT"] = "/root/astecV3.1.2"
-os.environ["ASTEC_TYPE"] = "linux64"
+os.environ["ASTEC_TYPE"] = "linux_64"
 
 from assasdb import AssasDatabaseManager, AssasDatabaseHandler
 
