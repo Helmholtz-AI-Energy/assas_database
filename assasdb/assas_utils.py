@@ -5,6 +5,7 @@ and converting seconds into a more human-readable format.
 """
 
 from collections import namedtuple
+from typing import Iterator
 
 
 class Duration(namedtuple("Duration", "weeks, days, hours, minutes, seconds")):
@@ -25,7 +26,7 @@ class Duration(namedtuple("Duration", "weeks, days, hours, minutes, seconds")):
         """
         return ", ".join(self._get_formatted_units())
 
-    def _get_formatted_units(self):  # TODO: fix type hint
+    def _get_formatted_units(self) -> Iterator[str]:
         """Generate a list of formatted strings for each non-zero unit of the duration.
 
         Each unit is represented as "<value> <unit_name>", where the unit name is

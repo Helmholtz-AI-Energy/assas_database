@@ -4,22 +4,23 @@ This module provides the AssasDocumentFile class, which represents a document fi
 the NoSql database.
 """
 
+from enum import Enum
 from typing import List
 from uuid import uuid4
 from datetime import datetime
 
 
-class AssasDocumentFileStatus:
+class AssasDocumentFileStatus(Enum):
     """AssasDocumentFileStatus class.
 
     Represent the status of a document file in the ASSAS database.
     This class provides constants for various file statuses.
     """
 
-    UPLOADED = "Uploaded"
-    CONVERTING = "Converting"
-    VALID = "Valid"
-    INVALID = "Invalid"
+    UPLOADED = "Uploaded"  # File has been uploaded
+    CONVERTING = "Converting"  # File is in the process of being converted
+    VALID = "Valid"  # File has been validated
+    INVALID = "Invalid"  # File is invalid or has errors
 
 
 class AssasDocumentFile:

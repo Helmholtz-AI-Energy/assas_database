@@ -1,0 +1,78 @@
+# Use a base image
+FROM ubuntu:20.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ASTEC_ROOT=/opt/astec_installer
+ENV REPO_PATH=/app
+
+# Install dependencies and Python 3.11
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    git \
+    openssh-client \
+    wget \
+    git-lfs \
+    && add-apt-repository ppa:deadsnakes/ppa -y && \
+    apt-get update && apt-get install -y \
+    python3.11 \
+    python3.11-venv \
+    python3.11-distutils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pip for Python 3.11
+RUN wget https://bootstrap.pypa.io/get-pip.py && \
+    python3.11 get-pip.py && \
+    rm get-pip.py
+
+# Add SSH key from build argument
+ARG SSH_PRIVATE_KEY
+ARG LSDF_USER
+ARG LSDF_PWD
+
+RUN mkdir -p /root/.ssh && \
+    echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
+    chmod 600 /root/.ssh/id_rsa && \
+    ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
+
+WORKDIR /app
+
+# Clone the repository and initialize submodules
+#RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git $REPO_PATH
+RUN git clone git@github.com:ke4920/assas_database.git /app
+RUN git checkout origin/feature_improve_netcdf4_conversion
+
+RUN mkdir -p ${ASTEC_ROOT}
+RUN apt-get update && apt-get install -y sshpass
+RUN sshpass -p "${LSDF_PWD}" scp -r -o StrictHostKeyChecking=no ${LSDF_USER}@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/tmp/astec_installer/astecV3.1.2_linux64.tgz ${ASTEC_ROOT}
+RUN ls -l ${ASTEC_ROOT}
+
+RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install ruff
+RUN pip3 install -e .
+RUN pip3 list
+
+# Altervative via gitlfs submodule if budget is available
+#WORKDIR $REPO_PATH
+#RUN git checkout origin/feature_improve_netcdf4_conversion
+#RUN git submodule update --init --recursive
+#RUN git lfs install
+#RUN git lfs pull
+#RUN ls -l test
+#RUN ls -l test/astec_installer
+#RUN ls -l /app
+#RUN ls -l /app/test
+#RUN ls -l /app/test/astec_installer
+
+# Install C shell for ASTEC installer
+RUN apt-get update && apt-get install -y csh
+
+# Move the submodule to the desired location
+RUN tar -xzf $ASTEC_ROOT/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT 
+RUN ls -l $ASTEC_ROOT
+RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64
+RUN ls -l $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN file $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN chmod +x $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+RUN csh $ASTEC_ROOT/astecV3.1.2_linux64/astecV3.1.2-install-linux
+

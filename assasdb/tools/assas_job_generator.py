@@ -20,7 +20,7 @@ import argparse
 from enum import Enum
 from typing import List
 
-from assasdb import AssasDatabaseManager, AssasDocumentFileStatus
+from assasdb import AssasDatabaseManager, AssasDocumentFileStatus, AssasDatabaseHandler
 
 pd.set_option("display.max_rows", None)  # Show all rows
 pd.set_option("display.max_columns", None)  # Show all columns
@@ -61,7 +61,7 @@ TEMPLATE = """#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --time=3-00:00:00
-#SBATCH --mem=12800mb
+#SBATCH --mem=239400mb
 #SBATCH --constraint=LSDF
 #SBATCH --output={py_dir}/result/slurm-%j.out
 #SBATCH --error={py_dir}/result/slurm-error-%j.out
@@ -80,7 +80,7 @@ export ASTEC_ROOT={astec_root}
 mkdir ${{LOGDIR}}
 cd ${{LOGDIR}}
 
-srun python ${{PYDIR}}/assas_single_converter.py -uuid {uuid} {new_time_command}
+srun python ${{PYDIR}}/assas_conversion_handler.py -uuid {uuid} {new_time_command}
 mv ../slurm-${{SLURM_JOBID}}.out ${{LOGDIR}}
 mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 """  # noqa: E501
@@ -92,7 +92,11 @@ def get_database_entries() -> pd.DataFrame:
     This function initializes an instance of `AssasDatabaseManager` with the
     specified backup directory and retrieves all database entries.
     """
-    database_manager = AssasDatabaseManager(backup_directory=BACKUP_DIRECTORY)
+    database_manager = AssasDatabaseManager(
+        database_handler=AssasDatabaseHandler(
+            client=None, backup_directory=BACKUP_DIRECTORY
+        ),
+    )
 
     logger.info(f"Get all database entries from backup directory: {BACKUP_DIRECTORY}.")
     database_entries = database_manager.get_all_database_entries_from_backup()
@@ -190,7 +194,7 @@ def get_job_parameter_list(
 def generate_job_file(
     job_directory: str,
     entry: pd.Series,
-    limit_samples,
+    limit_samples: int,
 ) -> None:
     """Generate a job file for the given entry.
 
@@ -246,6 +250,9 @@ def generate_job_file(
 def generate_job_files(
     job_directory: str,
     database_entries: pd.DataFrame,
+    file_status_list: List[AssasDocumentFileStatus] = [
+        AssasDocumentFileStatus.UPLOADED
+    ],
     limit_samples: int = LIMIT_SAMPLES,
 ) -> None:
     """Generate job files for all entries in the database with the status 'Uploaded'.
@@ -253,10 +260,12 @@ def generate_job_files(
     It filters the database entries for those with the status 'Uploaded' and applies
     the generate_job_file function to each entry.
     """
+    file_status_value_list = [status.value for status in file_status_list]
+    logger.info(
+        f"Generate job files for entries with status: {file_status_value_list}."
+    )
     database_entries = database_entries[
-        database_entries["system_status"].isin(
-            [AssasDocumentFileStatus.UPLOADED, AssasDocumentFileStatus.CONVERTING]
-        )
+        database_entries["system_status"].isin([file_status_value_list])
     ]
     logger.info(f"Generate job files for {len(database_entries)} entries.")
 
@@ -309,7 +318,7 @@ def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
         logger.error(f"Unexpected error: {e}")
 
 
-def extract_upload_uuid(job_name):
+def extract_upload_uuid(job_name: str) -> str:
     """Extract the upload UUID from the job name.
 
     Assumes the job name contains the UUID in a specific format.
@@ -370,6 +379,7 @@ def get_squeue_dataframe() -> pd.DataFrame:
 def submit_jobs(
     database_entries: pd.DataFrame,
     limit_samples: int,
+    single_jobs: bool = False,
     multi_jobs: bool = False,
 ) -> None:
     """Submit jobs for each entry in the database not in 'Valid' or 'Invalid' status.
@@ -380,7 +390,11 @@ def submit_jobs(
     Args:
         database_entries (pd.DataFrame): DataFrame containing database entries.
         limit_samples (int): Maximum number of samples per job.
+        single_jobs (bool): If True, allows single jobs for each entry.
         multi_jobs (bool): If True, allows multiple jobs for the same entry.
+
+    Returns:
+        None: This function does not return any value.
 
     """
     previous_job_id = None
@@ -432,6 +446,11 @@ def submit_jobs(
             os.system(submit_call)
 
         if len(maximum_indizes) > 1:
+            if single_jobs:
+                logger.info(
+                    f"Skipping multi-job for {uuid} with {number_of_samples} samples."
+                )
+                continue
             logger.info(f"Submit jobs for {uuid} with {number_of_samples} samples.")
 
             for i in range(len(maximum_indizes)):
@@ -500,7 +519,7 @@ def count_entries_by_status(
         int: The count of entries with the specified status.
 
     """
-    return len(database_entries[database_entries["system_status"] == status])
+    return len(database_entries[database_entries["system_status"] == status.value])
 
 
 def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
@@ -605,6 +624,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-m", "--multiple", action="store_true", help="Submit only multi-jobs"
     )
+    parser.add_argument(
+        "-s", "--single", action="store_true", help="Submit only single-jobs"
+    )
     args = parser.parse_args()
 
     if args.debug:
@@ -643,8 +665,13 @@ if __name__ == "__main__":
 
     if args.action == "generate":
         logger.info(f"Generating job files into {args.job_directory}.")
-        remove_all_job_files(args.job_directory)
-        generate_job_files(args.job_directory, database_entries, args.limit_samples)
+        remove_all_job_files(job_directory=args.job_directory)
+        generate_job_files(
+            job_directory=args.job_directory,
+            database_entries=database_entries,
+            file_status_list=[AssasDocumentFileStatus.UPLOADED],
+            limit_samples=args.limit_samples,
+        )
 
     elif args.action == "submit":
         logger.info("Submitting jobs...")
@@ -653,7 +680,12 @@ if __name__ == "__main__":
         #    "18f82fd5-dad0-4b24-9664-622018acb9c5"]
         # logger.info(database_entries)
 
-        submit_jobs(database_entries, args.limit_samples, args.multiple)
+        submit_jobs(
+            database_entries=database_entries,
+            limit_samples=args.limit_samples,
+            single_jobs=args.single,
+            multi_jobs=args.multiple,
+        )
 
     elif args.action == "cancel":
         logger.info("Cancelling all jobs in certain states...")
@@ -674,11 +706,11 @@ if __name__ == "__main__":
             squeue_df[squeue_df["status_code"] == SlurmJobState.COMPLETED.value]
         )
         logger.info(
-            f"""Information from squeue:
-                Total number of jobs in squeue: {len(squeue_df)}.
-                Number of running jobs in squeue: {running_jobs}.
-                Number of pending jobs in squeue: {pending_jobs}.
-                Number of completed jobs in squeue: {completed_jobs}."""
+            f"Information from squeue:\n"
+            f"Total number of jobs in squeue: {len(squeue_df)}.\n"
+            f"Number of running jobs in squeue: {running_jobs}.\n"
+            f"Number of pending jobs in squeue: {pending_jobs}.\n"
+            f"Number of completed jobs in squeue: {completed_jobs}."
         )
 
     elif args.action == "dependencies":
@@ -692,8 +724,8 @@ if __name__ == "__main__":
 
     else:
         logger.error(
-            f"""Invalid action: {args.action}.
-            Choose from 'generate', 'submit', 'cancel', or 'dependencies'."""
+            f"Invalid action: {args.action}. "
+            "Choose from 'generate', 'submit', 'cancel', or 'dependencies'."
         )
 
     logger.info("Script execution completed.")

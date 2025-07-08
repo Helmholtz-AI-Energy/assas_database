@@ -3,12 +3,10 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - feature_refactoring_tests
-      - main
+      - "**"  # Match all branches
   pull_request:
     branches:
-      - feature_refactoring_tests
-      - main
+      - "**"  # Match all branches
 
 jobs:
   
@@ -20,14 +18,33 @@ jobs:
       # Step 1: Check out the code
       - name: Checkout code
         uses: actions/checkout@v3
+        #with:
+        #  submodules: recursive
+      
+      # Step 2
+      - name: Debug Secrets
+        run: echo "${{ secrets.SSH_PRIVATE_KEY }}" | wc -c
+      
+      # Step 3: Set up SSH key
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
       # Step 2: Build the Docker container
       - name: Build Docker container for Ruff
-        run: docker build -t assas-database-ruff .
+        run: |
+          docker build -f Dockerfile.base \
+            --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
+            -t assas-database-ruff .
 
       # Step 3: Run Ruff linting inside the Docker container
       - name: Run Ruff
-        run: docker run --rm assas-database-ruff ruff check .
+        run: |
+          docker run --rm assas-database-ruff \
+            ruff check . --exclude /app/test/dev_test/
 
   test:
      name: Run Unit Tests
@@ -38,40 +55,25 @@ jobs:
        - name: Checkout code
          uses: actions/checkout@v3
 
-       # Step 2: Build the Docker container
-       - name: Build Docker container for tests
-         run: docker build -t assas-database-test .
-      
-       # Step 3: Set up Python
-       - name: Set up Python
-         uses: actions/setup-python@v4
-         with:
-           python-version: 3.11  # Specify the Python version
-      
-       # Step 4: Install dependencies
-       - name: Install dependencies
+       # Step 2: Build the Docker container for Unit Tests
+       - name: Build Docker container for Unit Tests
          run: |
-           python -m pip install --upgrade pip
-           pip install -r requirements.txt
+          docker build -f Dockerfile.test \
+            --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
+            --build-arg LSDF_USER="${{ secrets.LSDF_USER }}" \
+            --build-arg LSDF_PWD="${{ secrets.LSDF_PWD }}" \
+            -t assas-database-test .
       
-       # Step 5: Change directory to `assas_database`
-       - name: Install assas_database package
+       # Step 3: Run tests in Docker container
+       - name: Run tests in Docker container
          run: |
-          pip install -e .
-
-       # Step 6: Run unit tests
-       - name: Run tests
-         env:
-          PYTHONPATH: ${{ github.workspace }}/test:${{ env.PYTHONPATH }}
-          ASTEC_ROOT: ${{ github.workspace }}
-         run: |
-          python test/test_astec_archive.py
-          python test/test_database_handler.py
-          python test/test_document_file.py
-          python test/test_database_manager.py
-       
-       - name: Upload HTML test report
-         uses: actions/upload-artifact@v4
-         with:
-          name: html-test-report
-          path: test_reports/
+          docker run --rm \
+            -e ASTEC_ROOT=/app/astecV3.1.2 \
+            -e ASTEC_TYPE=linux_64 \
+            assas-database-test \
+            bash -c "python3.11 test/test_astec_archive.py && \
+                     python3.11 test/test_database_handler.py && \
+                     python3.11 test/test_document_file.py && \
+                     python3.11 test/test_database_manager.py && \
+                     python3.11 test/test_conversion_handler.py && \
+                     python3.11 test/test_odessa_netcdf4_converter.py"

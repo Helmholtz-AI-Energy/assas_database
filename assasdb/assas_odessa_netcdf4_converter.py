@@ -24,20 +24,19 @@ from typing import List, Union
 from pathlib import Path
 
 
-LOG_INTERVAL = 100
-
 logger = logging.getLogger("assas_app")
 
+LOG_INTERVAL = 100
 ASTEC_ROOT = os.environ.get("ASTEC_ROOT")
-ASTEC_TYPE = "linux_64"
+ASTEC_TYPE = os.environ.get("ASTEC_TYPE")
 
-astec_python_location = os.path.join(
+ASTEC_PYTHON_ODESSA = os.path.join(
     ASTEC_ROOT, "odessa", "bin", ASTEC_TYPE + "-release", "wrap_python"
 )
 
-if astec_python_location not in sys.path:
-    logger.info(f"Append path to odessa to environment: {astec_python_location}")
-    sys.path.append(astec_python_location)
+if ASTEC_PYTHON_ODESSA not in sys.path:
+    logger.info(f"Append path to odessa to environment: {ASTEC_PYTHON_ODESSA}")
+    sys.path.append(ASTEC_PYTHON_ODESSA)
 
 import pyodessa as pyod  # noqa: E402
 
@@ -173,6 +172,18 @@ class AssasOdessaNetCDF4Converter:
             "containment_dome": (
                 AssasOdessaNetCDF4Converter.parse_variable_from_containment_dome
             ),
+            "containment_zone": (
+                AssasOdessaNetCDF4Converter.parse_variable_from_containment_zone
+            ),
+            "containment_zone_ther": (
+                AssasOdessaNetCDF4Converter.parse_variable_from_containment_zone_ther
+            ),
+            "containment_conn": (
+                AssasOdessaNetCDF4Converter.parse_variable_from_containment_conn
+            ),
+            "containment_wall_temp": (
+                AssasOdessaNetCDF4Converter.parse_variable_from_containment_wall_temp
+            ),
             "containment_pool": (
                 AssasOdessaNetCDF4Converter.parse_variable_from_containment_pool
             ),
@@ -194,6 +205,10 @@ class AssasOdessaNetCDF4Converter:
             "vessel_fuel": self.parse_variable_vessel_fuel,
             "vessel_clad_stat": self.parse_variable_vessel_clad_stat,
             "vessel_fuel_stat": self.parse_variable_vessel_fuel_stat,
+            "vessel_trup": AssasOdessaNetCDF4Converter.parse_variable_vessel_trup,
+            "private_assas_param": (
+                AssasOdessaNetCDF4Converter.parse_variable_private_assas_param
+            ),
         }
 
     def get_time_points(self) -> List[int]:
@@ -205,7 +220,7 @@ class AssasOdessaNetCDF4Converter:
         """
         return self.time_points
 
-    def get_odessa_base_from_index(self, index: int):
+    def get_odessa_base_from_index(self, index: int) -> pyod.Base:
         """Get the odessa base from the ASTEC archive at a specific time point.
 
         Args:
@@ -245,7 +260,10 @@ class AssasOdessaNetCDF4Converter:
         file_list = [
             "astec_config/inr/assas_variables_cavity.csv",
             "astec_config/inr/assas_variables_containment.csv",
+            "astec_config/inr/assas_variables_containment_conn.csv",
             "astec_config/inr/assas_variables_containment_dome_pool.csv",
+            "astec_config/inr/assas_variables_containment_wall.csv",
+            "astec_config/inr/assas_variables_containment_zone.csv",
             "astec_config/inr/assas_variables_lower_plenum.csv",
             "astec_config/inr/assas_variables_vessel.csv",
             "astec_config/inr/assas_variables_vessel_face_ther.csv",
@@ -262,6 +280,8 @@ class AssasOdessaNetCDF4Converter:
             "astec_config/inr/assas_variables_secondar_wall_ther.csv",
             "astec_config/inr/assas_variables_connecti.csv",
             "astec_config/inr/assas_variables_connecti_source_fp.csv",
+            "astec_config/inr/assas_variables_sequence.csv",
+            "astec_config/inr/assas_variables_private_assas_param.csv",
         ]
 
         dataframe_list = []
@@ -326,7 +346,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def check_if_odessa_path_exists(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         odessa_path: str,
     ) -> bool:
         """Check if a given Odessa path exists in the odessa base.
@@ -382,7 +402,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def convert_odessa_structure_to_float(
-        odessa_structure,
+        odessa_structure: Union[pyod.R1, float],
     ) -> float:
         """Convert an Odessa structure to a float value.
 
@@ -406,7 +426,7 @@ class AssasOdessaNetCDF4Converter:
 
     def parse_variable_vessel_magma_debris(
         self,
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from magma debris.
@@ -445,7 +465,7 @@ class AssasOdessaNetCDF4Converter:
 
     def parse_variable_vessel_fuel(
         self,
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from vessel fuel.
@@ -482,7 +502,7 @@ class AssasOdessaNetCDF4Converter:
 
     def parse_variable_vessel_clad(
         self,
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from vessel clad.
@@ -519,7 +539,7 @@ class AssasOdessaNetCDF4Converter:
 
     def parse_variable_vessel_fuel_stat(
         self,
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from vessel fuel status.
@@ -564,7 +584,7 @@ class AssasOdessaNetCDF4Converter:
 
     def parse_variable_vessel_clad_stat(
         self,
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from vessel clad status.
@@ -609,7 +629,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_vessel_mesh_ther(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from vessel mesh thermal data.
@@ -658,7 +678,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_vessel_mesh(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from vessel mesh data.
@@ -707,7 +727,8 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_vessel_face_ther(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base,
+        variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from vessel face thermal data.
 
@@ -754,7 +775,8 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_vessel_general(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base,
+        variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from vessel general data.
 
@@ -788,7 +810,8 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_fp_heat_vessel(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base,
+        variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from fuel pin heat vessel data.
 
@@ -822,7 +845,8 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_junction_ther(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base,
+        variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from primary junction thermal data.
 
@@ -873,7 +897,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_junction_geom(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base, variable_name: str
     ) -> np.ndarray:
         """Parse ASTEC variable from primary junction geometric data.
 
@@ -924,7 +948,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_volume_ther(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base, variable_name: str
     ) -> np.ndarray:
         """Parse ASTEC variable from primary volume thermal data.
 
@@ -973,7 +997,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_volume_geom(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base, variable_name: str
     ) -> np.ndarray:
         """Parse ASTEC variable from primary volume geometric data.
 
@@ -1022,7 +1046,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_pipe_ther(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base, variable_name: str
     ) -> np.ndarray:
         """Parse ASTEC variable from primary pipe thermal data.
 
@@ -1071,7 +1095,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_pipe_geom(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base, variable_name: str
     ) -> np.ndarray:
         """Parse ASTEC variable from primary pipe geometric data.
 
@@ -1126,7 +1150,8 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_secondar_junction_ther(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base,
+        variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from secondary junction thermal data.
 
@@ -1177,7 +1202,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_secondar_junction_geom(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base, variable_name: str
     ) -> np.ndarray:
         """Parse ASTEC variable from secondary junction geometric data.
 
@@ -1228,7 +1253,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_secondar_volume_ther(
-        odessa_base, variable_name: str
+        odessa_base: pyod.Base, variable_name: str
     ) -> np.ndarray:
         """Parse ASTEC variable from secondary volume thermal data.
 
@@ -1279,7 +1304,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_wall(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from primary wall data.
@@ -1327,7 +1352,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_wall_ther(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from primary wall thermal data.
@@ -1377,7 +1402,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_wall_ther_2(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from primary wall thermal data (alternative).
@@ -1427,7 +1452,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_primary_wall_geom(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from primary wall geometric data.
@@ -1477,7 +1502,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_secondar_wall(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from secondary wall data.
@@ -1525,7 +1550,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_secondar_wall_ther(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from secondary wall thermal data.
@@ -1575,7 +1600,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_secondar_wall_ther_2(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from secondary wall thermal data (alternative).
@@ -1625,7 +1650,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_secondar_wall_geom(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from secondary wall geometric data.
@@ -1675,7 +1700,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_systems_pump(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from systems pump data.
@@ -1723,7 +1748,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_systems_valve(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from systems valve data.
@@ -1771,7 +1796,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_sensor(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from sensor data.
@@ -1806,7 +1831,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_containment_dome(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from containment dome data.
@@ -1843,7 +1868,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_containment_pool(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from containment pool data.
@@ -1879,8 +1904,212 @@ class AssasOdessaNetCDF4Converter:
         return array
 
     @staticmethod
+    def parse_variable_from_containment_zone(
+        odessa_base: pyod.Base,
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from all containment zones.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(f"Parse ASTEC variable {variable_name}, type containment_.")
+
+        secondar_wall_check_path = "CONTAINM 1: ZONE 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base, secondar_wall_check_path
+        ):
+            containment = odessa_base.get("CONTAINM")
+            number_of_zones = containment.len("ZONE")
+
+            logger.debug(f"Number of zones in containment: {number_of_zones}.")
+
+            array = np.full((number_of_zones), fill_value=np.nan)
+
+            for idx, zone_number in enumerate(range(1, number_of_zones + 1)):
+                odessa_path = f"CONTAINM 1: ZONE {zone_number}: {variable_name} 1"
+
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base, odessa_path
+                ):
+                    variable_structure = odessa_base.get(odessa_path)
+                    logger.debug(f"Collect variable structure {variable_structure}.")
+                    array[idx] = variable_structure[0]
+
+        else:
+            logger.debug(
+                f"Path {secondar_wall_check_path} not in odessa base, "
+                "fill array with np.nan."
+            )
+            array = np.full((1), fill_value=np.nan)
+
+        return array
+
+    @staticmethod
+    def parse_variable_from_containment_zone_ther(
+        odessa_base: pyod.Base,
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from all containment zone thermal structures.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(f"Parse ASTEC variable {variable_name}, type containment_.")
+
+        secondar_wall_check_path = "CONTAINM 1: ZONE 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base, secondar_wall_check_path
+        ):
+            containment = odessa_base.get("CONTAINM")
+            number_of_zones = containment.len("ZONE")
+
+            logger.debug(f"Number of zones in containment: {number_of_zones}.")
+
+            array = np.full((number_of_zones), fill_value=np.nan)
+
+            for idx, zone_number in enumerate(range(1, number_of_zones + 1)):
+                odessa_path = (
+                    f"CONTAINM 1: ZONE {zone_number}: THER 1: {variable_name} 1"
+                )
+
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base, odessa_path
+                ):
+                    variable_structure = odessa_base.get(odessa_path)
+                    logger.debug(f"Collect variable structure {variable_structure}.")
+                    array[idx] = variable_structure[0]
+
+        else:
+            logger.debug(
+                f"Path {secondar_wall_check_path} not in odessa base, "
+                "fill array with np.nan."
+            )
+            array = np.full((1), fill_value=np.nan)
+
+        return array
+
+    @staticmethod
+    def parse_variable_from_containment_conn(
+        odessa_base: pyod.Base,
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from all containment connections.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(
+            f"Parse ASTEC variable {variable_name}, type containment_connection."
+        )
+
+        containment_zone_check_path = "CONTAINM 1: CONN 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base, containment_zone_check_path
+        ):
+            containment = odessa_base.get("CONTAINM")
+            number_of_connections = containment.len("CONN")
+
+            logger.debug(
+                f"Number of connections in containment: {number_of_connections}."
+            )
+
+            array = np.full((number_of_connections), fill_value=np.nan)
+
+            for idx, connection_number in enumerate(
+                range(1, number_of_connections + 1)
+            ):
+                odessa_path = f"CONTAINM 1: CONN {connection_number}: {variable_name} 1"
+
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base, odessa_path
+                ):
+                    variable_structure = odessa_base.get(odessa_path)
+                    logger.debug(f"Collect variable structure {variable_structure}.")
+                    array[idx] = variable_structure[0]
+
+        else:
+            logger.debug(
+                f"Path {containment_zone_check_path} not in odessa base, "
+                "fill array with np.nan."
+            )
+            array = np.full((1), fill_value=np.nan)
+
+        return array
+
+    @staticmethod
+    def parse_variable_from_containment_wall_temp(
+        odessa_base: pyod.Base,
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from containment wall temperature profile.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(
+            f"Parse ASTEC variable {variable_name}, type containment_wall_temperature."
+        )
+
+        containment_zone_check_path = f"CONTAINM 1: WALL 1: SLAB 1: {variable_name} 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base, containment_zone_check_path
+        ):
+            containment = odessa_base.get("CONTAINM")
+            number_of_walls = containment.len("WALL")
+
+            logger.debug(f"Number of walls in containment: {number_of_walls}.")
+
+            array = np.full((number_of_walls), fill_value=np.nan)
+
+            for idx, wall_number in enumerate(range(1, number_of_walls + 1)):
+                odessa_path = (
+                    f"CONTAINM 1: WALL {wall_number}: SLAB 1: {variable_name} 1"
+                )
+
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base, odessa_path
+                ):
+                    variable_structure = odessa_base.get(odessa_path)
+                    logger.debug(f"Collect variable structure {variable_structure}.")
+                    array[idx] = variable_structure[0]
+
+        else:
+            logger.debug(
+                f"Path {containment_zone_check_path} not in odessa base, "
+                "fill array with np.nan."
+            )
+            array = np.full((1), fill_value=np.nan)
+
+        return array
+
+    @staticmethod
     def parse_variable_from_connecti(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from connecti data.
@@ -1931,7 +2160,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_connecti_heat(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from connecti heat data.
@@ -1978,7 +2207,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_connecti_source(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from connecti source data.
@@ -2045,9 +2274,9 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_connecti_source_index(
-        odessa_base,
+        odessa_base: pyod.Base,
         variable_name: str,
-        index: int,  # TODO: fix type hint
+        index: int,
     ) -> np.ndarray:
         """Parse ASTEC variable from connecti source with index.
 
@@ -2115,7 +2344,7 @@ class AssasOdessaNetCDF4Converter:
 
     @staticmethod
     def parse_variable_from_connecti_source_fp(
-        odessa_base,  # TODO: fix type hint
+        odessa_base: pyod.Base,
         variable_name: str,
     ) -> np.ndarray:
         """Parse ASTEC variable from connecti source with fixed path.
@@ -2134,6 +2363,75 @@ class AssasOdessaNetCDF4Converter:
         )
 
         odessa_path = f"CONNECTI 1: SOURCE {variable_name}: QMAV 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base, odessa_path
+        ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f"Collect variable structure {variable_structure}.")
+            array = np.array([variable_structure])
+
+        else:
+            logger.debug(
+                f"Variable {variable_name} not in odessa base, fill array with np.nan."
+            )
+            array = np.array([np.nan])
+
+        return array
+
+    @staticmethod
+    def parse_variable_vessel_trup(
+        odessa_base: pyod.Base,
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from vessel trup data.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(f"Parse ASTEC variable {variable_name}, type vessel_trup.")
+
+        odessa_path = f"SEQUENCE 1: {variable_name} 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base=odessa_base,
+            odessa_path=odessa_path,
+        ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f"Collect variable structure {variable_structure}.")
+            array = np.array([variable_structure])
+
+        else:
+            logger.debug(
+                f"Variable {variable_name} not in odessa base, fill array with np.nan."
+            )
+            array = np.array([np.nan])
+
+        return array
+
+    @staticmethod
+    def parse_variable_private_assas_param(
+        odessa_base: pyod.Base,
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from private ASSAS parameters.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(f"Parse ASTEC variable {variable_name}, type private_assas_param.")
+
+        odessa_path = f"PRIVATE 1: ASSASpar 1: {variable_name} 1"
 
         if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
             odessa_base, odessa_path
@@ -2258,6 +2556,35 @@ class AssasOdessaNetCDF4Converter:
                 result.append(variable_dict)
 
         return result
+
+    @staticmethod
+    def get_completed_index_from_netcdf4_file(
+        netcdf4_file: str,
+    ) -> int:
+        """Get the completed index from a netCDF4 file.
+
+        Args:
+            netcdf4_file (str): Path to the netCDF4 file.
+
+        Returns:
+            int: The completed index of time points.
+
+        """
+        logger.info(
+            f"Get completed index from hdf5 file with path {str(netcdf4_file)}."
+        )
+
+        completed_index = 0
+        with netCDF4.Dataset(f"{netcdf4_file}", "r", format="NETCDF4") as ncfile:
+            if "time_points" in list(ncfile.variables.keys()):
+                completed_index = ncfile.variables["time_points"].getncattr(
+                    "completed_index"
+                )
+                logger.info(f"Completed index is {completed_index}.")
+            else:
+                logger.warning("No time points found in the netCDF4 file.")
+
+        return completed_index
 
     def convert_astec_variables_to_netcdf4(
         self,

@@ -1,0 +1,7 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+opensrv,opensrv,opensrv,[-],private,private_assas_param,none
+p_u5,p_u5,p_u5,[-],private,private_assas_param,none
+t1_srv,t1_srv,t1_srv,[-],private,private_assas_param,none
+t2_srv,t2_srv,t2_srv,[-],private,private_assas_param,none
+t_fbseb,t_fbseb,t_fbseb,[-],private,private_assas_param,none
+
