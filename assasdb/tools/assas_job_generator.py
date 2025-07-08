@@ -265,7 +265,7 @@ def generate_job_files(
         f"Generate job files for entries with status: {file_status_value_list}."
     )
     database_entries = database_entries[
-        database_entries["system_status"].isin([file_status_value_list])
+        database_entries["system_status"].isin(file_status_value_list)
     ]
     logger.info(f"Generate job files for {len(database_entries)} entries.")
 
