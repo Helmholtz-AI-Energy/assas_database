@@ -36,7 +36,7 @@ def main() -> None:
 
     database_manager = AssasDatabaseManager(
         database_handler=AssasDatabaseHandler(
-            database_name="assas_dev",
+            database_name="assas",
         )
     )
 
