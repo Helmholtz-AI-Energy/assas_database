@@ -40,7 +40,7 @@ WORKDIR /app
 # Clone the repository and initialize submodules
 #RUN git clone --recurse-submodules git@github.com:ke4920/assas_database.git $REPO_PATH
 RUN git clone git@github.com:ke4920/assas_database.git /app
-RUN git checkout origin/feature_improve_netcdf4_conversion
+RUN git checkout origin/main
 
 RUN mkdir -p ${ASTEC_ROOT}
 RUN apt-get update && apt-get install -y sshpass
