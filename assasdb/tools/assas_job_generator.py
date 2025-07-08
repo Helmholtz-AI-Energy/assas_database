@@ -250,6 +250,9 @@ def generate_job_file(
 def generate_job_files(
     job_directory: str,
     database_entries: pd.DataFrame,
+    file_status_list: List[AssasDocumentFileStatus] = [
+        AssasDocumentFileStatus.UPLOADED
+    ],
     limit_samples: int = LIMIT_SAMPLES,
 ) -> None:
     """Generate job files for all entries in the database with the status 'Uploaded'.
@@ -257,13 +260,12 @@ def generate_job_files(
     It filters the database entries for those with the status 'Uploaded' and applies
     the generate_job_file function to each entry.
     """
+    file_status_value_list = [status.value for status in file_status_list]
+    logger.info(
+        f"Generate job files for entries with status: {file_status_value_list}."
+    )
     database_entries = database_entries[
-        database_entries["system_status"].isin(
-            [
-                AssasDocumentFileStatus.UPLOADED.value,
-                AssasDocumentFileStatus.CONVERTING.value,
-            ]
-        )
+        database_entries["system_status"].isin([file_status_value_list])
     ]
     logger.info(f"Generate job files for {len(database_entries)} entries.")
 
@@ -663,8 +665,13 @@ if __name__ == "__main__":
 
     if args.action == "generate":
         logger.info(f"Generating job files into {args.job_directory}.")
-        remove_all_job_files(args.job_directory)
-        generate_job_files(args.job_directory, database_entries, args.limit_samples)
+        remove_all_job_files(job_directory=args.job_directory)
+        generate_job_files(
+            job_directory=args.job_directory,
+            database_entries=database_entries,
+            file_status_list=[AssasDocumentFileStatus.UPLOADED],
+            limit_samples=args.limit_samples,
+        )
 
     elif args.action == "submit":
         logger.info("Submitting jobs...")
@@ -673,7 +680,12 @@ if __name__ == "__main__":
         #    "18f82fd5-dad0-4b24-9664-622018acb9c5"]
         # logger.info(database_entries)
 
-        submit_jobs(database_entries, args.limit_samples, args.single, args.multiple)
+        submit_jobs(
+            database_entries=database_entries,
+            limit_samples=args.limit_samples,
+            single_jobs=args.single,
+            multi_jobs=args.multiple,
+        )
 
     elif args.action == "cancel":
         logger.info("Cancelling all jobs in certain states...")
