@@ -2586,6 +2586,30 @@ class AssasOdessaNetCDF4Converter:
 
         return completed_index
 
+    @staticmethod
+    def reset_completed_index_in_netcdf4_file(
+        netcdf4_file: str,
+    ) -> None:
+        """Reset the completed index in a netCDF4 file.
+
+        Args:
+            netcdf4_file (str): Path to the netCDF4 file.
+
+        Returns:
+            None
+
+        """
+        logger.info(
+            f"Reset completed index in hdf5 file with path {str(netcdf4_file)}."
+        )
+
+        with netCDF4.Dataset(f"{netcdf4_file}", "a", format="NETCDF4") as ncfile:
+            if "time_points" in list(ncfile.variables.keys()):
+                ncfile.variables["time_points"].setncattr("completed_index", 0)
+                logger.info("Completed index reset to 0.")
+            else:
+                logger.warning("No time points found in the netCDF4 file.")
+
     def convert_astec_variables_to_netcdf4(
         self,
         maximum_index: int = None,
@@ -2623,6 +2647,14 @@ class AssasOdessaNetCDF4Converter:
                 time_dataset.completed_index = 0
 
                 for idx, variable in self.variable_index.iterrows():
+                    if variable["name"] in list(ncfile.variables.keys()):
+                        logger.warning(
+                            f"Variable {variable['name']} already "
+                            "exists in the netCDF4 file."
+                        )
+                        continue
+
+                    logger.info(f"Create variable {variable['name']} in netCDF4 file.")
                     dimensions = list(variable["dimension"].split(";"))
                     dimensions.insert(0, "time")
                     dimensions = [
@@ -2682,6 +2714,15 @@ class AssasOdessaNetCDF4Converter:
                 odessa_base = pyod.restore(str(self.input_path), time_point)
 
                 for _, variable in self.variable_index.iterrows():
+                    if variable["name"] not in list(variable_datasets.keys()):
+                        logger.info(
+                            f"Variable {variable['name']} not required to convert."
+                        )
+                        continue
+                    logger.info(
+                        f"Parse ASTEC variable {variable['name']} for time point "
+                        f"{time_point}."
+                    )
                     strategy_function = self.variable_strategy_mapping[
                         variable["strategy"]
                     ]
