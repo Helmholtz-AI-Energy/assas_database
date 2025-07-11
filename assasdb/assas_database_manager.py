@@ -1548,9 +1548,13 @@ class AssasDatabaseManager:
                 f"Collect maximum index value from file, "
                 f"filename is {document_file.get_value('system_result')}."
             )
-            actual_max_index = document_file.get_value(
-                "system_number_of_samples_completed"
-            )
+            try:
+                actual_max_index = document_file.get_value(
+                    "system_number_of_samples_completed"
+                )
+            except KeyError:
+                actual_max_index = None
+            
             if actual_max_index is None:
                 actual_max_index = -1
             else:
