@@ -18,11 +18,12 @@ import logging
 import numpy as np
 import pandas as pd
 import pkg_resources
+import json
 
 from tqdm import tqdm
-from typing import List, Union
+from typing import List, Union, Optional
 from pathlib import Path
-
+from .assas_netcdf4_meta_config import META_DATA_VAR_NAMES
 
 logger = logging.getLogger("assas_app")
 
@@ -2609,6 +2610,189 @@ class AssasOdessaNetCDF4Converter:
                 logger.info("Completed index reset to 0.")
             else:
                 logger.warning("No time points found in the netCDF4 file.")
+
+    def read_meta_data_primary_volumes(
+        self,
+        odessa_base: pyod.Base,
+    ) -> List[dict]:
+        """Read meta data for primary volumes from the odessa base.
+
+        Args:
+            odessa_base (pyod.Base): The odessa base object.
+
+        Returns:
+            List[dict]: A list of dictionaries containing primary volume metadata.
+
+        """
+        primary_volumes = []
+        logger.info("Read meta data for primary volumes from odessa base.")
+        path = "PRIMARY 1: VOLUME 1: NAME 1"
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(odessa_base, path):
+            primary_base = odessa_base.get("PRIMARY")
+            number_of_volumes = primary_base.len("VOLUME")
+            logger.debug(
+                f"Number of primary volumes in odessa base: {number_of_volumes}."
+            )
+            for volume_number in range(1, number_of_volumes + 1):
+                odessa_path = f"PRIMARY 1: VOLUME {volume_number}: NAME 1"
+                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+                    odessa_base, odessa_path
+                ):
+                    volume_structure = odessa_base.get(odessa_path)
+                    logger.debug(
+                        f"Collect primary volume structure {volume_structure}."
+                    )
+                    primary_volumes.append(
+                        {"number": volume_number, "name": volume_structure}
+                    )
+                else:
+                    logger.warning(
+                        f"Primary volume {volume_number} not found in odessa base."
+                    )
+        else:
+            logger.warning(
+                f"Path {path} not found in odessa base, "
+                "no primary volumes meta data available."
+            )
+
+        return primary_volumes
+
+    def read_meta_data_from_odessa_base(
+        self,
+        odessa_base: pyod.Base,
+        domain: Optional[str] = None,
+        element: str = "VOLUME",
+        attribute: Union[str, List[str]] = "NAME",
+    ) -> List[dict]:
+        """Read meta data from the odessa base.
+
+        Returns:
+            List[dict]: A list of dictionaries containing metadata.
+
+        """
+        meta_data = []
+        logger.info(f"Read meta data for {domain} {element} from odessa base.")
+
+        if isinstance(attribute, str):
+            attribute = [attribute]
+
+        base = odessa_base if domain is None else odessa_base.get(domain)
+        number_of_elements = base.len(element)
+        logger.debug(
+            f"Number of {domain} {element} in odessa base: {number_of_elements}."
+        )
+
+        for number in range(1, number_of_elements + 1):
+            metadata = {"number": number}
+            for attr in attribute:
+                path = f"{element} 1: {attr} 1"
+                try:
+                    structure = base.get(path)
+                except ValueError as e:
+                    logger.error(
+                        f"Error reading {domain} {element} {attr} "
+                        f"for number {number}: {e}"
+                    )
+                    continue
+                logger.debug(
+                    f"Collect {domain} {element} {attr} structure {structure}."
+                )
+                metadata[attr.lower()] = structure
+
+            meta_data.append(metadata)
+
+        return meta_data
+
+    def read_meta_data_from_netcdf4(self, variable_name: str) -> dict:
+        """Read metadata from a NetCDF4 file for a given variable name.
+
+        Args:
+            file_path (str): Path to the NetCDF4 file.
+            variable_name (str): Name of the variable to read metadata from.
+
+        Returns:
+            dict: A dictionary containing the metadata attributes of the variable.
+
+        """
+        try:
+            with netCDF4.Dataset(self.output_path, "r") as ncfile:
+                if variable_name not in ncfile.variables:
+                    raise ValueError(
+                        f"Variable '{variable_name}' not found in the NetCDF4 file."
+                    )
+
+                variable = ncfile.variables[variable_name]
+                metadata = {}
+
+                # Read all attributes of the variable
+                for attr_name in variable.ncattrs():
+                    attr_value = variable.getncattr(attr_name)
+                    # If the attribute is JSON-encoded, decode it
+                    if attr_name == "meta_data":
+                        try:
+                            attr_value = json.loads(attr_value)
+                        except json.JSONDecodeError:
+                            pass
+                    metadata[attr_name] = attr_value
+
+                return metadata
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to read metadata from variable '{variable_name}': {e}"
+            )
+
+    def convert_meta_data_from_odessa_to_netcdf4(
+        self,
+    ) -> None:
+        """Convert meta data from odessa to netCDF4.
+
+        Returns:
+            None
+
+        """
+        logger.info(
+            f"Convert meta data from odessa with path {str(self.input_path)} "
+            f"to netCDF4 file with path {str(self.output_path)}."
+        )
+
+        meta_data_var_names = META_DATA_VAR_NAMES
+
+        with netCDF4.Dataset(f"{self.output_path}", "a", format="NETCDF4") as ncfile:
+            for meta_data_var_name in list(meta_data_var_names.keys()):
+                # Restore Odessa base
+                odessa_base = pyod.restore(str(self.input_path), 0)
+                meta_data = self.read_meta_data_from_odessa_base(
+                    odessa_base,
+                    domain=meta_data_var_names[meta_data_var_name]["domain"],
+                    element=meta_data_var_names[meta_data_var_name]["element"],
+                    attribute=meta_data_var_names[meta_data_var_name]["attribute"],
+                )
+
+                # Create dimension for primary volumes
+                ncfile.createDimension(meta_data_var_name, len(meta_data))
+
+                # Create variable for primary volume metadata
+                meta_var = ncfile.createVariable(
+                    meta_data_var_name, datatype="S1", dimensions=(meta_data_var_name,)
+                )
+                meta_var.long_name = (
+                    f"meta data variable element for "
+                    f"{meta_data_var_names[meta_data_var_name]['domain']}_"
+                    f"{meta_data_var_names[meta_data_var_name]['element']}"
+                )
+                meta_var.units = "N/A"
+                domain_value = META_DATA_VAR_NAMES[meta_data_var_name]["domain"]
+                if domain_value is None:
+                    domain_value = "None"
+                meta_var.domain = domain_value
+
+                # Add metadata dictionary as an attribute
+                metadata_dict = {"meta_data": meta_data}
+                meta_var.setncattr("meta_data", json.dumps(metadata_dict))
+
+                logger.info(
+                    "Added metadata dictionary to 'primary_volume_meta' variable."
+                )
 
     def convert_astec_variables_to_netcdf4(
         self,

@@ -692,17 +692,17 @@ if __name__ == "__main__":
 
         remove_all_job_files(job_directory=args.job_directory)
 
-        if args.state is not None:
-            state_enum = AssasDocumentFileStatus(args.state)
-            file_status_list = [state_enum]
-            logger.info(f"Filtering database entries by state: {args.state}.")
-        else:
-            file_status_list = [
-                # AssasDocumentFileStatus.VALID,
-                # AssasDocumentFileStatus.INVALID,
-                # AssasDocumentFileStatus.CONVERTING,
-                AssasDocumentFileStatus.UPLOADED,
-            ]
+        # if args.state is not None:
+        #    state_enum = AssasDocumentFileStatus(args.state)
+        #    file_status_list = [state_enum]
+        #    logger.info(f"Filtering database entries by state: {args.state}.")
+        # else:
+        file_status_list = [
+            # AssasDocumentFileStatus.VALID,
+            # AssasDocumentFileStatus.INVALID,
+            AssasDocumentFileStatus.CONVERTING,
+            AssasDocumentFileStatus.UPLOADED,
+        ]
         logger.info(f"File status list: {file_status_list}.")
 
         file_status_value_list = [status.value for status in file_status_list]
@@ -733,12 +733,12 @@ if __name__ == "__main__":
 
     elif args.action == "submit":
         logger.info("Submitting jobs...")
-        database_entries = database_entries[
-            database_entries["system_upload_uuid"]
-            == "9660f85e-ed19-400f-952f-0ee36d4c50c6"
-        ]
+        # database_entries = database_entries[
+        #    database_entries["system_upload_uuid"]
+        #    == "9660f85e-ed19-400f-952f-0ee36d4c50c6"
+        # ]
 
-        logger.info(database_entries)
+        # logger.info(database_entries)
 
         submit_jobs(
             database_entries=database_entries,

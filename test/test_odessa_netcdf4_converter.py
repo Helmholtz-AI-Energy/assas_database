@@ -4,6 +4,7 @@ This module tests the conversion of ASTEC archives to NetCDF4 format using
 the AssasOdessaNetCDF4Converter class.
 """
 
+import os
 import unittest
 import logging
 import shutil
@@ -13,7 +14,7 @@ import HtmlTestRunner
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
-from assasdb import AssasOdessaNetCDF4Converter
+from assasdb import AssasOdessaNetCDF4Converter, META_DATA_VAR_NAMES
 
 # Configure rotating file logging
 log_dir = Path(__file__).parent / "log"
@@ -101,6 +102,61 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         variables_from_index = variable_index["name"].tolist()
 
         self.assertEqual(set(variables_from_meta_data), set(variables_from_index))
+
+    def test_convert_astec_archive_meta(self) -> None:
+        """Test converting the ASTEC archive to NetCDF4 format."""
+        # Ensure the input file exists
+        self.assertTrue(
+            self.fake_input_path.exists(), "Input archive file does not exist."
+        )
+
+        expected_meta_data_var_names = META_DATA_VAR_NAMES
+
+        # Call the conversion method
+        try:
+            self.converter.convert_meta_data_from_odessa_to_netcdf4()
+        except Exception as e:
+            self.fail(f"Conversion of meta data failed with exception: {e}.")
+
+        # Verify that the output file is created
+        self.assertTrue(
+            self.fake_output_path.exists(), "Output NetCDF4 file was not created."
+        )
+
+        test_file_location = os.path.dirname(os.path.abspath(__file__))
+        copied_file_path = os.path.join(test_file_location, "copied_output.nc")
+        try:
+            shutil.copy(self.fake_output_path, copied_file_path)
+            self.assertTrue(
+                os.path.exists(copied_file_path),
+                f"Failed to copy the output file to {copied_file_path}.",
+            )
+        except Exception as e:
+            self.fail(f"Failed to copy the output file with exception: {e}.")
+
+        meta_data_list = self.converter.read_meta_values_from_netcdf4(
+            self.fake_output_path
+        )
+        variables_from_meta_data = [meta_data["name"] for meta_data in meta_data_list]
+
+        self.assertEqual(
+            set(variables_from_meta_data), set(expected_meta_data_var_names.keys())
+        )
+        for meta_data in meta_data_list:
+            var_name = meta_data["name"]
+            expected_meta = expected_meta_data_var_names.get(var_name)
+            if expected_meta:
+                domain_value = expected_meta_data_var_names[var_name]["domain"]
+                if domain_value is None:
+                    domain_value = "None"
+                self.assertEqual(meta_data["domain"], domain_value)
+
+        var_names = list(expected_meta_data_var_names.keys())
+        meta_data = self.converter.read_meta_data_from_netcdf4(var_names[0])
+        self.assertIsNotNone(meta_data, "Meta data should not be None.")
+        # for key in meta_data:
+        #    print(f"key: {key}, value: {meta_data[key]}")
+        # self.assertIn(key, expected_meta_data_var_names[var_names[0]].keys())
 
 
 if __name__ == "__main__":
