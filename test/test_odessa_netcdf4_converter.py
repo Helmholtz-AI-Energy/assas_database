@@ -103,6 +103,37 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
         self.assertEqual(set(variables_from_meta_data), set(variables_from_index))
 
+    def test_convert_astec_archive_with_groups(self) -> None:
+        """Test converting the ASTEC archive with groups to NetCDF4 format."""
+        # Ensure the input file exists
+        self.assertTrue(
+            self.fake_input_path.exists(), "Input archive file does not exist."
+        )
+
+        # Call the conversion method
+        try:
+            self.converter.initialize_groups_in_netcdf4()
+            self.converter.intialize_astec_variables_in_netcdf4()
+            self.converter.populate_data_of_astec_variables_from_groups_to_netcdf4()
+        except Exception as e:
+            self.fail(f"Conversion with groups failed with exception: {e}.")
+
+        # Verify that the output file is created
+        self.assertTrue(
+            self.fake_output_path.exists(), "Output NetCDF4 file was not created."
+        )
+
+        test_file_location = os.path.dirname(os.path.abspath(__file__))
+        copied_file_path = os.path.join(test_file_location, "copied_output.nc")
+        try:
+            shutil.copy(self.fake_output_path, copied_file_path)
+            self.assertTrue(
+                os.path.exists(copied_file_path),
+                f"Failed to copy the output file to {copied_file_path}.",
+            )
+        except Exception as e:
+            self.fail(f"Failed to copy the output file with exception: {e}.")
+
     def test_convert_astec_archive_meta(self) -> None:
         """Test converting the ASTEC archive to NetCDF4 format."""
         # Ensure the input file exists

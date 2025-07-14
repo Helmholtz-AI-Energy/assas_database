@@ -6,6 +6,43 @@ This configuration is used to map the metadata variables to their
 corresponding elements and attributes in the ASSAS database.
 """
 
+DOMAIN_GROUP_CONFIG = {
+    "primary": {
+        "description": "Primary circuit variables",
+        "odessa_name": "PRIMARY",
+        "domains": [
+            "primary_wall",
+            "primary_volume",
+            "primary_junction",
+            "primary_pipe",
+        ],
+    },
+    "secondary": {
+        "description": "Secondary circuit variables",
+        "odessa_name": "SECONDAR",
+        "domains": [
+            "secondar_wall",
+            "secondar_volume",
+            "secondar_junction",
+        ],
+    },
+    "vessel": {
+        "description": "Reactor vessel variables",
+        "odessa_name": "VESSEL",
+        "domains": [
+            "vessel_general",
+            "vessel_mesh",
+        ],
+    },
+    "connection": {
+        "description": "Connection variables",
+        "odessa_name": "CONNECTI",
+        "domains": [
+            "connecti",
+        ],
+    },
+}
+
 META_DATA_VAR_NAMES = {
     "primary_volume_meta": {
         "domain": "PRIMARY",

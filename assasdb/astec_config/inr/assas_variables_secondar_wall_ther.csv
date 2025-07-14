@@ -1,5 +1,5 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-T_wall_secondar_wall,wall surface temperature,T_wall,[K],secondar,secondar_wall_ther,wall
-Ts_wall_secondar_wall,wall surface temperature,Ts_wall,[K],secondar,secondar_wall_ther,wall
-T_wall_secondar_wall_ther_2,wall surface temperature,T_wall,[K],secondar,secondar_wall_ther_2,wall
-Ts_wall_secondar_wall_ther_2,wall surface temperature,Ts_wall,[K],secondar,secondar_wall_ther_2,wall
+T_wall_secondar_wall,wall surface temperature,T_wall,[K],secondar_wall,secondar_wall_ther,wall
+Ts_wall_secondar_wall,wall surface temperature,Ts_wall,[K],secondar_wall,secondar_wall_ther,wall
+T_wall_secondar_wall_ther_2,wall surface temperature,T_wall,[K],secondar_wall,secondar_wall_ther_2,wall
+Ts_wall_secondar_wall_ther_2,wall surface temperature,Ts_wall,[K],secondar_wall,secondar_wall_ther_2,wall

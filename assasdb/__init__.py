@@ -19,7 +19,8 @@ from .assas_database_handler import AssasDatabaseHandler
 from .assas_document_file import AssasDocumentFileStatus, AssasDocumentFile
 from .assas_odessa_netcdf4_converter import AssasOdessaNetCDF4Converter
 from .assas_utils import get_duration
-from .assas_netcdf4_meta_config import META_DATA_VAR_NAMES
+from .assas_netcdf4_meta_config import META_DATA_VAR_NAMES, DOMAIN_GROUP_CONFIG
+from .assas_unit_manager import AssasUnitManager
 # from .tools import assas_job_generator, assas_single_converter
 
 __all__ = [
@@ -31,6 +32,8 @@ __all__ = [
     "AssasOdessaNetCDF4Converter",
     "get_duration",
     "META_DATA_VAR_NAMES",
+    "DOMAIN_GROUP_CONFIG",
+    "AssasUnitManager",
     # "assas_job_generator",
     # "assas_single_converter",
 ]

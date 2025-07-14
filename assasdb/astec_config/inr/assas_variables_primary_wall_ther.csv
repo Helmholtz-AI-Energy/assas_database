@@ -1,8 +1,8 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-phi_wtol_wall_primary,heat flux exchanged from wall to liquid,phi_wtol,[W],primary,primary_wall_ther,wall
-phi_wtog_wall_primary,heat flux exchanged from wall to gas,phi_wtog,[W],primary,primary_wall_ther,wall
-Ts_wall_primary,wall surface temperature,Ts_wall,[K],primary,primary_wall_ther,wall
-T_wall_primary,wall temperature versus time,T_wall,[K],primary,primary_wall_ther,wall
-phi_wtoi_wall_primary,heat flux exchanged from wall to interface,phi_wtoi,[W],primary,primary_wall_ther,wall
-Ts_wall_primary_2,wall surface temperature second side,Ts_wall,[K],primary,primary_wall_ther_2,wall
-T_wall_primary_2,wall temperature versus time second side,T_wall,[K],primary,primary_wall_ther_2,wall
+phi_wtol_wall_primary,heat flux exchanged from wall to liquid,phi_wtol,[W],primary_wall,primary_wall_ther,wall
+phi_wtog_wall_primary,heat flux exchanged from wall to gas,phi_wtog,[W],primary_wall,primary_wall_ther,wall
+Ts_wall_primary,wall surface temperature,Ts_wall,[K],primary_wall,primary_wall_ther,wall
+T_wall_primary,wall temperature versus time,T_wall,[K],primary_wall,primary_wall_ther,wall
+phi_wtoi_wall_primary,heat flux exchanged from wall to interface,phi_wtoi,[W],primary_wall,primary_wall_ther,wall
+Ts_wall_primary_2,wall surface temperature second side,Ts_wall,[K],primary_wall,primary_wall_ther_2,wall
+T_wall_primary_2,wall temperature versus time second side,T_wall,[K],primary_wall,primary_wall_ther_2,wall
