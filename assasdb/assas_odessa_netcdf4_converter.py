@@ -2900,7 +2900,7 @@ class AssasOdessaNetCDF4Converter:
 
                 ncfile.variables["time_points"].completed_index = start_index + idx
 
-    def populate_data_of_astec_variables_from_groups_to_netcdf4(
+    def populate_data_from_groups_to_netcdf4(
         self,
         maximum_index: int = None,
     ) -> None:
@@ -3254,63 +3254,6 @@ class AssasOdessaNetCDF4Converter:
                 if progress_bar.n % LOG_INTERVAL == 0:
                     logger.info(str(progress_bar))
 
-    def initialize_groups_in_netcdf4(
-        self,
-    ) -> None:
-        """Initialize groups in the netCDF4 file.
-
-        Returns:
-            None
-
-        """
-        logger.info(
-            f"Initialize groups in netCDF4 file with path {str(self.output_path)}."
-        )
-
-        with netCDF4.Dataset(f"{self.output_path}", "a", format="NETCDF4") as ncfile:
-            groups = {}
-            for group_name, config in DOMAIN_GROUP_CONFIG.items():
-                groups[group_name] = ncfile.createGroup(group_name)
-                groups[group_name].description = config["description"]
-                groups[group_name].odessa_name = config["odessa_name"]
-
-                logger.info(f"Created groups: {list(groups.keys())}.")
-
-                for domain_name in config["domains"]:
-                    subgroup = groups[group_name].createGroup(domain_name)
-                    subgroup.description = f"{config['description']} - {domain_name}"
-
-    def get_group_name_from_domain(
-        self,
-        domain_name: str,
-    ) -> tuple:
-        """Get the group name and subgroup name from a domain name.
-
-        Args:
-            domain_name (str): The domain name to look up
-
-        Returns:
-            tuple: (group_name, subgroup_name) where subgroup_name could be None
-                Returns (None, None) if domain is not found
-
-        """
-        domain_lower = domain_name.lower().strip()
-
-        # Search through DOMAIN_GROUP_CONFIG
-        for group_name, config in DOMAIN_GROUP_CONFIG.items():
-            # Check if domain matches the odessa_name exactly
-            if config.get("odessa_name", "").lower() == domain_lower:
-                return (group_name, None)
-
-            # Check if domain is in the domains list
-            if "domains" in config:
-                for domain_item in config["domains"]:
-                    if domain_item.lower() == domain_lower:
-                        return (group_name, domain_item)
-
-        # If no match found, return None
-        return (None, None)
-
     def update_domain_attributes_for_all_variables(self) -> None:
         """Update domain attributes for all variables in the netCDF4 file.
 
@@ -3638,12 +3581,12 @@ class AssasOdessaNetCDF4Converter:
                     }
 
                     logger.info(
-                        f"Successfully created variable {var_name} in {location_path}"
+                        f"Successfully created variable {var_name} in {location_path}."
                     )
 
                 except Exception as e:
                     logger.error(
-                        f"Failed to create variable {var_name} in {location_path}: {e}"
+                        f"Failed to create variable {var_name} in {location_path}: {e}."
                     )
                     continue
 
@@ -3678,61 +3621,6 @@ class AssasOdessaNetCDF4Converter:
         # Collect from group variables
         for group_name, group in ncfile.groups.items():
             self.collect_unit_from_variables(group, unique_unit)
-
-    def create_groups_in_ncfile(self, ncfile: netCDF4.Dataset) -> None:
-        """Create groups in ncfile based on DOMAIN_GROUP_CONFIG.
-
-        Args:
-            ncfile: NetCDF4 dataset object
-
-        """
-        groups = {}
-        for group_name, config in DOMAIN_GROUP_CONFIG.items():
-            groups[group_name] = ncfile.createGroup(group_name)
-            groups[group_name].description = config["description"]
-            groups[group_name].odessa_name = config["odessa_name"]
-
-            logger.info(f"Created group: {group_name}")
-
-            for domain_name in config["domains"]:
-                subgroup = groups[group_name].createGroup(domain_name)
-                subgroup.description = f"{config['description']} - {domain_name}"
-                logger.info(f"Created subgroup: {group_name}/{domain_name}")
-
-    def get_target_location(
-        self,
-        ncfile: netCDF4.Dataset,
-        group_name: str,
-        subgroup_name: str = None,
-    ) -> netCDF4.Group:
-        """Get the target location (group/subgroup) for variable creation.
-
-        Args:
-            ncfile: NetCDF4 dataset object
-            group_name (str): Name of the target group
-            subgroup_name (str): Name of the target subgroup
-
-        Returns:
-            NetCDF4 group object or root dataset
-
-        """
-        if group_name and group_name in ncfile.groups:
-            target_group = ncfile.groups[group_name]
-
-            if subgroup_name and subgroup_name in target_group.groups:
-                return target_group.groups[subgroup_name]
-            else:
-                return target_group
-        else:
-            # Create missing groups if needed
-            if group_name:
-                logger.warning(f"Group {group_name} not found, creating it.")
-                self.create_missing_group(ncfile, group_name, subgroup_name)
-                return self.get_target_location(ncfile, group_name, subgroup_name)
-
-            # Fall back to root level
-            logger.info("No matching group found, placing variable at root level.")
-            return ncfile
 
     def create_missing_group(
         self,
@@ -3779,8 +3667,13 @@ class AssasOdessaNetCDF4Converter:
         """
         if group_name:
             if subgroup_name:
+                logger.debug(
+                    f"Creating location path for group {group_name} "
+                    f"and subgroup {subgroup_name}."
+                )
                 return f"group/{group_name}/{subgroup_name}"
             else:
+                logger.debug(f"Creating location path for group {group_name}.")
                 return f"group/{group_name}"
         else:
             return "root"
@@ -3812,3 +3705,545 @@ class AssasOdessaNetCDF4Converter:
             )
 
         logger.info(f"Total variables created: {len(variable_datasets)}")
+
+    def get_group_name_from_domain(self, domain_name: str) -> tuple:
+        """Get the group name and subgroup name from a domain name.
+
+        Args:
+            domain_name (str): The domain name to look up
+
+        Returns:
+            tuple: (group_name, subgroup_name) where subgroup_name could be None
+                Returns (None, None) if domain is not found
+
+        """
+        domain_lower = domain_name.lower().strip()
+
+        # Search through DOMAIN_GROUP_CONFIG
+        for group_name, config in DOMAIN_GROUP_CONFIG.items():
+            # Check if domain matches the odessa_name exactly
+            if config.get("odessa_name", "").lower() == domain_lower:
+                return (group_name, None)
+
+            # Check if domain is in the domains list
+            if "domains" in config:
+                for domain_item in config["domains"]:
+                    if domain_item.lower() == domain_lower:
+                        # Find the appropriate subgroup for this domain
+                        target_subgroup = self._find_subgroup_for_domain(
+                            group_name, domain_item
+                        )
+                        return (group_name, target_subgroup)
+
+            # Check if domain starts with the group's odessa_name (partial match)
+            odessa_name = config.get("odessa_name", "").lower()
+            if odessa_name and domain_lower.startswith(odessa_name):
+                return (group_name, None)
+
+        # If no match found, return None
+        return (None, None)
+
+    def _find_subgroup_for_domain(self, group_name: str, domain: str) -> str:
+        """Find the appropriate subgroup for a domain within a group.
+
+        Args:
+            group_name (str): The main group name
+            domain (str): The domain to find subgroup for
+
+        Returns:
+            str: The subgroup name, or None if not found
+
+        """
+        if group_name not in DOMAIN_GROUP_CONFIG:
+            return None
+
+        group_config = DOMAIN_GROUP_CONFIG[group_name]
+        if "subgroups" not in group_config:
+            return None
+
+        # Look through subgroups to find one that contains this domain
+        for subgroup_name, subgroup_config in group_config["subgroups"].items():
+            if subgroup_name == "metadata":  # Skip metadata subgroups
+                continue
+
+            if "domains" in subgroup_config:
+                if domain in subgroup_config["domains"]:
+                    return subgroup_name
+
+        # If no specific subgroup found, return the first non-metadata subgroup
+        for subgroup_name in group_config["subgroups"].keys():
+            if subgroup_name != "metadata":
+                return subgroup_name
+
+        return None
+
+    def create_groups_in_ncfile(self, ncfile: netCDF4.Dataset) -> None:
+        """Create groups in ncfile based on DOMAIN_GROUP_CONFIG.
+
+        Args:
+            ncfile: NetCDF4 dataset object
+
+        """
+        groups = {}
+        for group_name, config in DOMAIN_GROUP_CONFIG.items():
+            # Skip global_metadata group if it has no odessa_name
+            if config.get("odessa_name") is None and group_name == "global_metadata":
+                continue
+
+            groups[group_name] = ncfile.createGroup(group_name)
+            groups[group_name].description = config["description"]
+
+            if config.get("odessa_name"):
+                groups[group_name].odessa_name = config["odessa_name"]
+
+            logger.info(f"Created group: {group_name}")
+
+            # Create subgroups based on the enhanced configuration
+            if "subgroups" in config:
+                for subgroup_name, subgroup_config in config["subgroups"].items():
+                    subgroup = groups[group_name].createGroup(subgroup_name)
+                    subgroup.description = subgroup_config["description"]
+
+                    # Add subgroup-specific attributes
+                    if "domains" in subgroup_config:
+                        subgroup.applicable_domains = "; ".join(
+                            subgroup_config["domains"]
+                        )
+
+                    if "metadata_vars" in subgroup_config:
+                        subgroup.metadata_variables = "; ".join(
+                            subgroup_config["metadata_vars"]
+                        )
+                        subgroup.group_type = (
+                            "metadata" if subgroup_name == "metadata" else "data"
+                        )
+
+                    logger.info(f"Created subgroup: {group_name}/{subgroup_name}")
+
+    def initialize_groups_in_netcdf4(self) -> None:
+        """Initialize groups in the netCDF4 file using enhanced configuration.
+
+        Returns:
+            None
+
+        """
+        logger.info(
+            f"Initialize groups in netCDF4 file with path {str(self.output_path)}."
+        )
+
+        with netCDF4.Dataset(f"{self.output_path}", "a", format="NETCDF4") as ncfile:
+            self.create_groups_in_ncfile(ncfile)
+            logger.info("Successfully created enhanced group structure")
+
+    def get_target_location(
+        self,
+        ncfile: netCDF4.Dataset,
+        group_name: str,
+        subgroup_name: str = None,
+    ) -> netCDF4.Group:
+        """Get the target location (group/subgroup) for variable creation.
+
+        Args:
+            ncfile: NetCDF4 dataset object
+            group_name (str): Name of the target group
+            subgroup_name (str): Name of the target subgroup
+
+        Returns:
+            NetCDF4 group object or root dataset
+
+        """
+        if group_name and group_name in ncfile.groups:
+            target_group = ncfile.groups[group_name]
+
+            if subgroup_name and subgroup_name in target_group.groups:
+                return target_group.groups[subgroup_name]
+            else:
+                # If no specific subgroup, try to find the best match
+                best_subgroup = self.find_best_subgroup_for_variable(
+                    group_name, target_group
+                )
+                if best_subgroup:
+                    return best_subgroup
+                return target_group
+        else:
+            # Create missing groups if needed
+            if group_name:
+                logger.warning(f"Group {group_name} not found, creating it.")
+                self.create_missing_group_enhanced(ncfile, group_name, subgroup_name)
+                return self.get_target_location(ncfile, group_name, subgroup_name)
+
+            # Fall back to root level
+            logger.info("No matching group found, placing variable at root level.")
+            return ncfile
+
+    def find_best_subgroup_for_variable(
+        self,
+        group_name: str,
+        target_group: netCDF4.Group,
+    ) -> netCDF4.Group:
+        """Find the best subgroup for a variable based on the enhanced configuration.
+
+        Args:
+            group_name (str): Name of the main group
+            target_group: NetCDF4 group object
+
+        Returns:
+            NetCDF4 group object or None
+
+        """
+        if group_name not in DOMAIN_GROUP_CONFIG:
+            return None
+
+        group_config = DOMAIN_GROUP_CONFIG[group_name]
+        if "subgroups" not in group_config:
+            return None
+
+        # Find the first non-metadata subgroup
+        for subgroup_name, subgroup_config in group_config["subgroups"].items():
+            if subgroup_name != "metadata" and subgroup_name in target_group.groups:
+                return target_group.groups[subgroup_name]
+
+        return None
+
+    def create_missing_group_enhanced(
+        self,
+        ncfile: netCDF4.Dataset,
+        group_name: str,
+        subgroup_name: str = None,
+    ) -> None:
+        """Create missing group and subgroup using enhanced configuration.
+
+        Args:
+            ncfile: NetCDF4 dataset object
+            group_name (str): Name of the group to create
+            subgroup_name (str): Name of the subgroup to create
+
+        """
+        if group_name not in ncfile.groups:
+            # Check if group exists in configuration
+            if group_name in DOMAIN_GROUP_CONFIG:
+                config = DOMAIN_GROUP_CONFIG[group_name]
+                main_group = ncfile.createGroup(group_name)
+                main_group.description = config["description"]
+
+                if config.get("odessa_name"):
+                    main_group.odessa_name = config["odessa_name"]
+
+                logger.info(f"Created group from config: {group_name}")
+
+                # Create subgroups from configuration
+                if "subgroups" in config:
+                    for sg_name, sg_config in config["subgroups"].items():
+                        subgroup = main_group.createGroup(sg_name)
+                        subgroup.description = sg_config["description"]
+
+                        if "domains" in sg_config:
+                            subgroup.applicable_domains = "; ".join(
+                                sg_config["domains"]
+                            )
+
+                        if "metadata_vars" in sg_config:
+                            subgroup.metadata_variables = "; ".join(
+                                sg_config["metadata_vars"]
+                            )
+                            subgroup.group_type = (
+                                "metadata" if sg_name == "metadata" else "data"
+                            )
+
+                        logger.info(
+                            f"Created subgroup from config: {group_name}/{sg_name}"
+                        )
+            else:
+                # Fallback for unknown groups
+                main_group = ncfile.createGroup(group_name)
+                main_group.description = f"Auto-created group for {group_name}"
+                main_group.auto_created = True
+                logger.info(f"Auto-created group: {group_name}")
+
+                if subgroup_name:
+                    subgroup = main_group.createGroup(subgroup_name)
+                    subgroup.description = (
+                        f"Auto-created subgroup: {group_name} - {subgroup_name}"
+                    )
+                    subgroup.auto_created = True
+                    logger.info(f"Auto-created subgroup: {group_name}/{subgroup_name}")
+
+    def create_metadata_variables_in_groups(self) -> None:
+        """Create metadata variables in their designated groups.
+
+        This method uses the enhanced configuration to create metadata variables
+        Create metadata variables in their designated groups based on enhanced config.
+        """
+        logger.info("Creating metadata variables in designated groups")
+
+        with netCDF4.Dataset(f"{self.output_path}", "a", format="NETCDF4") as ncfile:
+            for meta_var_name, meta_config in META_DATA_VAR_NAMES.items():
+                target_group_path = meta_config.get(
+                    "target_group", "global_metadata/simulation"
+                )
+
+                # Navigate to target group
+                target_group = self.navigate_to_group(ncfile, target_group_path)
+
+                if target_group is None:
+                    logger.warning(
+                        f"Target group {target_group_path} "
+                        f"not found for {meta_var_name}. Skipping creation."
+                    )
+                    continue
+
+                # Create metadata variable
+                self.create_metadata_variable_enhanced(
+                    target_group, meta_var_name, meta_config, target_group_path
+                )
+
+    def navigate_to_group(
+        self, ncfile: netCDF4.Dataset, group_path: str
+    ) -> netCDF4.Group:
+        """Navigate to a nested group using path notation."""
+        if not group_path or group_path == "root":
+            return ncfile
+
+        try:
+            path_parts = group_path.split("/")
+            current_location = ncfile
+
+            for part in path_parts:
+                if part in current_location.groups:
+                    current_location = current_location.groups[part]
+                else:
+                    logger.warning(
+                        f"Group part '{part}' not found in path '{group_path}'"
+                    )
+                    return None
+
+            return current_location
+
+        except Exception as e:
+            logger.error(f"Error navigating to group {group_path}: {e}")
+            return None
+
+    def create_metadata_variable_enhanced(
+        self,
+        target_group: netCDF4.Group,
+        meta_var_name: str,
+        meta_config: dict,
+        group_path: str,
+    ) -> None:
+        """Create a metadata variable in the target group with enhanced attributes."""
+        try:
+            # Determine dimensions for metadata variable
+            attributes = meta_config["attribute"]
+            if isinstance(attributes, list):
+                max_attr_len = (
+                    max(len(attr) for attr in attributes) if attributes else 50
+                )
+                dimensions = (f"{meta_var_name}_count", f"{meta_var_name}_string_len")
+
+                # Create dimensions if they don't exist
+                if f"{meta_var_name}_count" not in target_group.dimensions:
+                    target_group.createDimension(f"{meta_var_name}_count", None)
+                if f"{meta_var_name}_string_len" not in target_group.dimensions:
+                    target_group.createDimension(
+                        f"{meta_var_name}_string_len", max_attr_len
+                    )
+            else:
+                dimensions = (f"{meta_var_name}_count", f"{meta_var_name}_string_len")
+
+                if f"{meta_var_name}_count" not in target_group.dimensions:
+                    target_group.createDimension(f"{meta_var_name}_count", None)
+                if f"{meta_var_name}_string_len" not in target_group.dimensions:
+                    target_group.createDimension(f"{meta_var_name}_string_len", 50)
+
+            # Create the metadata variable
+            meta_var = target_group.createVariable(
+                meta_var_name,
+                "S1",  # String type
+                dimensions,
+            )
+
+            # Set metadata variable attributes using enhanced config
+            meta_var.description = meta_config.get(
+                "description", f"Metadata for {meta_var_name}"
+            )
+            meta_var.variable_type = "metadata"
+
+            if meta_config.get("domain"):
+                meta_var.source_domain = meta_config["domain"]
+            meta_var.source_element = meta_config["element"]
+
+            if isinstance(attributes, list):
+                meta_var.attributes = "; ".join(attributes)
+            else:
+                meta_var.attributes = attributes
+
+            meta_var.group_location = group_path
+            meta_var.target_group = meta_config.get("target_group", "")
+
+            logger.info(
+                f"Created enhanced metadata variable {meta_var_name} in {group_path}"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to create metadata variable {meta_var_name}: {e}")
+
+    def assign_variables_to_enhanced_groups(self) -> None:
+        """Assign existing variables to enhanced groups.
+
+        Assign data variables to appropriate groups and metadata variables to
+        metadata groups.
+        """
+        logger.info("Assigning variables to enhanced group structure")
+
+        with netCDF4.Dataset(f"{self.output_path}", "a", format="NETCDF4") as ncfile:
+            # First, assign data variables to data groups
+            self.assign_data_variables_enhanced(ncfile)
+
+            # Then, assign metadata variables to metadata groups
+            self.assign_metadata_variables_enhanced(ncfile)
+
+            # Finally, create cross-references
+            self.create_cross_references_enhanced(ncfile)
+
+    def assign_data_variables_enhanced(self, ncfile: netCDF4.Dataset) -> None:
+        """Assign data variables to appropriate data subgroups using enhanced config."""
+        for _, variable in self.variable_index.iterrows():
+            var_name = variable["name"]
+            domain = variable["domain"]
+            strategy = variable["strategy"]
+
+            # Determine target group and subgroup using enhanced logic
+            group_name, subgroup_name = self.get_group_name_from_domain(domain)
+
+            if group_name and group_name in ncfile.groups:
+                target_group = ncfile.groups[group_name]
+
+                # Determine specific subgroup based on enhanced configuration
+                target_subgroup = self.determine_data_subgroup_enhanced(
+                    target_group, domain, strategy, group_name
+                )
+
+                if target_subgroup and var_name in ncfile.variables:
+                    # Add metadata about group assignment to existing variable
+                    var = ncfile.variables[var_name]
+                    var.enhanced_group_assignment = group_name
+                    if hasattr(target_subgroup, "name"):
+                        var.enhanced_subgroup_assignment = target_subgroup.name.split(
+                            "/"
+                        )[-1]
+                        var.enhanced_full_path = (
+                            f"{group_name}/{target_subgroup.name.split('/')[-1]}"
+                        )
+                    else:
+                        var.enhanced_full_path = group_name
+
+                    logger.info(
+                        f"Enhanced assignment: {var_name} -> {var.enhanced_full_path}"
+                    )
+
+    def determine_data_subgroup_enhanced(
+        self, target_group: netCDF4.Group, domain: str, strategy: str, group_name: str
+    ) -> netCDF4.Group:
+        """Determine the appropriate data subgroup using enhanced configuration."""
+        if group_name in DOMAIN_GROUP_CONFIG:
+            group_config = DOMAIN_GROUP_CONFIG[group_name]
+            subgroups = group_config.get("subgroups", {})
+
+            # First, try to find subgroup that explicitly contains this domain
+            for subgroup_name, subgroup_config in subgroups.items():
+                if subgroup_name == "metadata":  # Skip metadata subgroups
+                    continue
+
+                if "domains" in subgroup_config:
+                    if domain in subgroup_config["domains"]:
+                        if subgroup_name in target_group.groups:
+                            return target_group.groups[subgroup_name]
+
+            # If no exact match, use strategy-based assignment
+            # strategy_subgroup_mapping = {
+            #    "vessel_general": "thermal",
+            #    "vessel_mesh": "mesh",
+            #    "primary_volume_ther": "thermal",
+            #    "primary_wall_ther": "thermal",
+            #    "primary_junction_ther": "geometry",
+            #    "primary_pipe_ther": "geometry",
+            #    "secondar_volume_ther": "thermal",
+            #    "secondar_wall_ther": "thermal",
+            #    "secondar_junction_ther": "geometry",
+            # }
+
+            # preferred_subgroup = strategy_subgroup_mapping.get(strategy)
+            # if preferred_subgroup and preferred_subgroup in target_group.groups:
+            #    return target_group.groups[preferred_subgroup]
+
+            # Default to first non-metadata subgroup
+            # for subgroup_name in subgroups.keys():
+            #    if subgroup_name != "metadata" and subgroup_name \
+            #       in target_group.groups:
+            #           return target_group.groups[subgroup_name]
+
+        return target_group
+
+    def assign_metadata_variables_enhanced(self, ncfile: netCDF4.Dataset) -> None:
+        """Assign metadata variables to metadata subgroups using enhanced config."""
+        for meta_var_name, meta_config in META_DATA_VAR_NAMES.items():
+            target_group_path = meta_config.get(
+                "target_group", "global_metadata/simulation"
+            )
+
+            # Check if metadata variable exists
+            target_location = self.navigate_to_group(ncfile, target_group_path)
+
+            if target_location and meta_var_name not in target_location.variables:
+                # Create the metadata variable if it doesn't exist
+                self.create_metadata_variable_enhanced(
+                    target_location, meta_var_name, meta_config, target_group_path
+                )
+
+    def create_cross_references_enhanced(self, ncfile: netCDF4.Dataset) -> None:
+        """Create enhanced cross-references between data and metadata variables."""
+        # Add global attributes about enhanced structure
+        metadata_groups = []
+        data_groups = []
+        self.collect_enhanced_groups(ncfile, metadata_groups, data_groups, "")
+
+        ncfile.setncattr("metadata_groups", "; ".join(metadata_groups))
+        ncfile.setncattr("data_groups", "; ".join(data_groups))
+        ncfile.setncattr("structure_version", "enhanced_config_v1")
+        ncfile.setncattr(
+            "metadata_organization", "grouped by system component with subgroups"
+        )
+
+        logger.info(
+            f"Created enhanced cross-references: {len(metadata_groups)} "
+            f"metadata groups, {len(data_groups)} data groups"
+        )
+
+    def collect_enhanced_groups(
+        self,
+        location: netCDF4.Dataset,
+        metadata_groups: list,
+        data_groups: list,
+        current_path: str,
+    ) -> None:
+        """Recursively collect all enhanced group paths."""
+        for group_name, group in location.groups.items():
+            group_path = f"{current_path}/{group_name}" if current_path else group_name
+
+            # Check if this is a metadata group
+            if hasattr(group, "group_type"):
+                if group.group_type == "metadata":
+                    metadata_groups.append(group_path)
+                else:
+                    data_groups.append(group_path)
+            else:
+                # Check by name convention
+                if group_name == "metadata":
+                    metadata_groups.append(group_path)
+                else:
+                    data_groups.append(group_path)
+
+            # Recurse into subgroups
+            self.collect_enhanced_groups(
+                group, metadata_groups, data_groups, group_path
+            )
