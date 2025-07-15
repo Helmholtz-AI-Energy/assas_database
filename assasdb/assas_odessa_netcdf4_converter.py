@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import json
+import xarray as xr
+import shutil
 
 from tqdm import tqdm
 from typing import List, Union, Optional
@@ -3009,29 +3011,11 @@ class AssasOdessaNetCDF4Converter:
     def get_all_variable_datasets(self, ncfile: netCDF4.Dataset) -> dict:
         """Get all variable datasets from root and groups.
 
-        Args:
-            ncfile: NetCDF4 dataset object
-
-        Returns:
-            dict: Dictionary mapping variable names to their dataset info
-
+        This method now prioritizes variables in groups over root variables.
         """
         variable_datasets = {}
 
-        # Get variables from root level
-        for var_name in ncfile.variables.keys():
-            if var_name == "time_points":
-                continue
-
-            variable_datasets[var_name] = {
-                "dataset": ncfile.variables[var_name],
-                "location": "root",
-                "group": None,
-                "subgroup": None,
-            }
-            logger.debug(f"Found variable {var_name} at root level.")
-
-        # Get variables from groups
+        # First, get variables from groups (these take priority)
         for group_name, group in ncfile.groups.items():
             # Variables directly in group
             for var_name in group.variables.keys():
@@ -3055,6 +3039,31 @@ class AssasOdessaNetCDF4Converter:
                     logger.debug(
                         f"Found variable {var_name} in "
                         f"subgroup {group_name}/{subgroup_name}."
+                    )
+
+        # Then, get variables from root level (only if not already found in groups)
+        for var_name in ncfile.variables.keys():
+            if var_name == "time_points":
+                continue
+
+            # Only add root variables if they're not already in groups
+            if var_name not in variable_datasets:
+                variable_datasets[var_name] = {
+                    "dataset": ncfile.variables[var_name],
+                    "location": "root",
+                    "group": None,
+                    "subgroup": None,
+                }
+                logger.debug(f"Found variable {var_name} at root level.")
+            else:
+                # Variable exists in group, mark root version as deprecated
+                if hasattr(ncfile.variables[var_name], "moved_to_group"):
+                    logger.debug(
+                        f"Variable {var_name} at root marked as moved to group"
+                    )
+                else:
+                    logger.warning(
+                        f"Variable {var_name} exists in both root and group!"
                     )
 
         return variable_datasets
@@ -4096,6 +4105,9 @@ class AssasOdessaNetCDF4Converter:
         logger.info("Assigning variables to enhanced group structure")
 
         with netCDF4.Dataset(f"{self.output_path}", "a", format="NETCDF4") as ncfile:
+            # First, move data variables to data groups
+            self.move_data_variables_to_groups(ncfile)
+
             # First, assign data variables to data groups
             self.assign_data_variables_enhanced(ncfile)
 
@@ -4104,6 +4116,154 @@ class AssasOdessaNetCDF4Converter:
 
             # Finally, create cross-references
             self.create_cross_references_enhanced(ncfile)
+
+    def move_data_variables_to_groups(self, ncfile: netCDF4.Dataset) -> None:
+        """Actually move data variables from root to appropriate groups."""
+        variables_to_move = []
+        variables_moved = 0
+        variables_failed = 0
+
+        # First pass: identify variables to move
+        for _, variable in self.variable_index.iterrows():
+            var_name = variable["name"]
+            domain = variable["domain"]
+            strategy = variable["strategy"]
+
+            # Skip if variable doesn't exist at root
+            if var_name not in ncfile.variables:
+                continue
+
+            # Skip time_points - keep it at root
+            if var_name == "time_points":
+                continue
+
+            # Determine target group and subgroup
+            group_name, subgroup_name = self.get_group_name_from_domain(domain)
+
+            if group_name and group_name in ncfile.groups:
+                target_group = ncfile.groups[group_name]
+
+                # Determine specific subgroup
+                target_subgroup = self.determine_data_subgroup_enhanced(
+                    target_group, domain, strategy, group_name
+                )
+
+                if target_subgroup:
+                    target_location = target_subgroup
+                    target_path = f"{group_name}/{target_subgroup.name.split('/')[-1]}"
+                else:
+                    target_location = target_group
+                    target_path = group_name
+
+                variables_to_move.append(
+                    {
+                        "var_name": var_name,
+                        "source_var": ncfile.variables[var_name],
+                        "target_location": target_location,
+                        "target_path": target_path,
+                        "group_name": group_name,
+                        "subgroup_name": subgroup_name,
+                    }
+                )
+
+        logger.info(f"Identified {len(variables_to_move)} variables to move")
+
+        # Second pass: actually move the variables
+        for move_info in variables_to_move:
+            try:
+                success = self.move_single_variable_to_group(ncfile, move_info)
+                if success:
+                    variables_moved += 1
+                else:
+                    variables_failed += 1
+            except Exception as e:
+                logger.error(f"Failed to move variable {move_info['var_name']}: {e}")
+                variables_failed += 1
+
+        logger.info(
+            f"Variable movement complete: {variables_moved} moved, "
+            f"{variables_failed} failed"
+        )
+
+    def move_single_variable_to_group(
+        self, ncfile: netCDF4.Dataset, move_info: dict
+    ) -> bool:
+        """Move a single variable from root to target group."""
+        var_name = move_info["var_name"]
+        source_var = move_info["source_var"]
+        target_location = move_info["target_location"]
+        target_path = move_info["target_path"]
+
+        try:
+            # Check if variable already exists in target location
+            if var_name in target_location.variables:
+                logger.warning(f"Variable {var_name} already exists in {target_path}")
+                return False
+
+            # Create dimensions in target location if they don't exist
+            self.ensure_dimensions_exist(source_var, target_location, ncfile)
+
+            # Create new variable in target location
+            new_var = target_location.createVariable(
+                varname=var_name,
+                datatype=source_var.dtype,
+                dimensions=source_var.dimensions,
+                fill_value=getattr(source_var, "_FillValue", None),
+            )
+
+            # Copy all data
+            new_var[:] = source_var[:]
+
+            # Copy all attributes
+            for attr_name in source_var.ncattrs():
+                if attr_name not in ["_FillValue"]:  # Skip special attributes
+                    attr_value = source_var.getncattr(attr_name)
+                    new_var.setncattr(attr_name, attr_value)
+
+            # Add movement tracking attributes
+            new_var.setncattr("moved_from_root", 1)
+            new_var.setncattr("moved_from_root_2", 88)
+            new_var.setncattr("target_group_path", target_path)
+            new_var.setncattr("enhanced_group_assignment", move_info["group_name"])
+            if move_info["subgroup_name"]:
+                new_var.setncattr(
+                    "enhanced_subgroup_assignment", move_info["subgroup_name"]
+                )
+
+            # Mark original variable as moved (can't delete in NetCDF4)
+            source_var.setncattr("moved_to_group", target_path)
+            source_var.setncattr("deprecated", 1)
+            source_var.setncattr("replacement_location", target_path)
+
+            logger.info(f"Successfully moved variable {var_name} to {target_path}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to move variable {var_name} to {target_path}: {e}")
+            return False
+
+    def ensure_dimensions_exist(
+        self,
+        source_var: netCDF4.Variable,
+        target_location: netCDF4.Group,
+        ncfile: netCDF4.Dataset,
+    ) -> None:
+        """Ensure all required dimensions exist in target location."""
+        for dim_name in source_var.dimensions:
+            if dim_name not in target_location.dimensions:
+                # Get dimension size from source
+                if dim_name in ncfile.dimensions:
+                    dim_size = (
+                        len(ncfile.dimensions[dim_name])
+                        if not ncfile.dimensions[dim_name].isunlimited()
+                        else None
+                    )
+                else:
+                    # Dimension might be in root, use None for unlimited
+                    dim_size = None
+
+                target_location.createDimension(dim_name, dim_size)
+                logger.debug(f"Created dimension {dim_name} in target location")
 
     def assign_data_variables_enhanced(self, ncfile: netCDF4.Dataset) -> None:
         """Assign data variables to appropriate data subgroups using enhanced config."""
@@ -4246,4 +4406,697 @@ class AssasOdessaNetCDF4Converter:
             # Recurse into subgroups
             self.collect_enhanced_groups(
                 group, metadata_groups, data_groups, group_path
+            )
+
+    def verify_variable_movement(self) -> dict:
+        """Verify that variables have been properly moved to groups."""
+        verification = {
+            "root_variables": [],
+            "moved_variables": [],
+            "group_variables": {},
+            "deprecated_variables": [],
+        }
+
+        with netCDF4.Dataset(f"{self.output_path}", "r", format="NETCDF4") as ncfile:
+            # Check root variables
+            for var_name, var in ncfile.variables.items():
+                if hasattr(var, "deprecated") and var.deprecated:
+                    verification["deprecated_variables"].append(var_name)
+                else:
+                    verification["root_variables"].append(var_name)
+
+            # Check group variables
+            for group_name, group in ncfile.groups.items():
+                verification["group_variables"][group_name] = []
+
+                for var_name, var in group.variables.items():
+                    verification["group_variables"][group_name].append(var_name)
+                    if hasattr(var, "moved_from_root") and var.moved_from_root:
+                        verification["moved_variables"].append(
+                            f"{group_name}/{var_name}"
+                        )
+
+                # Check subgroups
+                for subgroup_name, subgroup in group.groups.items():
+                    subgroup_key = f"{group_name}/{subgroup_name}"
+                    verification["group_variables"][subgroup_key] = []
+
+                    for var_name, var in subgroup.variables.items():
+                        verification["group_variables"][subgroup_key].append(var_name)
+                        if hasattr(var, "moved_from_root") and var.moved_from_root:
+                            verification["moved_variables"].append(
+                                f"{subgroup_key}/{var_name}"
+                            )
+
+        return verification
+
+    def get_minimal_safe_encoding(self, ds: xr.Dataset) -> dict:
+        """Get minimal safe encoding that should work for most cases."""
+        encoding = {}
+
+        for var_name in ds.data_vars:
+            var = ds[var_name]
+            var_encoding = {}
+
+            # Only include the most basic and safe encoding parameters
+            if var.dtype.kind == "f":  # floating point
+                var_encoding["dtype"] = "float32"
+                var_encoding["zlib"] = True
+                var_encoding["complevel"] = 4
+            elif var.dtype.kind in ["i", "u"]:  # integer
+                var_encoding["dtype"] = var.dtype
+                var_encoding["zlib"] = True
+                var_encoding["complevel"] = 4
+
+            if var_encoding:
+                encoding[var_name] = var_encoding
+
+        # Handle coordinates
+        for coord_name in ds.coords:
+            if coord_name not in ds.data_vars:  # Don't double-encode
+                coord = ds.coords[coord_name]
+                coord_encoding = {}
+
+                if coord.dtype.kind == "f":
+                    coord_encoding["dtype"] = "float32"
+                elif coord.dtype.kind in ["i", "u"]:
+                    coord_encoding["dtype"] = coord.dtype
+
+                if coord_encoding:
+                    encoding[coord_name] = coord_encoding
+
+        return encoding
+
+    def remove_deprecated_variables_with_xarray(self) -> dict:
+        """Remove deprecated variables using xarray with enhanced error handling."""
+        logger.info("Removing deprecated variables using xarray")
+
+        removal_summary = {
+            "method": "xarray",
+            "success": False,
+            "variables_removed": [],
+            "variables_kept": [],
+            "errors": [],
+            "backup_path": None,
+        }
+
+        try:
+            # Create backup
+            backup_path = self.output_path.with_suffix(
+                ".backup_before_xarray_cleanup.nc"
+            )
+            shutil.copy(self.output_path, backup_path)
+            removal_summary["backup_path"] = str(backup_path)
+            logger.info(f"Created backup: {backup_path}")
+
+            # Open dataset with xarray
+            with xr.open_dataset(self.output_path, decode_times=False) as ds:
+                variables_to_remove = []
+                variables_to_keep = []
+
+                # Identify deprecated variables
+                for var_name, var in ds.data_vars.items():
+                    if "deprecated" in var.attrs and var.attrs["deprecated"] == 1:
+                        variables_to_remove.append(var_name)
+                        logger.info(f"Marked for removal: {var_name}")
+                    else:
+                        variables_to_keep.append(var_name)
+
+                # Check coordinate variables
+                coord_vars_to_remove = []
+                for coord_name in ds.coords:
+                    if coord_name in ds.data_vars:
+                        continue
+                    coord_var = ds.coords[coord_name]
+                    if (
+                        "deprecated" in coord_var.attrs
+                        and coord_var.attrs["deprecated"] == 1
+                    ):
+                        coord_vars_to_remove.append(coord_name)
+                        logger.info(f"Deprecated coordinate variable: {coord_name}")
+
+                removal_summary["variables_removed"] = (
+                    variables_to_remove + coord_vars_to_remove
+                )
+                removal_summary["variables_kept"] = variables_to_keep
+
+                if not variables_to_remove and not coord_vars_to_remove:
+                    logger.info("No deprecated variables found to remove")
+                    removal_summary["success"] = True
+                    return removal_summary
+
+                logger.info(
+                    f"Removing {len(variables_to_remove)} data variables and "
+                    f"{len(coord_vars_to_remove)} coordinate variables"
+                )
+
+                # Remove deprecated variables
+                cleaned_ds = ds.drop_vars(variables_to_remove + coord_vars_to_remove)
+
+                # Add cleanup metadata
+                cleaned_ds.attrs["xarray_cleanup_performed"] = 1
+                cleaned_ds.attrs["xarray_cleanup_timestamp"] = str(pd.Timestamp.now())
+                cleaned_ds.attrs["variables_removed_by_xarray"] = "; ".join(
+                    variables_to_remove
+                )
+                cleaned_ds.attrs["variables_removed_count"] = len(variables_to_remove)
+
+                # Save with safe encoding
+                temp_path = self.output_path.with_suffix(".temp_cleaned.nc")
+
+                # Try multiple encoding strategies
+                encoding_strategies = [
+                    (
+                        "validated",
+                        lambda: self.validate_and_fix_encoding(ds, cleaned_ds),
+                    ),
+                    ("safe", lambda: self.get_safe_encoding_for_xarray(ds, cleaned_ds)),
+                    ("minimal", lambda: self.get_minimal_safe_encoding(cleaned_ds)),
+                    ("none", lambda: {}),
+                ]
+
+                saved = False
+                for strategy_name, encoding_func in encoding_strategies:
+                    try:
+                        logger.info(f"Trying {strategy_name} encoding strategy...")
+                        encoding = encoding_func()
+
+                        if encoding:
+                            cleaned_ds.to_netcdf(
+                                temp_path, format="NETCDF4", encoding=encoding
+                            )
+                        else:
+                            cleaned_ds.to_netcdf(temp_path, format="NETCDF4")
+
+                        logger.info(f"Successfully saved with {strategy_name} encoding")
+                        saved = True
+                        break
+
+                    except Exception as e:
+                        logger.warning(f"Failed with {strategy_name} encoding: {e}")
+                        continue
+
+                if not saved:
+                    raise RuntimeError("All encoding strategies failed")
+
+                # Replace original file
+                shutil.move(temp_path, self.output_path)
+
+                removal_summary["success"] = True
+                logger.info(
+                    f"Successfully removed {len(variables_to_remove)} "
+                    f"deprecated variables using xarray"
+                )
+
+        except Exception as e:
+            error_msg = f"Failed to remove deprecated variables with xarray: {e}"
+            logger.error(error_msg)
+            removal_summary["errors"].append(error_msg)
+
+            # Clean up temporary files on failure
+            temp_path = self.output_path.with_suffix(".temp_cleaned.nc")
+            if temp_path.exists():
+                temp_path.unlink()
+
+        return removal_summary
+
+    def filter_encoding_for_xarray(
+        self, original_encoding: dict, variable_dims: tuple
+    ) -> dict:
+        """Filter encoding dictionary to remove parameters invalid NetCDF4 backend.
+
+        Args:
+            original_encoding (dict): Original encoding dictionary
+            variable_dims (tuple): Variable dimensions for validation
+
+        Returns:
+            dict: Filtered encoding dictionary with only valid parameters
+
+        """
+        # Valid encoding parameters for NetCDF4 backend in xarray
+        valid_encoding_params = {
+            "szip_coding",
+            "complevel",
+            "least_significant_digit",
+            "zlib",
+            "dtype",
+            "contiguous",
+            "blosc_shuffle",
+            "szip_pixels_per_block",
+            "endian",
+            "_FillValue",
+            "chunksizes",
+            "compression",
+            "quantize_mode",
+            "significant_digits",
+            "shuffle",
+            "fletcher32",
+        }
+
+        # Invalid parameters that cause the error
+        invalid_params = {"szip", "zstd", "bzip2", "blosc"}
+
+        filtered_encoding = {}
+        removed_params = []
+
+        for key, value in original_encoding.items():
+            if key in valid_encoding_params and key not in invalid_params:
+                # Special handling for chunksizes
+                if key == "chunksizes":
+                    # Validate chunksizes against variable dimensions
+                    if isinstance(value, (list, tuple)) and len(value) == len(
+                        variable_dims
+                    ):
+                        # Additional validation: ensure chunksizes are positive integers
+                        try:
+                            chunksizes = [int(chunk) for chunk in value]
+                            if all(chunk > 0 for chunk in chunksizes):
+                                filtered_encoding[key] = tuple(chunksizes)
+                            else:
+                                removed_params.append(f"{key} (invalid values)")
+                                logger.debug(
+                                    f"Removed chunksizes with invalid values: {value}"
+                                )
+                        except (ValueError, TypeError):
+                            removed_params.append(f"{key} (non-integer values)")
+                            logger.debug(
+                                f"Removed chunksizes with non-integer values: {value}"
+                            )
+                    else:
+                        removed_params.append(f"{key} (dimension mismatch)")
+                        logger.debug(
+                            f"Removed chunksizes due to dimension mismatch: "
+                            f"chunksizes={value} "
+                            f"(len="
+                            f"{len(value) if hasattr(value, '__len__') else 'N/A'}), "
+                            f"dims={variable_dims} (len={len(variable_dims)})"
+                        )
+                else:
+                    filtered_encoding[key] = value
+            else:
+                removed_params.append(key)
+                logger.debug(f"Removed invalid encoding parameter: {key} = {value}")
+
+        if removed_params:
+            logger.debug(f"Filtered out encoding parameters: {removed_params}")
+
+        return filtered_encoding
+
+    def get_safe_encoding_for_xarray(
+        self, ds: xr.Dataset, cleaned_ds: xr.Dataset
+    ) -> dict:
+        """Get safe encoding dictionary for xarray NetCDF4 output.
+
+        Args:
+            ds: Original dataset
+            cleaned_ds: Cleaned dataset
+
+        Returns:
+            dict: Safe encoding dictionary
+
+        """
+        encoding = {}
+
+        # Process data variables
+        for var_name in cleaned_ds.data_vars:
+            if var_name in ds.data_vars:
+                original_encoding = ds[var_name].encoding
+                variable_dims = cleaned_ds[var_name].dims
+                filtered_encoding = self.filter_encoding_for_xarray(
+                    original_encoding, variable_dims
+                )
+
+                if filtered_encoding:
+                    encoding[var_name] = filtered_encoding
+                    logger.debug(
+                        f"Applied encoding for data variable "
+                        f"{var_name}: {filtered_encoding}"
+                    )
+
+        # Process coordinate variables
+        for coord_name in cleaned_ds.coords:
+            if coord_name in ds.coords:
+                original_encoding = ds.coords[coord_name].encoding
+                variable_dims = cleaned_ds.coords[coord_name].dims
+                filtered_encoding = self.filter_encoding_for_xarray(
+                    original_encoding, variable_dims
+                )
+
+                if filtered_encoding:
+                    encoding[coord_name] = filtered_encoding
+                    logger.debug(
+                        f"Applied encoding for coordinate "
+                        f"{coord_name}: {filtered_encoding}"
+                    )
+
+        return encoding
+
+    def validate_and_fix_encoding(self, ds: xr.Dataset, cleaned_ds: xr.Dataset) -> dict:
+        """Validate and fix encoding issues for xarray output.
+
+        Args:
+            ds: Original dataset
+            cleaned_ds: Cleaned dataset
+
+        Returns:
+            dict: Safe encoding dictionary
+
+        """
+        safe_encoding = {}
+
+        # Get all variables (data + coordinates)
+        all_vars = list(cleaned_ds.data_vars) + list(cleaned_ds.coords)
+
+        for var_name in all_vars:
+            try:
+                # Get the variable and its properties
+                if var_name in cleaned_ds.data_vars:
+                    var = cleaned_ds[var_name]
+                    original_var = ds[var_name] if var_name in ds.data_vars else None
+                else:
+                    var = cleaned_ds.coords[var_name]
+                    original_var = (
+                        ds.coords[var_name] if var_name in ds.coords else None
+                    )
+
+                if original_var is None:
+                    logger.debug(
+                        f"Variable {var_name} not found in original dataset, "
+                        f"skipping encoding."
+                    )
+                    continue
+
+                # Get original encoding
+                original_encoding = original_var.encoding
+
+                if not original_encoding:
+                    logger.debug(f"No encoding found for variable {var_name}.")
+                    continue
+
+                # Create safe encoding
+                var_encoding = self.create_safe_variable_encoding(
+                    var_name, var, original_encoding
+                )
+
+                if var_encoding:
+                    safe_encoding[var_name] = var_encoding
+
+            except Exception as e:
+                logger.warning(
+                    f"Failed to process encoding for variable {var_name}: {e}"
+                )
+                continue
+
+        logger.info(f"Created safe encoding for {len(safe_encoding)} variables")
+        return safe_encoding
+
+    def create_safe_variable_encoding(
+        self, var_name: str, var: xr.Variable, original_encoding: dict
+    ) -> dict:
+        """Create safe encoding for a single variable.
+
+        Args:
+            var_name: Variable name
+            var: xarray Variable object
+            original_encoding: Original encoding dictionary
+
+        Returns:
+            dict: Safe encoding for the variable
+
+        """
+        safe_encoding = {}
+
+        # Define safe encoding parameters
+        safe_params = {
+            "dtype",
+            "zlib",
+            "complevel",
+            "shuffle",
+            "fletcher32",
+            "least_significant_digit",
+            "significant_digits",
+        }
+
+        # Copy safe parameters
+        for param in safe_params:
+            if param in original_encoding:
+                safe_encoding[param] = original_encoding[param]
+
+        # Handle chunksizes specially
+        if "chunksizes" in original_encoding:
+            original_chunks = original_encoding["chunksizes"]
+            var_dims = var.dims
+
+            if isinstance(original_chunks, (list, tuple)):
+                if len(original_chunks) == len(var_dims):
+                    # Validate chunk sizes
+                    try:
+                        validated_chunks = []
+                        for i, (chunk, dim) in enumerate(
+                            zip(original_chunks, var_dims)
+                        ):
+                            chunk_size = int(chunk)
+                            dim_size = var.sizes[dim]
+
+                            # Ensure chunk size is valid
+                            if chunk_size > 0 and chunk_size <= dim_size:
+                                validated_chunks.append(chunk_size)
+                            else:
+                                # Use dimension size or reasonable default
+                                validated_chunks.append(min(dim_size, 1000))
+
+                        safe_encoding["chunksizes"] = tuple(validated_chunks)
+                        logger.debug(
+                            f"Validated chunksizes for {var_name}: {validated_chunks}"
+                        )
+
+                    except (ValueError, TypeError, KeyError) as e:
+                        logger.debug(
+                            f"Failed to validate chunksizes for {var_name}: {e}"
+                        )
+                        # Don't include chunksizes if validation fails
+                else:
+                    logger.debug(
+                        f"Chunksizes dimension mismatch for {var_name}: "
+                        f"chunks={len(original_chunks)}, dims={len(var_dims)}"
+                    )
+
+        # Handle compression
+        if "compression" in original_encoding:
+            compression = original_encoding["compression"]
+            # Only allow known safe compression methods
+            if compression in ["zlib", "lzf", "gzip"]:
+                safe_encoding["compression"] = compression
+            else:
+                logger.debug(
+                    f"Removed unsupported compression '{compression}' for {var_name}"
+                )
+
+        return safe_encoding
+
+    def remove_deprecated_variables_with_xarray_preserve_groups(self) -> dict:
+        """Remove deprecated variables using xarray while preserving NetCDF4 groups.
+
+        This function only processes root-level variables with xarray and preserves
+        all group structures and variables.
+        """
+        logger.info("Removing deprecated variables using xarray (preserving groups)")
+
+        removal_summary = {
+            "method": "xarray_group_safe",
+            "success": False,
+            "root_variables_removed": [],
+            "root_variables_kept": [],
+            "groups_preserved": [],
+            "errors": [],
+            "backup_path": None,
+        }
+
+        try:
+            # Create backup
+            backup_path = self.output_path.with_suffix(
+                ".backup_before_xarray_cleanup.nc"
+            )
+            shutil.copy(self.output_path, backup_path)
+            removal_summary["backup_path"] = str(backup_path)
+            logger.info(f"Created backup: {backup_path}")
+
+            # Step 1: Process root variables with xarray
+            root_vars_to_remove = []
+            root_vars_to_keep = []
+
+            # Load only root variables with xarray
+            with xr.open_dataset(self.output_path, decode_times=False) as ds:
+                # Identify deprecated variables at root level only
+                for var_name, var in ds.data_vars.items():
+                    if "deprecated" in var.attrs and var.attrs["deprecated"] == 1:
+                        root_vars_to_remove.append(var_name)
+                        logger.info(f"Root variable marked for removal: {var_name}")
+                    else:
+                        root_vars_to_keep.append(var_name)
+
+                # Also check coordinate variables
+                coord_vars_to_remove = []
+                for coord_name in ds.coords:
+                    if coord_name in ds.data_vars:
+                        continue
+                    coord_var = ds.coords[coord_name]
+                    if (
+                        "deprecated" in coord_var.attrs
+                        and coord_var.attrs["deprecated"] == 1
+                    ):
+                        coord_vars_to_remove.append(coord_name)
+                        logger.info(
+                            f"Root coordinate variable marked for removal: {coord_name}"
+                        )
+
+                all_root_removals = root_vars_to_remove + coord_vars_to_remove
+                removal_summary["root_variables_removed"] = all_root_removals
+                removal_summary["root_variables_kept"] = root_vars_to_keep
+
+                if not all_root_removals:
+                    logger.info("No deprecated root variables found to remove")
+                    removal_summary["success"] = True
+                    return removal_summary
+
+                # Remove deprecated root variables
+                # all_root_removals.append('string1')
+                cleaned_root_ds = ds.drop_vars(all_root_removals)
+
+                # if 'string1' in cleaned_root_ds.variables:
+                # cleaned_root_ds = cleaned_root_ds.drop_vars(['string1'])
+                # logger.info("Removed string1 from dataset before saving")
+
+                # Add cleanup metadata to root dataset
+                cleaned_root_ds.attrs["xarray_root_cleanup_performed"] = 1
+                cleaned_root_ds.attrs["xarray_root_cleanup_timestamp"] = str(
+                    pd.Timestamp.now()
+                )
+                cleaned_root_ds.attrs["root_variables_removed_by_xarray"] = "; ".join(
+                    all_root_removals
+                )
+
+                # Save cleaned root variables to temporary file
+                temp_root_path = self.output_path.with_suffix(".temp_root_cleaned.nc")
+
+                # Use safe encoding for root variables
+                try:
+                    encoding = self.get_safe_encoding_for_xarray(ds, cleaned_root_ds)
+                    if encoding:
+                        cleaned_root_ds.to_netcdf(
+                            temp_root_path, format="NETCDF4", encoding=encoding
+                        )
+                    else:
+                        cleaned_root_ds.to_netcdf(temp_root_path, format="NETCDF4")
+                    logger.info("Successfully saved cleaned root variables")
+                except Exception as e:
+                    logger.warning(f"Failed with encoding, trying without: {e}")
+                    cleaned_root_ds.to_netcdf(temp_root_path, format="NETCDF4")
+
+            # Step 2: Copy groups from original file to cleaned file
+            self._copy_groups_to_cleaned_file(temp_root_path, removal_summary)
+
+            # Step 3: Replace original file
+            shutil.move(temp_root_path, self.output_path)
+
+            removal_summary["success"] = True
+            logger.info(
+                f"Successfully removed {len(all_root_removals)} root variables "
+                f"while preserving {len(removal_summary['groups_preserved'])} groups"
+            )
+
+        except Exception as e:
+            error_msg = (
+                f"Failed to remove deprecated variables with group preservation: {e}"
+            )
+            logger.error(error_msg)
+            removal_summary["errors"].append(error_msg)
+
+            # Clean up temporary files on failure
+            temp_root_path = self.output_path.with_suffix(".temp_root_cleaned.nc")
+            if temp_root_path.exists():
+                temp_root_path.unlink()
+
+        return removal_summary
+
+    def _copy_groups_to_cleaned_file(
+        self, cleaned_root_file: Path, removal_summary: dict
+    ) -> None:
+        """Copy all groups from original file to the cleaned root file."""
+        groups_copied = []
+
+        try:
+            # Open both files
+            with netCDF4.Dataset(self.output_path, "r") as original_file:
+                with netCDF4.Dataset(cleaned_root_file, "a") as cleaned_file:
+                    # Copy all groups recursively
+                    for group_name, original_group in original_file.groups.items():
+                        try:
+                            self._copy_single_group_recursive(
+                                original_group, cleaned_file, group_name
+                            )
+                            groups_copied.append(group_name)
+                            logger.info(f"Copied group: {group_name}")
+                        except Exception as e:
+                            logger.error(f"Failed to copy group {group_name}: {e}")
+                            removal_summary["errors"].append(
+                                f"Group copy failed: {group_name} - {e}"
+                            )
+
+            removal_summary["groups_preserved"] = groups_copied
+            logger.info(
+                f"Successfully copied {len(groups_copied)} groups to cleaned file."
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to copy groups: {e}")
+            removal_summary["errors"].append(f"Group copying failed: {e}.")
+
+    def _copy_single_group_recursive(
+        self,
+        source_group: netCDF4.Group,
+        target_location: netCDF4.Dataset,
+        group_name: str,
+    ) -> None:
+        """Recursively copy a single group and all its contents."""
+        # Create the group in target location
+        target_group = target_location.createGroup(group_name)
+
+        # Copy group attributes
+        for attr_name in source_group.ncattrs():
+            attr_value = source_group.getncattr(attr_name)
+            target_group.setncattr(attr_name, attr_value)
+
+        # Copy dimensions
+        for dim_name, dim in source_group.dimensions.items():
+            logger.info(
+                f"Copying dimension: {dim_name} with "
+                f"size {len(dim) if not dim.isunlimited() else 'unlimited'}."
+            )
+            size = len(dim) if not dim.isunlimited() else None
+            target_group.createDimension(dim_name, size)
+
+        # Copy variables
+        for var_name, source_var in source_group.variables.items():
+            # Create variable
+            target_var = target_group.createVariable(
+                var_name,
+                source_var.dtype,
+                source_var.dimensions,
+                fill_value=getattr(source_var, "_FillValue", None),
+            )
+
+            # Copy data
+            target_var[:] = source_var[:]
+
+            # Copy attributes
+            for attr_name in source_var.ncattrs():
+                if attr_name != "_FillValue":
+                    attr_value = source_var.getncattr(attr_name)
+                    target_var.setncattr(attr_name, attr_value)
+
+        # Recursively copy subgroups
+        for subgroup_name, source_subgroup in source_group.groups.items():
+            self._copy_single_group_recursive(
+                source_subgroup, target_group, subgroup_name
             )

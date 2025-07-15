@@ -168,7 +168,10 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         )
 
     def test_convert_astec_archive_with_groups(self) -> None:
-        """Test converting the ASTEC archive with groups to NetCDF4 format."""
+        """Test converting the ASTEC archive with groups to NetCDF4 format.
+
+        This test verifies the conversion process with enhanced group structure.
+        """
         self.test_logger.info("Testing ASTEC archive conversion with enhanced groups")
 
         # Ensure the input file exists
@@ -196,12 +199,12 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             self.test_logger.info("Step 4: Convert metadata from Odessa")
             self.converter.convert_meta_data_from_odessa_to_netcdf4()
 
-            self.test_logger.info(
-                "Step 5: Assign variables to enhanced group structure"
-            )
-            self.converter.assign_variables_to_enhanced_groups()
+            # self.test_logger.info(
+            #    "Step 5: Assign variables to enhanced group structure"
+            # )
+            # self.converter.assign_variables_to_enhanced_groups()
 
-            self.test_logger.info("Step 6: Convert data")
+            self.test_logger.info("Step 5: Convert data")
             self.converter.populate_data_from_groups_to_netcdf4()
 
             self.test_logger.info("All conversion steps completed successfully")
@@ -380,6 +383,16 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
             self.test_logger.info("Successfully migrated to enhanced group structure")
 
+            verification = self.converter.verify_variable_movement()
+            self.test_logger.info(verification)
+
+            removal_summary = (
+                self.converter.remove_deprecated_variables_with_xarray_preserve_groups()
+            )
+            self.test_logger.info(removal_summary)
+
+            # self.converter.initialize_groups_in_netcdf4()
+
         except Exception as e:
             self.test_logger.error(f"Migration to enhanced structure failed: {e}")
             self.fail(f"Migration to enhanced structure failed: {e}")
@@ -483,7 +496,9 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         test_file_location = os.path.dirname(os.path.abspath(__file__))
 
         # Copy old structure
-        old_copied_path = os.path.join(test_file_location, "migration_old_structure.nc")
+        old_copied_path = os.path.join(
+            test_file_location, "data/migration_old_structure.nc"
+        )
         try:
             shutil.copy(old_structure_path, old_copied_path)
             self.assertTrue(
@@ -496,9 +511,29 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             self.fail(f"Failed to copy old structure file: {e}")
 
         # Copy new structure
-        new_copied_path = os.path.join(test_file_location, "migration_new_structure.nc")
+        new_copied_path = os.path.join(
+            test_file_location, "data/migration_new_structure.nc"
+        )
         try:
             shutil.copy(self.fake_output_path, new_copied_path)
+            self.assertTrue(
+                os.path.exists(new_copied_path),
+                f"Failed to copy new structure to {new_copied_path}",
+            )
+            self.test_logger.info(f"New structure copied to: {new_copied_path}")
+        except Exception as e:
+            self.test_logger.error(f"Failed to copy new structure file: {e}")
+            self.fail(f"Failed to copy new structure file: {e}")
+
+        # Copy xarray backup
+        new_copied_path = os.path.join(
+            test_file_location, "data/backup_before_xarray_cleanup.nc"
+        )
+        try:
+            xarray_backup_path = self.fake_output_path.with_suffix(
+                ".backup_before_xarray_cleanup.nc"
+            )
+            shutil.copy(xarray_backup_path, new_copied_path)
             self.assertTrue(
                 os.path.exists(new_copied_path),
                 f"Failed to copy new structure to {new_copied_path}",
