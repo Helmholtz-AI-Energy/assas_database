@@ -154,7 +154,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
         # Additional checks can be added here to verify the content of the output file
         variable_index = self.converter.get_variable_index()
-        meta_data_list = self.converter.read_meta_values_from_netcdf4(
+        meta_data_list = self.converter.read_variables_meta_values_from_netcdf4(
             self.fake_output_path
         )
 
@@ -198,11 +198,6 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
             self.test_logger.info("Step 4: Convert metadata from Odessa")
             self.converter.convert_meta_data_from_odessa_to_netcdf4()
-
-            # self.test_logger.info(
-            #    "Step 5: Assign variables to enhanced group structure"
-            # )
-            # self.converter.assign_variables_to_enhanced_groups()
 
             self.test_logger.info("Step 5: Convert data")
             self.converter.populate_data_from_groups_to_netcdf4()
@@ -276,10 +271,14 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             self.test_logger.error(f"Failed to copy metadata output file: {e}")
             self.fail(f"Failed to copy the output file with exception: {e}.")
 
-        meta_data_list = self.converter.read_meta_values_from_netcdf4(
-            self.fake_output_path
+        meta_data_list = self.converter.read_variables_meta_values_from_netcdf4(
+            self.fake_output_path,
+            group_name="metadata",
         )
         variables_from_meta_data = [meta_data["name"] for meta_data in meta_data_list]
+        self.test_logger.info(
+            f"Found {len(variables_from_meta_data)} metadata variables in output"
+        )
 
         self.assertEqual(
             set(variables_from_meta_data), set(expected_meta_data_var_names.keys())
@@ -299,7 +298,10 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
                 self.assertEqual(meta_data["domain"], domain_value)
 
         var_names = list(expected_meta_data_var_names.keys())
-        meta_data = self.converter.read_meta_data_from_netcdf4(var_names[0])
+        meta_data = self.converter.read_meta_data_from_netcdf4(
+            variable_name=var_names[0],
+            group_name="metadata",
+        )
         self.assertIsNotNone(meta_data, "Meta data should not be None.")
         self.test_logger.info("Individual metadata reading verification passed")
 
@@ -388,9 +390,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             verification = self.converter.verify_variable_movement()
             self.test_logger.info(verification)
 
-            removal_summary = (
-                self.converter.remove_deprecated_variables_with_xarray_preserve_groups()
-            )
+            removal_summary = self.converter.migrate_to_clean_file_structure()
             self.test_logger.info(removal_summary)
 
             # self.converter.initialize_groups_in_netcdf4()
@@ -416,10 +416,10 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
                 )
 
                 # Should have variables at root level
-                self.assertGreater(
+                self.assertEqual(
                     len(new_root_variables),
-                    1,
-                    "New structure should have variables at root level",
+                    0,
+                    "New structure should have no variables at root level",
                 )
 
                 # Verify specific groups exist based on DOMAIN_GROUP_CONFIG
@@ -513,9 +513,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             self.fail(f"Failed to copy old structure file: {e}")
 
         # Copy new structure
-        new_copied_path = os.path.join(
-            test_file_location, "data/migration_new_structure.nc"
-        )
+        new_copied_path = os.path.join(test_file_location, "data/migrated.nc")
         try:
             shutil.copy(self.fake_output_path, new_copied_path)
             self.assertTrue(
@@ -527,15 +525,13 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             self.test_logger.error(f"Failed to copy new structure file: {e}")
             self.fail(f"Failed to copy new structure file: {e}")
 
-        # Copy xarray backup
+        # Copy backup
         new_copied_path = os.path.join(
-            test_file_location, "data/backup_before_xarray_cleanup.nc"
+            test_file_location, "data/backup_before_cleanup.nc"
         )
         try:
-            xarray_backup_path = self.fake_output_path.with_suffix(
-                ".backup_before_xarray_cleanup.nc"
-            )
-            shutil.copy(xarray_backup_path, new_copied_path)
+            backup_path = self.fake_output_path.with_suffix(".backup_before_cleanup.nc")
+            shutil.copy(backup_path, new_copied_path)
             self.assertTrue(
                 os.path.exists(new_copied_path),
                 f"Failed to copy new structure to {new_copied_path}",
@@ -933,7 +929,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         # Copy final result for inspection
         test_file_location = os.path.dirname(os.path.abspath(__file__))
         final_output_path = os.path.join(
-            test_file_location, "comprehensive_migration_result.nc"
+            test_file_location, "data/comprehensive_migration_result.nc"
         )
         try:
             shutil.copy(self.fake_output_path, final_output_path)
