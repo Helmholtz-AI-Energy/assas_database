@@ -6,6 +6,38 @@ and metadata organization for the ASSAS NetCDF4 format.
 
 # Enhanced domain group configuration with metadata subgroups
 DOMAIN_GROUP_CONFIG = {
+    "other": {
+        "description": "Other variables and metadata",
+        "odessa_name": "OTHER",
+        "domains": [
+            "global",
+            "private",
+            "cavity",
+            "lower_plenum",
+        ],
+        "subgroups": {
+            "global": {
+                "description": "Global variables",
+                "domains": ["global"],
+                # "metadata_vars": ["private_meta"],
+            },
+            "private": {
+                "description": "Private variables",
+                "domains": ["private"],
+                # "metadata_vars": ["private_meta"],
+            },
+            "cavity": {
+                "description": "Cavity variables",
+                "domains": ["cavity"],
+                # "metadata_vars": ["private_meta"],
+            },
+            "lower_plenum": {
+                "description": "Lower plenum variables",
+                "domains": ["lower_plenum"],
+                # "metadata_vars": ["private_meta"],
+            },
+        },
+    },
     "primary": {
         "description": "Primary circuit variables and metadata",
         "odessa_name": "PRIMARY",
@@ -87,6 +119,7 @@ DOMAIN_GROUP_CONFIG = {
         "domains": [
             "vessel_general",
             "vessel_mesh",
+            "vesel_face",
         ],
         "subgroups": {
             "general": {
@@ -99,9 +132,18 @@ DOMAIN_GROUP_CONFIG = {
                 "domains": ["vessel_mesh"],
                 "metadata_vars": ["vessel_mesh_meta"],
             },
+            "face": {
+                "description": "Vessel face variables",
+                "domains": ["vessel_face"],
+                "metadata_vars": ["vessel_face_meta"],
+            },
             "metadata": {
                 "description": "Vessel metadata",
-                "metadata_vars": ["vessel_mesh_meta", "vessel_general_meta"],
+                "metadata_vars": [
+                    "vessel_mesh_meta",
+                    "vessel_general_meta",
+                    "vessel_face_meta",
+                ],
             },
         },
     },
@@ -110,30 +152,80 @@ DOMAIN_GROUP_CONFIG = {
         "odessa_name": "CONNECTI",
         "domains": [
             "connecti",
+            "connecti_fp",
         ],
         "subgroups": {
-            "valves": {
-                "description": "Connection valve variables",
+            "general": {
+                "description": "Connection variables",
                 "domains": ["connecti"],
-                "metadata_vars": ["connection_valves_meta"],
+                "metadata_vars": ["connection_meta"],
             },
-            "pipes": {
-                "description": "Connection pipe variables",
-                "domains": ["connecti_pipe"],
-                "metadata_vars": ["connection_pipes_meta"],
-            },
-            "flow": {
-                "description": "Connection flow variables",
-                "domains": ["connecti_flow"],
-                "metadata_vars": ["connection_flow_meta"],
+            "fission": {
+                "description": "Connection fission products variables",
+                "domains": ["connecti_fp"],
+                # "metadata_vars": ["connection_fp_meta"],
             },
             "metadata": {
                 "description": "Connection metadata",
                 "metadata_vars": [
-                    "connection_valves_meta",
-                    "connection_pipes_meta",
-                    "connection_flow_meta",
                     "connection_meta",
+                ],
+            },
+        },
+    },
+    "containment": {
+        "description": "Containment variables and metadata",
+        "odessa_name": "CONTAINM",
+        "domains": [
+            "containment_conn",
+            "containment_wall",
+            "containment_dome",
+            "containment_pool",
+            "containment_zone",
+            "containment_environ",
+            "containment_general",
+        ],
+        "subgroups": {
+            "conn": {
+                "description": "Containment conn variables",
+                "domains": ["containment_conn"],
+                "metadata_vars": ["containment_conn_meta"],
+            },
+            "wall": {
+                "description": "Containment wall variables",
+                "domains": ["containment_wall"],
+                "metadata_vars": ["containment_wall_meta"],
+            },
+            "dome": {
+                "description": "Containment dome variables",
+                "domains": ["containment_dome"],
+                # "metadata_vars": ["containment_dome_meta"],
+            },
+            "pool": {
+                "description": "Containment pool variables",
+                "domains": ["containment_pool"],
+                # "metadata_vars": ["containment_pool_meta"],
+            },
+            "zone": {
+                "description": "Containment zone variables",
+                "domains": ["containment_zone"],
+                # "metadata_vars": ["containment_pool_meta"],
+            },
+            "envrion": {
+                "description": "Containment environ variables",
+                "domains": ["containment_environ"],
+                # "metadata_vars": ["containment_pool_meta"],
+            },
+            "general": {
+                "description": "Containment general variables",
+                "domains": ["containment_general"],
+                # "metadata_vars": ["containment_pool_meta"],
+            },
+            "metadata": {
+                "description": "Connection metadata",
+                "metadata_vars": [
+                    "containment_conn_meta",
+                    "containment_wall_meta",
                 ],
             },
         },
@@ -213,6 +305,13 @@ META_DATA_VAR_NAMES = {
         "attribute": ["NAME"],
         "target_group": "vessel/mesh",
         "description": "Vessel mesh element names",
+    },
+    "vessel_face_meta": {
+        "domain": "VESSEL",
+        "element": "FACE",
+        "attribute": ["NAME"],
+        "target_group": "vessel/face",
+        "description": "Vessel face element names",
     },
     "connection_meta": {
         "domain": None,

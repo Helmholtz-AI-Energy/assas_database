@@ -264,16 +264,16 @@ class AssasOdessaNetCDF4Converter:
 
         """
         file_list = [
-            # "astec_config/inr/assas_variables_cavity.csv",
-            # "astec_config/inr/assas_variables_containment.csv",
-            # "astec_config/inr/assas_variables_containment_conn.csv",
-            # "astec_config/inr/assas_variables_containment_dome_pool.csv",
-            # "astec_config/inr/assas_variables_containment_wall.csv",
-            # "astec_config/inr/assas_variables_containment_zone.csv",
-            # "astec_config/inr/assas_variables_lower_plenum.csv",
+            "astec_config/inr/assas_variables_cavity.csv",
+            "astec_config/inr/assas_variables_containment.csv",
+            "astec_config/inr/assas_variables_containment_conn.csv",
+            "astec_config/inr/assas_variables_containment_dome_pool.csv",
+            "astec_config/inr/assas_variables_containment_wall.csv",
+            "astec_config/inr/assas_variables_containment_zone.csv",
+            "astec_config/inr/assas_variables_lower_plenum.csv",
             "astec_config/inr/assas_variables_vessel.csv",
-            # "astec_config/inr/assas_variables_vessel_face_ther.csv",
-            # "astec_config/inr/assas_variables_vessel_general.csv",
+            "astec_config/inr/assas_variables_vessel_face_ther.csv",
+            "astec_config/inr/assas_variables_vessel_general.csv",
             "astec_config/inr/assas_variables_vessel_mesh.csv",
             "astec_config/inr/assas_variables_primary_junction_ther.csv",
             "astec_config/inr/assas_variables_primary_pipe_ther.csv",
@@ -285,9 +285,9 @@ class AssasOdessaNetCDF4Converter:
             "astec_config/inr/assas_variables_secondar_wall.csv",
             "astec_config/inr/assas_variables_secondar_wall_ther.csv",
             "astec_config/inr/assas_variables_connecti.csv",
-            # "astec_config/inr/assas_variables_connecti_source_fp.csv",
-            # "astec_config/inr/assas_variables_sequence.csv",
-            # "astec_config/inr/assas_variables_private_assas_param.csv",
+            "astec_config/inr/assas_variables_connecti_source_fp.csv",
+            "astec_config/inr/assas_variables_sequence.csv",
+            "astec_config/inr/assas_variables_private_assas_param.csv",
         ]
 
         dataframe_list = []

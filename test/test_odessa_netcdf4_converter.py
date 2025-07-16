@@ -219,7 +219,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         self.test_logger.info("Output file creation verified")
 
         test_file_location = os.path.dirname(os.path.abspath(__file__))
-        copied_file_path = os.path.join(test_file_location, "copied_output.nc")
+        copied_file_path = os.path.join(test_file_location, "data/copied_output.nc")
         try:
             shutil.copy(self.fake_output_path, copied_file_path)
             self.assertTrue(
@@ -262,7 +262,9 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         self.test_logger.info("Output file creation verified")
 
         test_file_location = os.path.dirname(os.path.abspath(__file__))
-        copied_file_path = os.path.join(test_file_location, "copied_meta_output.nc")
+        copied_file_path = os.path.join(
+            test_file_location, "data/copied_meta_output.nc"
+        )
         try:
             shutil.copy(self.fake_output_path, copied_file_path)
             self.assertTrue(
