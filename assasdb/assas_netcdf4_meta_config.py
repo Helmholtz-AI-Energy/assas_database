@@ -119,7 +119,7 @@ DOMAIN_GROUP_CONFIG = {
         "domains": [
             "vessel_general",
             "vessel_mesh",
-            "vesel_face",
+            "vessel_face",
         ],
         "subgroups": {
             "general": {

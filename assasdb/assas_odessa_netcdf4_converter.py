@@ -2721,6 +2721,15 @@ class AssasOdessaNetCDF4Converter:
         meta_data_var_names = META_DATA_VAR_NAMES
 
         with netCDF4.Dataset(f"{self.output_path}", "a", format="NETCDF4") as ncfile:
+            if "metadata" not in ncfile.groups:
+                metadata_group = ncfile.createGroup("metadata")
+                metadata_group.description = "General metadata variables"
+                metadata_group.group_type = "metadata"
+                logger.info("Created metadata group")
+            else:
+                metadata_group = ncfile.groups["metadata"]
+                logger.info("Using existing metadata group")
+
             for meta_data_var_name in list(meta_data_var_names.keys()):
                 # Restore Odessa base
                 odessa_base = pyod.restore(str(self.input_path), 0)
@@ -2732,10 +2741,10 @@ class AssasOdessaNetCDF4Converter:
                 )
 
                 # Create dimension for primary volumes
-                ncfile.createDimension(meta_data_var_name, len(meta_data))
+                metadata_group.createDimension(meta_data_var_name, len(meta_data))
 
                 # Create variable for primary volume metadata
-                meta_var = ncfile.createVariable(
+                meta_var = metadata_group.createVariable(
                     meta_data_var_name, datatype="S1", dimensions=(meta_data_var_name,)
                 )
                 meta_var.long_name = (
@@ -2919,11 +2928,21 @@ class AssasOdessaNetCDF4Converter:
         logger.info(f"Parse ASTEC data from binary with path {str(self.input_path)}.")
 
         with netCDF4.Dataset(f"{self.output_path}", "a", format="NETCDF4") as ncfile:
-            if "time_points" not in list(ncfile.variables.keys()):
+            dimension_group = ncfile.groups.get("dimensions")
+            if dimension_group is None:
+                logger.error(
+                    "No dimension_groups found in the netCDF4 file. "
+                    "Please ensure the file is properly initialized."
+                )
+                return
+            if "time_points" not in list(dimension_group.variables.keys()):
                 start_index = 0
             else:
                 start_index = (
-                    ncfile.variables["time_points"].getncattr("completed_index") + 1
+                    dimension_group.variables["time_points"].getncattr(
+                        "completed_index"
+                    )
+                    + 1
                 )
 
             time_points = self.time_points[start_index:]
@@ -3006,7 +3025,9 @@ class AssasOdessaNetCDF4Converter:
                 if progress_bar.n % LOG_INTERVAL == 0:
                     logger.info(str(progress_bar))
 
-                ncfile.variables["time_points"].completed_index = start_index + idx
+                dimension_group.variables["time_points"].completed_index = (
+                    start_index + idx
+                )
 
     def get_all_variable_datasets(self, ncfile: netCDF4.Dataset) -> dict:
         """Get all variable datasets from root and groups.
@@ -3441,9 +3462,10 @@ class AssasOdessaNetCDF4Converter:
 
     def create_variable_with_unit(
         self,
-        location: netCDF4.Dataset,
+        target_group: netCDF4.Group,
+        dimensions_group: netCDF4.Group,
         var_name: str,
-        dimensions: tuple,
+        var_dimensions: tuple,
         unit_str: str,
         long_name: str,
         data_type: np.float32 = np.float32,
@@ -3461,7 +3483,26 @@ class AssasOdessaNetCDF4Converter:
             normalized_unit = "dimensionless"
 
         # Create variable
-        var = location.createVariable(var_name, data_type, dimensions)
+        for dim_name in var_dimensions:
+            if dim_name not in target_group.dimensions:
+                if dim_name in dimensions_group.dimensions:
+                    # Copy dimension from dimensions group
+                    source_dim = dimensions_group.dimensions[dim_name]
+                    size = len(source_dim) if not source_dim.isunlimited() else None
+                    target_group.createDimension(dim_name, size)
+                    logger.debug(
+                        f"Copied dimension {dim_name} to group {target_group.name}"
+                    )
+                else:
+                    logger.error(f"Dimension {dim_name} not found in dimensions group")
+                    raise ValueError(f"Required dimension {dim_name} not available")
+
+        # Now create the variable
+        var = target_group.createVariable(
+            var_name,
+            data_type,
+            var_dimensions,
+        )
 
         # Set attributes with normalized unit
         var.unit = normalized_unit
@@ -3502,16 +3543,20 @@ class AssasOdessaNetCDF4Converter:
             if "none" in dimension_list:
                 dimension_list.remove("none")
 
-            for dimension in dimension_list:
-                if dimension not in list(ncfile.dimensions.keys()):
-                    logger.info(f"Create dimension {dimension} in netCDF4 file.")
-                    ncfile.createDimension(dimension, None)
+            dimensions_group = ncfile.createGroup("dimensions")
+            dimensions_group.description = "Group for dataset dimensions"
 
-            ncfile.createDimension("time", len(self.time_points))
+            for dimension in dimension_list:
+                if dimension not in list(dimensions_group.dimensions.keys()):
+                    logger.info(f"Create dimension {dimension} in netCDF4 file.")
+                    dimensions_group.createDimension(dimension, None)
+
+            dimensions_group.createDimension("time", len(self.time_points))
 
             # Create time variable with proper unit
             time_dataset = self.create_variable_with_unit(
-                ncfile,
+                dimensions_group,
+                dimensions_group,
                 "time_points",
                 ("time",),
                 "seconds",
@@ -3557,6 +3602,7 @@ class AssasOdessaNetCDF4Converter:
                 try:
                     var_dataset = self.create_variable_with_unit(
                         target_location,
+                        dimensions_group,
                         var_name,
                         tuple(dimensions),
                         variable["unit"],
