@@ -1,5 +1,4 @@
 black==25.1.0
-bson==0.5.10
 certifi==2025.4.26
 cf-units==3.3.0
 cfgv==3.4.0
