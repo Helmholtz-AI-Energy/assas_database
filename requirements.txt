@@ -21,6 +21,7 @@ numpy==2.2.5
 packaging==25.0
 pandas==2.2.3
 pathspec==0.12.1
+Pint==0.24.4
 platformdirs==4.3.8
 pluggy==1.6.0
 pre_commit==4.2.0
