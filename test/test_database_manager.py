@@ -537,7 +537,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         """Test updating metadata of valid archives."""
         self.mock_handler.get_file_documents_to_collect_meta_data.return_value = []
         with patch(
-            "assasdb.assas_database_manager.AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4",
+            "assasdb.assas_database_manager.AssasOdessaNetCDF4Converter.read_variables_meta_values_from_netcdf4",
             return_value={},
         ):
             self.manager.update_meta_data_of_valid_archives()
@@ -546,7 +546,7 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         """Test updating metadata for a specific UUID."""
         self.mock_handler.get_file_document_by_uuid.return_value = {}
         with patch(
-            "assasdb.assas_database_manager.AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4",
+            "assasdb.assas_database_manager.AssasOdessaNetCDF4Converter.read_variables_meta_values_from_netcdf4",
             return_value={},
         ):
             self.manager.update_meta_data("uuid")
