@@ -1,7 +1,15 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-opensrv,opensrv,opensrv,[-],private,private_assas_param,none
-p_u5,p_u5,p_u5,[-],private,private_assas_param,none
-t1_srv,t1_srv,t1_srv,[-],private,private_assas_param,none
-t2_srv,t2_srv,t2_srv,[-],private,private_assas_param,none
-t_fbseb,t_fbseb,t_fbseb,[-],private,private_assas_param,none
-
+freqsave,Saving frequency (saving at each freqsave second),freqsave,[Hz],private,private_assas_param,none
+opensrv,Opening percentage of SGs SRV,opensrv,[-],private,private_assas_param,none
+p_u5,Pressure at which containment venting occurs,p_u5,[Pa],private,private_assas_param,none
+t1_srv,Time that apply SRV opening percentage defined in opensrv,t1_srv,[s],private,private_assas_param,none
+t2_srv,Time where SRV are completely opened,t2_srv,[s],private,private_assas_param,none
+t_fbseb,Time that changes pressurizer valves mode in feed and bleed,t_fbseb,[s],private,private_assas_param,none
+t_u5,Time at which containment venting occurs,t_u5,[s],private,private_assas_param,none
+tcss,Instant at which containment spray system in recovered (only fo LOCA scenario),tcss,[s],private,private_assas_param,none
+tendcalc,Number of days after which ends the calculation (default value is 5. days),tendcalc,[s],private,private_assas_param,none
+tendssg2,Time at which SRV of SG2 is closed and SG2 is isolated from other ones,tendssg2,[s],private,private_assas_param,none
+time_end,Ending time in s of calculation (see also stop.dat in TRANS folder),time_end,[s],private,private_assas_param,none
+tpesp,Time at which water is injected in primary circuit (CL and HL) using PES,tpesp,[s],private,private_assas_param,none
+tpessg,Time at which water is injected in steam generators using PES,tpessg,[s],private,private_assas_param,none
+tsg2tr,Time at which Steam Generator tube rupture occurs in SG 2,tsg2tr,[s],private,private_assas_param,none

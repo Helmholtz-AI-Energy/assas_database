@@ -37,12 +37,27 @@ class AssasConversionHandler:
         self,
         upload_uuid: str,
         new: bool = False,
+        rerun: bool = False,
         time: int = None,
         debug: bool = False,
         lsdf_data_dir: str = LSDF_DATA_DIR,
         lsdf_backup_dir: str = LSDF_BACKUP_DIR,
     ) -> None:
-        """Initialize the AssasSingleConverter class."""
+        """Initialize the AssasSingleConverter class.
+
+        Args:
+            upload_uuid (str): The UUID of the upload to be converted.
+            new (bool): Flag to indicate if the output file should be overwritten.
+            rerun (bool): Flag to indicate if the conversion should be rerun.
+            time (int, optional): Number of time points to consider for conversion.
+            debug (bool): Enable debug logging.
+            lsdf_data_dir (str): Directory for LSDF data.
+            lsdf_backup_dir (str): Directory for LSDF backup.
+
+        Returns:
+            None
+
+        """
         self.lsdf_data_dir = lsdf_data_dir
         self.lsdf_backup_dir = lsdf_backup_dir
 
@@ -64,6 +79,7 @@ class AssasConversionHandler:
         self.upload_uuid = assas_archive_meta["system_upload_uuid"].iloc[0]
         self.new = new
         self.time = time
+        self.rerun = rerun
 
         self.input_path = Path(
             str(assas_archive_meta["system_path"].iloc[0]).replace(
@@ -213,6 +229,18 @@ class AssasConversionHandler:
 
             else:
                 logger.info(f"Using existing output file {str(self.tmp_output_path)}.")
+                if self.rerun:
+                    logger.info(
+                        "Rerun conversion, resetting completed index in netcdf4 file.\n"
+                        "Conversion method only converts new ASTEC variables."
+                    )
+                    AssasOdessaNetCDF4Converter.reset_completed_index_in_netcdf4_file(
+                        netcdf4_file=self.tmp_output_path,
+                    )
+                    self.notify_rerun_conversion(
+                        upload_uuid=self.upload_uuid,
+                        upload_directory=f"{self.lsdf_project_dir}/{LSDF_DATA_DIR}",
+                    )
 
             odessa_converter.convert_astec_variables_to_netcdf4(maximum_index=self.time)
 
@@ -472,6 +500,31 @@ class AssasConversionHandler:
 
         os.system(touch_string)
 
+    def notify_rerun_conversion(
+        self,
+        upload_uuid: str,
+        upload_directory: str,
+    ) -> None:
+        """Notify that the conversion is being rerun by creating a touch file.
+
+        This file can be used to track the conversion process.
+        The file will be created in the upload directory with the name
+        <upload_uuid>_converting.
+
+        Args:
+            upload_uuid (str): The UUID of the upload.
+            upload_directory (str): The directory where the upload is stored.
+
+        Returns:
+            None
+
+        """
+        touch_string = f"touch {upload_directory}/{upload_uuid}/"
+        touch_string += f"{upload_uuid}_rerun"
+        logger.info(f"Execute command {touch_string}.")
+
+        os.system(touch_string)
+
     def notify_invalid_conversion(
         self,
         upload_uuid: str,
@@ -523,6 +576,13 @@ if __name__ == "__main__":
         "-n",
         "--new",
         help="overwrite existing output file",
+        required=False,
+        action="store_true",
+    )
+    argparser.add_argument(
+        "-r",
+        "--rerun",
+        help="rerun conversion even if output file exists",
         required=False,
         action="store_true",
     )

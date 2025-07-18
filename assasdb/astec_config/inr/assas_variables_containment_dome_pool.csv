@@ -1,11 +1,11 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-P_total,average total pressure in a zone,PRES,[Pa],containment dome,containment_dome,none
-T_sump,average sump temperature in a zone,TFLU,[K],containment dome,containment_dome,none
-x_CO,carbon monoxide mass fraction,XCO,[-],containment dome,containment_dome,none
-x_C02,carbon dioxide mass fraction,XC02,[-],containment dome,containment_dome,none
-x_H2,hydrogen mass fraction in a zone,XH2,[-],containment dome,containment_dome,none
-x_H20,steam mass fraction in a zone,XH20,[-],containment dome,containment_dome,none
-x_N2,average N2 mass fraction in a zone,XN2,[-],containment dome,containment_dome,none
-x_O2,average O2 mass fraction in a zone,XO2,[-],containment dome,containment_dome,none
-T_liq,temperature,TLIQ,[K],containment pool,containment_pool,none
-water_level,water level,WLEV,[m],containment pool,containment_pool,none
+P_total,average total pressure in a zone,PRES,[Pa],containment_dome,containment_dome,none
+T_sump,average sump temperature in a zone,TFLU,[K],containment_dome,containment_dome,none
+x_CO,carbon monoxide mass fraction,XCO,[-],containment_dome,containment_dome,none
+x_C02,carbon dioxide mass fraction,XC02,[-],containment_dome,containment_dome,none
+x_H2,hydrogen mass fraction in a zone,XH2,[-],containment_dome,containment_dome,none
+x_H20,steam mass fraction in a zone,XH20,[-],containment_dome,containment_dome,none
+x_N2,average N2 mass fraction in a zone,XN2,[-],containment_dome,containment_dome,none
+x_O2,average O2 mass fraction in a zone,XO2,[-],containment_dome,containment_dome,none
+T_liq,temperature,TLIQ,[K],containment_pool,containment_pool,none
+water_level,water level,WLEV,[m],containment_pool,containment_pool,none

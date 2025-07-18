@@ -1,3 +1,3 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-containment_liq_vel_conn,liquid velocity in connections between zones,VF,[m/s],containment wall temp,containment_conn,none
-containment_gas_vel_conn,gas velocity in connections between zones,VG,[m/s],containment wall temp,containment_conn,none
+containment_liq_vel_conn,liquid velocity in connections between zones,VF,[m/s],containment_conn,containment_conn,none
+containment_gas_vel_conn,gas velocity in connections between zones,VG,[m/s],containment_conn,containment_conn,none
