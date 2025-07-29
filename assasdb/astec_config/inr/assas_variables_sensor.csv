@@ -1,0 +1,3 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+residual_power,residual power,348,[W],global,sensor,none
+core_outlet_temp,core outlet temperature,34,[K],global,sensor,none

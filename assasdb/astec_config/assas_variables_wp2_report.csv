@@ -252,3 +252,5 @@
 250,micro_ts_duration,duration of micro time step,dtfluid,[s],cesar,cesar_io,none,
 251,iteration_info,iteration information,ITER,[-],cesar,cesar_io_output,cesar_output,
 252,variable_prime,output variable prime,VARPRIM,[-],cesar,cesar_io_output,cesar_output,
+253,residual_power,residual power,348,[W],global,sensor,none,
+254,core_outlet_temp,core outlet temperature,34,[K],global,sensor,none,
