@@ -1,2 +1,2 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-containment_wall_temp,wall temperature profile in containment,HTEM,[T],containment_wall,containment_wall_temp,none
+containment_wall_temp,wall temperature profile in containment,HTEM,[T],containment_wall,containment_wall_temp,wall;wall_profile

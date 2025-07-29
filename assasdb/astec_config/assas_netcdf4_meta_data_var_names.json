@@ -1,0 +1,91 @@
+{
+  "primary_volume_meta": {
+    "domain": "PRIMARY",
+    "element": "VOLUME",
+    "attribute": "NAME",
+    "target_group": "primary/volume",
+    "description": "Primary circuit volume names and identifiers"
+  },
+  "primary_junction_meta": {
+    "domain": "PRIMARY",
+    "element": "JUNCTION",
+    "attribute": ["NAME", "NV_DOWN", "NV_UP"],
+    "target_group": "primary/junction",
+    "description": "Primary circuit junction connections"
+  },
+  "primary_pump_meta": {
+    "domain": "PRIMARY",
+    "element": "PUMP",
+    "attribute": ["NAME"],
+    "target_group": "primary/pipe",
+    "description": "Primary circuit pump names"
+  },
+  "primary_wall_meta": {
+    "domain": "PRIMARY",
+    "element": "WALL",
+    "attribute": ["NAME"],
+    "target_group": "primary/wall",
+    "description": "Primary circuit wall structure names"
+  },
+  "primary_pipe_meta": {
+    "domain": "PRIMARY",
+    "element": "PIPE",
+    "attribute": ["NAME"],
+    "target_group": "primary/pipe",
+    "description": "Primary circuit pipe specifications"
+  },
+  "secondary_volume_meta": {
+    "domain": "SECONDAR",
+    "element": "VOLUME",
+    "attribute": "NAME",
+    "target_group": "secondary/volume",
+    "description": "Secondary circuit volume names and identifiers"
+  },
+  "secondary_junction_meta": {
+    "domain": "SECONDAR",
+    "element": "JUNCTION",
+    "attribute": ["NAME", "NV_DOWN", "NV_UP"],
+    "target_group": "secondary/geometry",
+    "description": "Secondary circuit junction connections"
+  },
+  "secondary_pump_meta": {
+    "domain": "SECONDAR",
+    "element": "PUMP",
+    "attribute": ["NAME"],
+    "target_group": "secondary/pump",
+    "description": "Secondary circuit pump names"
+  },
+  "secondary_wall_meta": {
+    "domain": "SECONDAR",
+    "element": "WALL",
+    "attribute": ["NAME"],
+    "target_group": "secondary/wall",
+    "description": "Secondary circuit wall structure names"
+  },
+  "vessel_mesh_meta": {
+    "domain": "VESSEL",
+    "element": "MESH",
+    "attribute": ["NAME"],
+    "target_group": "vessel/mesh",
+    "description": "Vessel mesh element names"
+  },
+  "vessel_face_meta": {
+    "domain": "VESSEL",
+    "element": "FACE",
+    "attribute": ["NAME"],
+    "target_group": "vessel/face",
+    "description": "Vessel face element names"
+  },
+  "connection_meta": {
+    "domain": null,
+    "element": "CONNECTI",
+    "attribute": ["NAME", "FROM", "TO", "TYPE"],
+    "target_group": "connection/metadata",
+    "description": "Connection topology and types"
+  },
+  "connection_valves_meta": {
+    "domain": "CONNECTI",
+    "element": "VALVE",
+    "attribute": ["NAME"]
+  }
+}

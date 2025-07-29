@@ -1,0 +1,9 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+macro_ts_begin,beginning of marco time step,MACROBEG,[s],cesar,cesar_io,none
+macro_ts_end,end of marco time step,MACROEND,[s],cesar,cesar_io,none
+macro_ts_duration,duration of marco time step,dtmacro,[s],cesar,cesar_io,none
+micro_ts_begin,beginning of micro time step,STEPBEG,[s],cesar,cesar_io,none
+micro_ts_end,end of micro time step,STEPEND,[s],cesar,cesar_io,none
+micro_ts_duration,duration of micro time step,dtfluid,[s],cesar,cesar_io,none
+iteration_info,iteration information,ITER,[-],cesar,cesar_io_output,cesar_output
+variable_prime,output variable prime,VARPRIM,[-],cesar,cesar_io_output,cesar_output

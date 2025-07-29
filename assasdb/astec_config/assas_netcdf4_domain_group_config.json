@@ -1,0 +1,193 @@
+{
+  "other": {
+    "description": "Other variables and metadata",
+    "odessa_name": "OTHER",
+    "domains": ["global", "private", "cavity", "lower_plenum"],
+    "subgroups": {
+      "global": {
+        "description": "Global variables",
+        "domains": ["global"]
+      },
+      "private": {
+        "description": "Private variables",
+        "domains": ["private"]
+      },
+      "cavity": {
+        "description": "Cavity variables",
+        "domains": ["cavity"]
+      },
+      "lower_plenum": {
+        "description": "Lower plenum variables",
+        "domains": ["lower_plenum"]
+      }
+    }
+  },
+  "primary": {
+    "description": "Primary circuit variables and metadata",
+    "odessa_name": "PRIMARY",
+    "domains": ["primary_wall", "primary_volume", "primary_junction", "primary_pipe"],
+    "subgroups": {
+      "wall": {
+        "description": "Primary circuit thermal variables",
+        "domains": ["primary_wall"],
+        "metadata_vars": ["primary_wall_meta"]
+      },
+      "volume": {
+        "description": "Primary circuit geometry variables",
+        "domains": ["primary_volume"],
+        "metadata_vars": ["primary_volume_meta"]
+      },
+      "junction": {
+        "description": "Primary circuit geometry variables",
+        "domains": ["primary_junction"],
+        "metadata_vars": ["primary_junction_meta"]
+      },
+      "pipe": {
+        "description": "Primary circuit geometry variables",
+        "domains": ["primary_pipe"],
+        "metadata_vars": ["primary_pipe_meta"]
+      },
+      "metadata": {
+        "description": "Primary circuit metadata",
+        "metadata_vars": [
+          "primary_wall_meta",
+          "primary_volume_meta",
+          "primary_junction_meta",
+          "primary_pipe_meta"
+        ]
+      }
+    }
+  },
+  "secondary": {
+    "description": "Secondary circuit variables and metadata",
+    "odessa_name": "SECONDAR",
+    "domains": ["secondar_wall", "secondar_volume", "secondar_junction"],
+    "subgroups": {
+      "wall": {
+        "description": "Secondary circuit thermal variables",
+        "domains": ["secondar_wall"],
+        "metadata_vars": ["secondary_wall_meta"]
+      },
+      "volume": {
+        "description": "Secondary circuit volume variables",
+        "domains": ["secondar_volume"],
+        "metadata_vars": ["secondary_volume_meta"]
+      },
+      "junction": {
+        "description": "Secondary circuit junction variables",
+        "domains": ["secondar_junction"],
+        "metadata_vars": ["secondary_junction_meta"]
+      },
+      "metadata": {
+        "description": "Secondary circuit metadata",
+        "metadata_vars": [
+          "secondary_volume_meta",
+          "secondary_junction_meta",
+          "secondary_wall_meta"
+        ]
+      }
+    }
+  },
+  "vessel": {
+    "description": "Reactor vessel variables and metadata",
+    "odessa_name": "VESSEL",
+    "domains": ["vessel_general", "vessel_mesh", "vessel_face"],
+    "subgroups": {
+      "general": {
+        "description": "Vessel general variables",
+        "domains": ["vessel_general"],
+        "metadata_vars": ["vessel_general_meta"]
+      },
+      "mesh": {
+        "description": "Vessel mesh variables",
+        "domains": ["vessel_mesh"],
+        "metadata_vars": ["vessel_mesh_meta"]
+      },
+      "face": {
+        "description": "Vessel face variables",
+        "domains": ["vessel_face"],
+        "metadata_vars": ["vessel_face_meta"]
+      },
+      "metadata": {
+        "description": "Vessel metadata",
+        "metadata_vars": [
+          "vessel_mesh_meta",
+          "vessel_general_meta",
+          "vessel_face_meta"
+        ]
+      }
+    }
+  },
+  "connection": {
+    "description": "Connection variables and metadata",
+    "odessa_name": "CONNECTI",
+    "domains": ["connecti", "connecti_fp"],
+    "subgroups": {
+      "general": {
+        "description": "Connection variables",
+        "domains": ["connecti"],
+        "metadata_vars": ["connection_meta"]
+      },
+      "fission": {
+        "description": "Connection fission products variables",
+        "domains": ["connecti_fp"]
+      },
+      "metadata": {
+        "description": "Connection metadata",
+        "metadata_vars": ["connection_meta"]
+      }
+    }
+  },
+  "containment": {
+    "description": "Containment variables and metadata",
+    "odessa_name": "CONTAINM",
+    "domains": [
+      "containment_conn",
+      "containment_wall",
+      "containment_dome",
+      "containment_pool",
+      "containment_zone",
+      "containment_environ",
+      "containment_general"
+    ],
+    "subgroups": {
+      "conn": {
+        "description": "Containment conn variables",
+        "domains": ["containment_conn"],
+        "metadata_vars": ["containment_conn_meta"]
+      },
+      "wall": {
+        "description": "Containment wall variables",
+        "domains": ["containment_wall"],
+        "metadata_vars": ["containment_wall_meta"]
+      },
+      "dome": {
+        "description": "Containment dome variables",
+        "domains": ["containment_dome"]
+      },
+      "pool": {
+        "description": "Containment pool variables",
+        "domains": ["containment_pool"]
+      },
+      "zone": {
+        "description": "Containment zone variables",
+        "domains": ["containment_zone"]
+      },
+      "envrion": {
+        "description": "Containment environ variables",
+        "domains": ["containment_environ"]
+      },
+      "general": {
+        "description": "Containment general variables",
+        "domains": ["containment_general"]
+      },
+      "metadata": {
+        "description": "Connection metadata",
+        "metadata_vars": [
+          "containment_conn_meta",
+          "containment_wall_meta"
+        ]
+      }
+    }
+  }
+}
