@@ -14,7 +14,7 @@ import subprocess
 from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 from assasdb.assas_astec_archive import AssasAstecArchive
 from assasdb.assas_database_handler import AssasDatabaseHandler
@@ -357,6 +357,88 @@ class AssasDatabaseManager:
         return size
 
     @staticmethod
+    def get_size_of_database_files_after_status(
+        dataframes: pd.DataFrame,
+        key: str = "system_size",
+    ) -> Tuple[str, float]:
+        """Get the size of the internal database.
+
+        This function retrieves the size of the 'files' collection in the internal
+        database and returns it in a human-readable format.
+
+        Args:
+            dataframes (pd.DataFrame): The DataFrame containing the database entries.
+            status (AssasDocumentFileStatus): The status to filter the entries by.
+            key (str): The key in the DataFrame that contains the size information.
+
+        Returns:
+            str: The size of the internal database in a human-readable format.
+
+        """
+        logger.info("Get size of internal database.")
+
+        if dataframes.empty:
+            return "0 B"
+
+        dataframes["system_size_bytes"] = dataframes[key].apply(
+            AssasDatabaseManager.convert_to_bytes
+        )
+
+        total_size_bytes = dataframes["system_size_bytes"].sum()
+        logger.info(f"Total size of database in bytes: {total_size_bytes}.")
+
+        size = AssasDatabaseManager.convert_from_bytes(total_size_bytes)
+        logger.info(f"Total size of database in converted format: {size}.")
+
+        return size, total_size_bytes
+
+    @staticmethod
+    def calc_compression_rate(dataframes: pd.DataFrame) -> Tuple[float, float]:
+        """Calculate the compression rate of the internal database.
+
+        This function calculates the compression rate by dividing the size of the
+        original files by the size of the compressed files.
+
+        Args:
+            dataframes (pd.DataFrame): The DataFrame containing the database entries.
+
+        Returns:
+            str: The compression rate in a human-readable format.
+
+        """
+        logger.info("Calculate compression rate of internal database.")
+
+        if dataframes.empty:
+            return (0.0, 0.0)
+
+        dataframes = dataframes.copy()
+        dataframes["system_size_bytes"] = dataframes["system_size"].apply(
+            AssasDatabaseManager.convert_to_bytes
+        )
+        dataframes["system_size_hdf5_bytes"] = dataframes["system_size_hdf5"].apply(
+            AssasDatabaseManager.convert_to_bytes
+        )
+
+        dataframes = dataframes[
+            (dataframes["system_size_bytes"] > 0)
+            & (dataframes["system_size_hdf5_bytes"] > 0)
+        ].copy()
+
+        dataframes["compression"] = (
+            dataframes["system_size_bytes"] / dataframes["system_size_hdf5_bytes"]
+        )
+
+        dataframes["compression_rate"] = (
+            (dataframes["system_size_bytes"] - dataframes["system_size_hdf5_bytes"])
+            / dataframes["system_size_bytes"]
+            * 100
+        )
+
+        dataframes = dataframes[(dataframes["compression"] < 100)].copy()
+
+        return (dataframes["compression"].mean(), dataframes["compression_rate"].mean())
+
+    @staticmethod
     def convert_to_bytes(size_str: str) -> int:
         """Convert a size string (e.g., '10 GB', '500 MB', '20 KB') into bytes.
 
@@ -376,7 +458,14 @@ class AssasDatabaseManager:
             return int(float(size_str.replace("KB", "").strip()) * 1024)
         elif size_str.endswith("B"):
             return int(size_str.replace("B", "").strip())
+        elif size_str == "..." or size_str == "....":
+            logger.warning(
+                "Received size string with '...' or '....'. "
+                "Assuming size is not set and returning 0 bytes."
+            )
+            return 0
         else:
+            logger.error(f"Unrecognized size format: {size_str}.")
             raise ValueError(f"Unrecognized size format: {size_str}")
 
     @staticmethod
@@ -1442,21 +1531,12 @@ class AssasDatabaseManager:
             "Update maximum index value from all converting archives in the database."
         )
         handler = self.database_handler
-        # documents_valid = (
-        #    handler.get_file_documents_to_collect_completed_number_of_samples(
-        #        system_status=AssasDocumentFileStatus.VALID.value
-        #    )
-        # )
-        # document_files_valid = [
-        #    AssasDocumentFile(document) for document in documents_valid
-        # ]
         documents_converting = handler.get_file_documents_by_status(
             status=AssasDocumentFileStatus.CONVERTING.value
         )
         document_files = [
             AssasDocumentFile(document) for document in documents_converting
         ]
-        # document_files = document_files_valid + document_files_converting
 
         if len(document_files) == 0:
             logger.info("Found no new archive to collect maximum index value.")

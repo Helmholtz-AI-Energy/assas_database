@@ -36,7 +36,7 @@ class AssasDatabaseHandler:
 
     def __init__(
         self,
-        client: MongoClient = MongoClient("mongodb://localhost:27017/"),
+        client: MongoClient = MongoClient("mongodb://localhost:27017"),
         backup_directory: str = "/mnt/ASSAS/backup_mongodb",
         database_name: str = "assas",
         file_collection_name: str = "files",
@@ -90,7 +90,7 @@ class AssasDatabaseHandler:
 
     def close(self) -> None:
         """Safely close the MongoClient."""
-        if self.client is not None:
+        if hasattr(self, "client") and self.client is not None:
             logger.info("Closing MongoDB client.")
             self.client.close()
 

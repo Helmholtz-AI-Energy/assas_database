@@ -105,6 +105,41 @@ def get_database_entries() -> pd.DataFrame:
     return database_entries
 
 
+def get_database_sizes(
+    database_entries: pd.DataFrame,
+    key: str = "system_size",
+) -> dict:
+    """Return the sizes of database files after a certain status.
+
+    This function calculates the sizes of database files based on their status
+    and returns a dictionary with the status as keys and their corresponding sizes
+    as values. It also includes a total size entry.
+
+    Args:
+        database_entries (pd.DataFrame): DataFrame containing database entries.
+        key (str): The key to use for size calculation (default: "system_size").
+
+    Returns:
+        dict: A dictionary with status as keys and their sizes as values.
+
+    """
+    size_info = {}
+    sum_sizes = 0
+    for status in AssasDocumentFileStatus:
+        size_tuple = AssasDatabaseManager.get_size_of_database_files_after_status(
+            dataframes=database_entries[
+                database_entries["system_status"] == status.value
+            ],
+            key=key,
+        )
+        size_info[status.value] = size_tuple[0]
+        sum_sizes += size_tuple[1]
+
+    size_info["total"] = AssasDatabaseManager.convert_from_bytes(sum_sizes)
+
+    return size_info
+
+
 def get_maximum_indizes(
     number_of_samples: int,
     limit_samples: int,
@@ -130,7 +165,7 @@ def get_maximum_indizes(
         if maximum_indizes[i] > number_of_samples:
             maximum_indizes[i] = number_of_samples
 
-        # logger.debug(f"File index {i} has maximum index {maximum_indizes[i]}.")
+        logger.debug(f"File index {i} has maximum index {maximum_indizes[i]}.")
 
     return maximum_indizes
 
@@ -250,9 +285,6 @@ def generate_job_file(
 def generate_job_files(
     job_directory: str,
     database_entries: pd.DataFrame,
-    # file_status_list: List[AssasDocumentFileStatus] = [
-    #    AssasDocumentFileStatus.UPLOADED
-    # ],
     limit_samples: int = LIMIT_SAMPLES,
 ) -> None:
     """Generate job files for all entries in the database with the status 'Uploaded'.
@@ -606,7 +638,7 @@ if __name__ == "__main__":
         type=str,
         required=True,
         # nargs="+",  # Allow multiple actions
-        choices=["generate", "submit", "cancel", "squeue", "dependencies"],
+        choices=["generate", "submit", "cancel", "squeue", "dependencies", "size"],
         help="Action to perform: generate, submit, cancel, or dependencies",
     )
     parser.add_argument(
@@ -684,22 +716,10 @@ if __name__ == "__main__":
 
     if args.action == "generate":
         logger.info(f"Generating job files into {args.job_directory}.")
-        # database_entries = database_entries[
-        #    database_entries["system_upload_uuid"] ==
-        #    "9660f85e-ed19-400f-952f-0ee36d4c50c6"]
-
-        # logger.info(database_entries)
 
         remove_all_job_files(job_directory=args.job_directory)
 
-        # if args.state is not None:
-        #    state_enum = AssasDocumentFileStatus(args.state)
-        #    file_status_list = [state_enum]
-        #    logger.info(f"Filtering database entries by state: {args.state}.")
-        # else:
         file_status_list = [
-            # AssasDocumentFileStatus.VALID,
-            # AssasDocumentFileStatus.INVALID,
             AssasDocumentFileStatus.CONVERTING,
             AssasDocumentFileStatus.UPLOADED,
         ]
@@ -733,12 +753,6 @@ if __name__ == "__main__":
 
     elif args.action == "submit":
         logger.info("Submitting jobs...")
-        # database_entries = database_entries[
-        #    database_entries["system_upload_uuid"]
-        #    == "9660f85e-ed19-400f-952f-0ee36d4c50c6"
-        # ]
-
-        # logger.info(database_entries)
 
         submit_jobs(
             database_entries=database_entries,
@@ -751,6 +765,20 @@ if __name__ == "__main__":
         logger.info("Cancelling all jobs in certain states...")
         cancel_all_jobs_in_certain_state(SlurmJobState.RUNNING)
         cancel_all_jobs_in_certain_state(SlurmJobState.PENDING)
+
+    elif args.action == "size":
+        logger.info("Retrieving database sizes raw")
+        size_info = get_database_sizes(
+            database_entries=database_entries, key="system_size"
+        )
+        logger.info(f"Database sizes:\n{size_info}")
+        frames = database_entries[
+            database_entries["system_status"] == AssasDocumentFileStatus.VALID.value
+        ]
+        logger.info(f"Calculating compression rate for {len(frames)} valid frames.")
+        compression = AssasDatabaseManager.calc_compression_rate(frames)
+        logger.info(f"Compression: {compression[0]}.")
+        logger.info(f"Compression rate: {compression[1]}.")
 
     elif args.action == "squeue":
         logger.info("Retrieving squeue DataFrame...")

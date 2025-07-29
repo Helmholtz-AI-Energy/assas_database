@@ -23,7 +23,7 @@ import shutil
 from tqdm import tqdm
 from typing import List, Union, Optional
 from pathlib import Path
-from .assas_netcdf4_meta_config import META_DATA_VAR_NAMES, DOMAIN_GROUP_CONFIG
+from .assas_netcdf4_meta_config_old import META_DATA_VAR_NAMES, DOMAIN_GROUP_CONFIG
 from .assas_unit_manager import AssasUnitManager
 
 logger = logging.getLogger("assas_app")
@@ -53,12 +53,16 @@ class AssasOdessaNetCDF4Converter:
         self,
         input_path: Union[str, Path],
         output_path: Union[str, Path],
+        variable_index_file_list: Optional[List[str]] = None,
     ) -> None:
         """Initialize AssasOdessaNetCDF4Converter class.
 
         Args:
             input_path (Union[str, Path]): Path to the ASTEC binary archive.
             output_path (Union[str, Path]): Path to the output netCDF4 file.
+            variable_index_file_list (Optional[List[str]]):
+                List of ASTEC variable index files. If not provided,
+                a default list will be used.
 
         Returns:
             None
@@ -78,6 +82,34 @@ class AssasOdessaNetCDF4Converter:
         self.time_points = pyod.get_saving_times(str(self.input_path))
         logger.info(f"Read {len(self.time_points)} time points from ASTEC archive.")
         logger.debug(f"List of time points: {self.time_points}.")
+
+        self.variable_index_file_list = variable_index_file_list or [
+            "astec_config/inr/assas_variables_cavity.csv",
+            "astec_config/inr/assas_variables_containment.csv",
+            "astec_config/inr/assas_variables_containment_conn.csv",
+            "astec_config/inr/assas_variables_containment_dome_pool.csv",
+            "astec_config/inr/assas_variables_containment_wall.csv",
+            "astec_config/inr/assas_variables_containment_zone.csv",
+            "astec_config/inr/assas_variables_lower_plenum.csv",
+            "astec_config/inr/assas_variables_vessel.csv",
+            "astec_config/inr/assas_variables_vessel_face_ther.csv",
+            "astec_config/inr/assas_variables_vessel_general.csv",
+            "astec_config/inr/assas_variables_vessel_mesh.csv",
+            "astec_config/inr/assas_variables_primary_junction_ther.csv",
+            "astec_config/inr/assas_variables_primary_pipe_ther.csv",
+            "astec_config/inr/assas_variables_primary_volume_ther.csv",
+            "astec_config/inr/assas_variables_primary_wall.csv",
+            "astec_config/inr/assas_variables_primary_wall_ther.csv",
+            "astec_config/inr/assas_variables_secondar_junction_ther.csv",
+            "astec_config/inr/assas_variables_secondar_volume_ther.csv",
+            "astec_config/inr/assas_variables_secondar_wall.csv",
+            "astec_config/inr/assas_variables_secondar_wall_ther.csv",
+            "astec_config/inr/assas_variables_connecti.csv",
+            "astec_config/inr/assas_variables_connecti_source_fp.csv",
+            "astec_config/inr/assas_variables_sequence.csv",
+            "astec_config/inr/assas_variables_private_assas_param.csv",
+            "astec_config/inr/assas_variables_cesar_io.csv",
+        ]
 
         self.variable_index = self.read_astec_variable_index_files(report=True)
 
@@ -214,6 +246,10 @@ class AssasOdessaNetCDF4Converter:
             "private_assas_param": (
                 AssasOdessaNetCDF4Converter.parse_variable_private_assas_param
             ),
+            "cesar_io": (AssasOdessaNetCDF4Converter.parse_variable_cesar_io),
+            "cesar_io_output": (
+                AssasOdessaNetCDF4Converter.parse_variable_cesar_io_output
+            ),
         }
 
     def get_time_points(self) -> List[int]:
@@ -262,32 +298,7 @@ class AssasOdessaNetCDF4Converter:
             pd.DataFrame: A dataframe containing the ASTEC variable index.
 
         """
-        file_list = [
-            "astec_config/inr/assas_variables_cavity.csv",
-            "astec_config/inr/assas_variables_containment.csv",
-            "astec_config/inr/assas_variables_containment_conn.csv",
-            "astec_config/inr/assas_variables_containment_dome_pool.csv",
-            "astec_config/inr/assas_variables_containment_wall.csv",
-            "astec_config/inr/assas_variables_containment_zone.csv",
-            "astec_config/inr/assas_variables_lower_plenum.csv",
-            "astec_config/inr/assas_variables_vessel.csv",
-            "astec_config/inr/assas_variables_vessel_face_ther.csv",
-            "astec_config/inr/assas_variables_vessel_general.csv",
-            "astec_config/inr/assas_variables_vessel_mesh.csv",
-            "astec_config/inr/assas_variables_primary_junction_ther.csv",
-            "astec_config/inr/assas_variables_primary_pipe_ther.csv",
-            "astec_config/inr/assas_variables_primary_volume_ther.csv",
-            "astec_config/inr/assas_variables_primary_wall.csv",
-            "astec_config/inr/assas_variables_primary_wall_ther.csv",
-            "astec_config/inr/assas_variables_secondar_junction_ther.csv",
-            "astec_config/inr/assas_variables_secondar_volume_ther.csv",
-            "astec_config/inr/assas_variables_secondar_wall.csv",
-            "astec_config/inr/assas_variables_secondar_wall_ther.csv",
-            "astec_config/inr/assas_variables_connecti.csv",
-            "astec_config/inr/assas_variables_connecti_source_fp.csv",
-            "astec_config/inr/assas_variables_sequence.csv",
-            "astec_config/inr/assas_variables_private_assas_param.csv",
-        ]
+        file_list = self.variable_index_file_list
 
         dataframe_list = []
         for file in file_list:
@@ -295,7 +306,7 @@ class AssasOdessaNetCDF4Converter:
                 dataframe = pd.read_csv(csv_file)
                 dataframe_list.append(dataframe)
 
-        dataframe = pd.concat(dataframe_list)
+        dataframe = pd.concat(dataframe_list).reset_index(drop=True)
         logger.info(f"Shape of variable index is {dataframe.shape}.")
 
         if report:
@@ -304,6 +315,35 @@ class AssasOdessaNetCDF4Converter:
                 + "/astec_config/assas_variables_wp2_report.csv"
             )
             dataframe.to_csv(output_file)
+
+            output_file_latex = (
+                os.path.dirname(os.path.realpath(__file__))
+                + "/astec_config/assas_variables_wp2_report_head.tex"
+            )
+            indices = list(range(0, 5)) + list(range(104, 110))
+            dataframe_head = dataframe[
+                [
+                    "name",
+                    "long_name",
+                    "name_odessa",
+                    "unit",
+                    "domain",
+                    "strategy",
+                    "dimension",
+                ]
+            ].iloc[indices]
+            with open(output_file_latex, "w") as f:
+                logger.info(
+                    f"Write head of dataframe to LaTeX file {f.name} "
+                    "for reporting purposes."
+                )
+                dataframe_head.to_latex(
+                    buf=f,
+                    index=False,
+                    escape=False,
+                    caption="Selected Variables",
+                    label="tab:variables",
+                )
 
         return dataframe
 
@@ -2089,7 +2129,7 @@ class AssasOdessaNetCDF4Converter:
 
             logger.debug(f"Number of walls in containment: {number_of_walls}.")
 
-            array = np.full((number_of_walls), fill_value=np.nan)
+            array = np.full((number_of_walls, 21), fill_value=np.nan)
 
             for idx, wall_number in enumerate(range(1, number_of_walls + 1)):
                 odessa_path = (
@@ -2101,14 +2141,14 @@ class AssasOdessaNetCDF4Converter:
                 ):
                     variable_structure = odessa_base.get(odessa_path)
                     logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
+                    array[idx] = variable_structure
 
         else:
             logger.debug(
                 f"Path {containment_zone_check_path} not in odessa base, "
                 "fill array with np.nan."
             )
-            array = np.full((1), fill_value=np.nan)
+            array = np.full((1, 1), fill_value=np.nan)
 
         return array
 
@@ -2437,6 +2477,74 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f"Parse ASTEC variable {variable_name}, type private_assas_param.")
 
         odessa_path = f"PRIVATE 1: ASSASpar 1: {variable_name} 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base, odessa_path
+        ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f"Collect variable structure {variable_structure}.")
+            array = np.array([variable_structure])
+
+        else:
+            logger.debug(
+                f"Variable {variable_name} not in odessa base, fill array with np.nan."
+            )
+            array = np.array([np.nan])
+
+        return array
+
+    @staticmethod
+    def parse_variable_cesar_io(
+        odessa_base: pyod.Base,
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from cesar_io data.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(f"Parse ASTEC variable {variable_name}, type cesar_io.")
+
+        odessa_path = f"CESAR_IO 1: {variable_name} 1"
+
+        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
+            odessa_base, odessa_path
+        ):
+            variable_structure = odessa_base.get(odessa_path)
+            logger.debug(f"Collect variable structure {variable_structure}.")
+            array = np.array([variable_structure])
+
+        else:
+            logger.debug(
+                f"Variable {variable_name} not in odessa base, fill array with np.nan."
+            )
+            array = np.array([np.nan])
+
+        return array
+
+    @staticmethod
+    def parse_variable_cesar_io_output(
+        odessa_base: pyod.Base,
+        variable_name: str,
+    ) -> np.ndarray:
+        """Parse ASTEC variable from cesar_io data.
+
+        Args:
+            odessa_base: The odessa base object.
+            variable_name (str): Name of the variable to parse.
+
+        Returns:
+            np.ndarray: An array containing the parsed variable data.
+
+        """
+        logger.debug(f"Parse ASTEC variable {variable_name}, type cesar_io.")
+
+        odessa_path = f"CESAR_IO 1: OUTPUTS 1: {variable_name} 1"
 
         if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
             odessa_base, odessa_path
@@ -2809,6 +2917,8 @@ class AssasOdessaNetCDF4Converter:
                 ncfile.createDimension("wall", None)
                 ncfile.createDimension("connecti", None)
                 ncfile.createDimension("component", None)
+                ncfile.createDimension("cesar_output", None)
+                ncfile.createDimension("wall_profile", None)
 
                 time_dataset = ncfile.createVariable(
                     varname="time_points", datatype=np.float32, dimensions="time"
