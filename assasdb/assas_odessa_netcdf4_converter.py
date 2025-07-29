@@ -109,6 +109,7 @@ class AssasOdessaNetCDF4Converter:
             "astec_config/inr/assas_variables_sequence.csv",
             "astec_config/inr/assas_variables_private_assas_param.csv",
             "astec_config/inr/assas_variables_cesar_io.csv",
+            "astec_config/inr/assas_variables_sensor.csv",
         ]
 
         self.variable_index = self.read_astec_variable_index_files(report=True)
