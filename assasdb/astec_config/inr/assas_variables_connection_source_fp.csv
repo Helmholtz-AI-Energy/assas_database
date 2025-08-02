@@ -1,0 +1,54 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+Q_fp_Ac,mean mass flowrate of Ac,4,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Ag,mean mass flowrate of Ag,5,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Am,mean mass flowrate of Am,6,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_As,mean mass flowrate of As,7,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Ba,mean mass flowrate of Ba,8,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Br,mean mass flowrate of Br,9,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Cd,mean mass flowrate of Cd,10,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Ce,mean mass flowrate of Ce,11,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Cm,mean mass flowrate of Cm,12,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Cs,mean mass_flowrate of Cs,13,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Cu,mean mass_flowrate of Cu,14,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Dy,mean mass_flowrate of Dy,15,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Er,mean mass_flowrate of Er,16,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Eu,mean mass_flowrate of Eu,17,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Ga,mean mass_flowrate of Ga,18,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Gd,mean mass_flowrate of Gd,19,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Ge,mean mass_flowrate of Ge,20,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Ho,mean mass_flowrate of Ho,21,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_I,mean mass_flowrate of I,22,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_In,mean mass_flowrate of In,23,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Kr,mean mass_flowrate of Kr,24,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_La,mean mass_flowrate of La,25,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Mo,mean mass_flowrate of Mo,26,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Nb,mean mass_flowrate of Nb,27,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Nd,mean mass_flowrate of Nd,28,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Np,mean mass_flowrate of Np,29,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Pa,mean mass_flowrate of Pa,30,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Pd,mean mass_flowrate of Pd,31,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Pm,mean mass_flowrate of Pm,32,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Pr,mean mass_flowrate of Pr,33,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Pu,mean mass_flowrate of Pu,34,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Ra,mean mass_flowrate of Ra,35,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Rb,mean mass_flowrate of Rb,36,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Re,mean mass_flowrate of Re,37,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Rh,mean mass_flowrate of Rh,38,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Ru,mean mass_flowrate of Ru,39,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Sb,mean mass_flowrate of Sb,40,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Se,mean mass_flowrate of Se,41,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Sm,mean mass_flowrate of Sm,42,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Sn,mean mass_flowrate of Sn,43,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Sr,mean mass_flowrate of Sr,44,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Tb,mean mass_flowrate of Tb,45,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Tc,mean mass_flowrate of Tc,46,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Te,mean mass_flowrate of Te,47,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Th,mean mass_flowrate of Th,48,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Tl,mean mass_flowrate of Tl,49,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Tm,mean mass_flowrate of Tm,50,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_U,mean mass_flowrate of U,51,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Xe,mean mass_flowrate of Xe,52,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Y,mean mass_flowrate of Y,53,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Yb,mean mass_flowrate of Yb,54,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Zn,mean mass_flowrate of Zn,55,[kg/s],connection_fp,connection_source_fp,none
+Q_fp_Zr,mean mass_flowrate of Zr,56,[kg/s],connection_fp,connection_source_fp,none

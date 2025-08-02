@@ -1,10 +1,10 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-average_total_pressure,average total pressure in each zone,PRES,[Pa],containment_zone,containment_zone,none
-average_total_temperature,average fluid temperature in each zone,TFLU,[T],containment_zone,containment_zone,none
-amtosph_comp_xco2,atmospheric composition of xco2 in each zone,XCO2,[-],containment_zone,containment_zone_ther,none
-amtosph_comp_xco,atmospheric composition of xco in each zone,XCO2,[-],containment_zone,containment_zone_ther,none
-amtosph_comp_xh2,atmospheric composition of xh2 in each zone,XH2,[-],containment_zone,containment_zone_ther,none
-amtosph_comp_xh2o,atmospheric composition of xh2o each zone,XH20,[-],containment_zone,containment_zone_ther,none
-amtosph_comp_xn2,atmospheric composition of xn2 each zone,XN2,[-],containment_zone,containment_zone_ther,none
-amtosph_comp_xo2,atmospheric composition of xo2 each zone,XO2,[-],containment_zone,containment_zone_ther,none
+average_total_pressure,average total pressure in each zone,PRES,[Pa],containment_zone,containment_zone,zone
+average_total_temperature,average fluid temperature in each zone,TFLU,[T],containment_zone,containment_zone,zone
+amtosph_comp_xco2,atmospheric composition of xco2 in each zone,XCO2,[-],containment_zone,containment_zone_ther,zone
+amtosph_comp_xco,atmospheric composition of xco in each zone,XCO2,[-],containment_zone,containment_zone_ther,zone
+amtosph_comp_xh2,atmospheric composition of xh2 in each zone,XH2,[-],containment_zone,containment_zone_ther,zone
+amtosph_comp_xh2o,atmospheric composition of xh2o each zone,XH20,[-],containment_zone,containment_zone_ther,zone
+amtosph_comp_xn2,atmospheric composition of xn2 each zone,XN2,[-],containment_zone,containment_zone_ther,zone
+amtosph_comp_xo2,atmospheric composition of xo2 each zone,XO2,[-],containment_zone,containment_zone_ther,zone
 

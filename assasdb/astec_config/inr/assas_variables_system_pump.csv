@@ -1,0 +1,3 @@
+name,long_name,name_odessa,unit,domain,strategy,dimension
+pump_omega,angular velocity of pump,OMEGA,[Hz],global,system_pump_momentum,pump
+pump_flowrate,flowrate of pump,FLOW,[kg/s],global,system_pump_momentum,pump

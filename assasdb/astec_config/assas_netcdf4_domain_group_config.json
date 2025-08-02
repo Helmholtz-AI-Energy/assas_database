@@ -2,7 +2,7 @@
   "other": {
     "description": "Other variables and metadata",
     "odessa_name": "OTHER",
-    "domains": ["global", "private", "cavity", "lower_plenum"],
+    "domains": ["global", "private"],
     "subgroups": {
       "global": {
         "description": "Global variables",
@@ -12,13 +12,9 @@
         "description": "Private variables",
         "domains": ["private"]
       },
-      "cavity": {
-        "description": "Cavity variables",
-        "domains": ["cavity"]
-      },
-      "lower_plenum": {
-        "description": "Lower plenum variables",
-        "domains": ["lower_plenum"]
+      "metadata": {
+        "description": "Global metadata",
+        "metadata_vars": ["sensor_meta"]
       }
     }
   },
@@ -121,16 +117,16 @@
   "connection": {
     "description": "Connection variables and metadata",
     "odessa_name": "CONNECTI",
-    "domains": ["connecti", "connecti_fp"],
+    "domains": ["connection", "connection_fp"],
     "subgroups": {
       "general": {
         "description": "Connection variables",
-        "domains": ["connecti"],
+        "domains": ["connection"],
         "metadata_vars": ["connection_meta"]
       },
       "fission": {
         "description": "Connection fission products variables",
-        "domains": ["connecti_fp"]
+        "domains": ["connection_fp"]
       },
       "metadata": {
         "description": "Connection metadata",
@@ -142,19 +138,17 @@
     "description": "Containment variables and metadata",
     "odessa_name": "CONTAINM",
     "domains": [
-      "containment_conn",
+      "containment_connection",
       "containment_wall",
       "containment_dome",
       "containment_pool",
-      "containment_zone",
-      "containment_environ",
-      "containment_general"
+      "containment_zone"
     ],
     "subgroups": {
-      "conn": {
-        "description": "Containment conn variables",
-        "domains": ["containment_conn"],
-        "metadata_vars": ["containment_conn_meta"]
+      "connection": {
+        "description": "Containment connection variables",
+        "domains": ["containment_connection"],
+        "metadata_vars": ["containment_connection_meta"]
       },
       "wall": {
         "description": "Containment wall variables",
@@ -173,18 +167,10 @@
         "description": "Containment zone variables",
         "domains": ["containment_zone"]
       },
-      "envrion": {
-        "description": "Containment environ variables",
-        "domains": ["containment_environ"]
-      },
-      "general": {
-        "description": "Containment general variables",
-        "domains": ["containment_general"]
-      },
       "metadata": {
         "description": "Connection metadata",
         "metadata_vars": [
-          "containment_conn_meta",
+          "containment_connection_meta",
           "containment_wall_meta"
         ]
       }

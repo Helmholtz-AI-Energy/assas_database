@@ -1,13 +1,4 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-Q_m_dc,vessel downcomer liquid mass flowrate,4,[kg/s],vessel_general,sensor,none
-l_H20_vessel,vessel water level,15,[%],vessel_general,sensor,none
-m_liq_vessel,vessel liquid mass,16,[kg],vessel_general,sensor,none
-m_steam_vessel,vessel steam mass,17,[kg],vessel_general,sensor,none
-m_prod_H2_vessel,vessel H2 mass production,19,[kg],vessel_general,sensor,none
-m_cum_H2_vessel,vessel H2 mass cumulated mass,20,[kg],vessel_general,sensor,none
-m_magma_tot_vessel,total mass of magma located in core vessel,353,[kg],vessel_general,sensor,none
-m_debris_vessel,total mass of debris located in core vessel,354,[kg],vessel_general,sensor,none
-Q_A_vessel_rcs,activity release rate from VESSEL to RCS,364,[Bq/h],vessel_general,sensor,none
 m_magma_vessel,vessel magma mass,magma_id,[kg],vessel_general,vessel_magma_debris,mesh
 m_debris_0_vessel,vessel debris 0 mass,debris_id_0,[kg],vessel_general,vessel_magma_debris,mesh
 m_debris_1_vessel,vessel debris 1 mass,debris_id_1,[kg],vessel_general,vessel_magma_debris,mesh
