@@ -358,7 +358,7 @@ class AssasDatabaseManager:
 
     @staticmethod
     def get_size_of_database_files_after_status(
-        dataframes: pd.DataFrame,
+        dataframe: pd.DataFrame,
         key: str = "system_size",
     ) -> Tuple[str, float]:
         """Get the size of the internal database.
@@ -367,7 +367,7 @@ class AssasDatabaseManager:
         database and returns it in a human-readable format.
 
         Args:
-            dataframes (pd.DataFrame): The DataFrame containing the database entries.
+            dataframe (pd.DataFrame): The DataFrame containing the database entries.
             status (AssasDocumentFileStatus): The status to filter the entries by.
             key (str): The key in the DataFrame that contains the size information.
 
@@ -377,14 +377,15 @@ class AssasDatabaseManager:
         """
         logger.info("Get size of internal database.")
 
-        if dataframes.empty:
+        if dataframe.empty:
             return "0 B"
 
-        dataframes["system_size_bytes"] = dataframes[key].apply(
+        dataframe = dataframe.copy()
+        dataframe["system_size_bytes"] = dataframe[key].apply(
             AssasDatabaseManager.convert_to_bytes
         )
 
-        total_size_bytes = dataframes["system_size_bytes"].sum()
+        total_size_bytes = dataframe["system_size_bytes"].sum()
         logger.info(f"Total size of database in bytes: {total_size_bytes}.")
 
         size = AssasDatabaseManager.convert_from_bytes(total_size_bytes)

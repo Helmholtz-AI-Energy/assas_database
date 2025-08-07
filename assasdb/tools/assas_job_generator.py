@@ -127,7 +127,7 @@ def get_database_sizes(
     sum_sizes = 0
     for status in AssasDocumentFileStatus:
         size_tuple = AssasDatabaseManager.get_size_of_database_files_after_status(
-            dataframes=database_entries[
+            dataframe=database_entries[
                 database_entries["system_status"] == status.value
             ],
             key=key,
@@ -720,8 +720,9 @@ if __name__ == "__main__":
         remove_all_job_files(job_directory=args.job_directory)
 
         file_status_list = [
-            AssasDocumentFileStatus.CONVERTING,
-            AssasDocumentFileStatus.UPLOADED,
+            AssasDocumentFileStatus.VALID,
+            # AssasDocumentFileStatus.CONVERTING,
+            # AssasDocumentFileStatus.UPLOADED,
         ]
         logger.info(f"File status list: {file_status_list}.")
 

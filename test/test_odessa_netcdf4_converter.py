@@ -113,6 +113,11 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             output_path=self.fake_output_path,
         )
         self.test_logger.info("Initialized AssasOdessaNetCDF4Converter")
+        self.converter.set_general_meta_data(
+            self.fake_output_path,
+            archive_name="ASTEC Archive Conversion Test.",
+            archive_description="Test conversion of ASTEC archive to NetCDF4 format.",
+        )
 
     def tearDown(self) -> None:
         """Clean up temporary directories and files."""

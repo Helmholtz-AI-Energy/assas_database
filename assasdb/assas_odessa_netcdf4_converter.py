@@ -2689,17 +2689,16 @@ class AssasOdessaNetCDF4Converter:
     @staticmethod
     def set_general_meta_data(
         output_path: str,
-        title: str,
-        description: str,
+        archive_name: str,
+        archive_description: str,
     ) -> None:
         """Set general metadata for the NetCDF4 file with unit information."""
         with netCDF4.Dataset(f"{output_path}", "a", format="NETCDF4") as ncfile:
-            ncfile.title = title
-            ncfile.description = description
-            ncfile.source = "ASTEC simulation code"
+            ncfile.archive_name = archive_name
+            ncfile.archive_description = archive_description
             ncfile.creation_date = str(pd.Timestamp.now())
 
-            logger.info("Set general metadata with CF-1.8 conventions and SI unit")
+            logger.info("Set general metadata for the NetCDF4 file.")
 
     @staticmethod
     def read_variables_meta_values_from_netcdf4(
@@ -3848,6 +3847,7 @@ class AssasOdessaNetCDF4Converter:
                     # Set additional ASTEC-specific attributes
                     var_dataset.domain = variable["domain"]
                     var_dataset.strategy = variable["strategy"]
+                    var_dataset.variable_type = "data"
 
                     # Add group information
                     if group_name:
@@ -3889,16 +3889,12 @@ class AssasOdessaNetCDF4Converter:
 
     def add_unit_metadata_to_file(self, ncfile: netCDF4.Dataset) -> None:
         """Add global unit metadata to the NetCDF4 file."""
-        ncfile.setncattr("unit_system", "SI")
-        ncfile.setncattr("unit_manager", "cf-unit + pint")
-        ncfile.setncattr("CF_compliance", "CF-1.8")
-
         # Add unit registry info
         unique_unit = set()
         self.collect_unit_from_variables(ncfile, unique_unit)
 
-        ncfile.setncattr("unit_used", "; ".join(sorted(unique_unit)))
-        logger.info(f"Added global unit metadata with {len(unique_unit)} unique unit")
+        ncfile.setncattr("units_used", "; ".join(sorted(unique_unit)))
+        logger.info(f"Added global unit metadata with {len(unique_unit)} unique units")
 
     def collect_unit_from_variables(
         self, ncfile: netCDF4.Dataset, unique_unit: set
