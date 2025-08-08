@@ -7,3 +7,4 @@ micro_ts_end,end of micro time step,STEPEND,[s],cesar,cesar_io,none
 micro_ts_duration,duration of micro time step,dtfluid,[s],cesar,cesar_io,none
 iteration_info,iteration information,ITER,[-],cesar,cesar_io_output,cesar_output
 variable_prime,output variable prime,VARPRIM,[-],cesar,cesar_io_output,cesar_output
+conv_variable,convolution variable,CONV,[-],cesar,cesar_io_output,cesar_output
