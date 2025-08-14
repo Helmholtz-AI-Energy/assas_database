@@ -113,6 +113,11 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             output_path=self.fake_output_path,
         )
         self.test_logger.info("Initialized AssasOdessaNetCDF4Converter")
+        self.converter.set_general_meta_data(
+            self.fake_output_path,
+            archive_name="ASTEC Archive Conversion Test.",
+            archive_description="Test conversion of ASTEC archive to NetCDF4 format.",
+        )
 
     def tearDown(self) -> None:
         """Clean up temporary directories and files."""
@@ -307,6 +312,101 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         )
         self.assertIsNotNone(meta_data, "Meta data should not be None.")
         self.test_logger.info("Individual metadata reading verification passed")
+
+    @unittest.skip("Skipping NetCDF4 conversion on Horeka with remote data")
+    def test_convert_netcdf4_on_horeka_with_remote_data(self) -> None:
+        """Test converting NetCDF4 on Horeka with remote data."""
+        input_path = (
+            "/lsdf/kit/scc/projects/ASSAS/upload_test/"
+            "32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
+            "TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/"
+            "SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin"
+        )
+
+        output_path = (
+            "/lsdf/kit/scc/projects/ASSAS/upload_test/"
+            "32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
+            "TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5"
+        )
+
+        if os.path.exists(output_path):
+            os.remove(output_path)
+
+        test_name = "SBO_KIT_init_sim_s83"
+        test_description = "SBO_KIT_init_sim_s83"
+
+        AssasOdessaNetCDF4Converter.set_general_meta_data(
+            output_path=output_path,
+            archive_name=test_name,
+            archive_description=test_description,
+        )
+
+        self.assertEqual(
+            AssasOdessaNetCDF4Converter.get_general_meta_data(
+                output_path, "archive_name"
+            ),
+            test_name,
+        )
+        self.assertEqual(
+            AssasOdessaNetCDF4Converter.get_general_meta_data(
+                output_path, "archive_description"
+            ),
+            test_description,
+        )
+
+        odessa_converter = AssasOdessaNetCDF4Converter(
+            input_path=input_path,
+            output_path=output_path,
+        )
+
+        self.test_logger.info("Input file verification passed")
+        self.test_logger.info("Testing generation of new metadata structure")
+        try:
+            self.test_logger.info("Initializing groups in NetCDF4")
+            odessa_converter.initialize_groups_in_netcdf4()
+
+            self.test_logger.info("Initializing astec variables with group assignment")
+            odessa_converter.initialize_astec_variables_in_netcdf4()
+
+            self.test_logger.info("Creating metadata variables in groups")
+            odessa_converter.create_metadata_variables_in_groups()
+
+            self.test_logger.info("Converting metadata from Odessa")
+            odessa_converter.populate_metadata_variables_in_domain_groups()
+
+            self.test_logger.info("Populating data from groups to NetCDF4")
+            odessa_converter.populate_data_from_groups_to_netcdf4(maximum_index=1)
+
+            self.test_logger.info("Successfully generated new data structure")
+        except Exception as e:
+            self.test_logger.error(f"Failed to generate new metadata structure: {e}")
+
+        # Step 4: Copy files for inspection
+        self.test_logger.info("Copy file for inspection")
+        test_file_location = os.path.dirname(os.path.abspath(__file__))
+        new_copied_path = os.path.join(
+            test_file_location, "data/copied_horeka_output.nc"
+        )
+
+        try:
+            shutil.copy(output_path, new_copied_path)
+            self.assertTrue(
+                os.path.exists(new_copied_path),
+                f"Failed to copy new structure to {new_copied_path}",
+            )
+            self.test_logger.info(f"New structure copied to: {new_copied_path}")
+        except Exception as e:
+            self.test_logger.error(f"Failed to copy new structure file: {e}")
+            self.fail(f"Failed to copy new structure file: {e}")
+
+        variable_index = odessa_converter.get_variable_index()
+        meta_data_list = odessa_converter.read_meta_data_from_variables_in_netcdf4()
+
+        variables_from_meta_data = [meta_data["name"] for meta_data in meta_data_list]
+        variables_from_meta_data.remove("time_points")
+        variables_from_index = variable_index["name"].tolist()
+
+        self.assertEqual(set(variables_from_meta_data), set(variables_from_index))
 
     def test_generate_new_metadata_structure(self) -> None:
         """Test to generate new metadata structure in NetCDF4 file."""

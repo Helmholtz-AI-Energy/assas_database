@@ -20,7 +20,7 @@ setup(
     packages=["assasdb", "assasdb.astec_config", "assasdb.astec_config.inr"],
     zip_safe=False,
     include_package_data=True,
-    package_data={"assasdb": ["astec_config/inr/*.csv"]},
+    package_data={"assasdb": ["astec_config/inr/*.csv", "astec_config/*.json"]},
 )
 """
 This script is used to package the ASSAS database Python module.

@@ -2689,17 +2689,64 @@ class AssasOdessaNetCDF4Converter:
     @staticmethod
     def set_general_meta_data(
         output_path: str,
-        title: str,
-        description: str,
+        archive_name: str,
+        archive_description: str,
     ) -> None:
         """Set general metadata for the NetCDF4 file with unit information."""
         with netCDF4.Dataset(f"{output_path}", "a", format="NETCDF4") as ncfile:
-            ncfile.title = title
-            ncfile.description = description
-            ncfile.source = "ASTEC simulation code"
+            ncfile.archive_name = archive_name
+            ncfile.archive_description = archive_description
             ncfile.creation_date = str(pd.Timestamp.now())
 
-            logger.info("Set general metadata with CF-1.8 conventions and SI unit")
+            logger.info("Set general metadata for the NetCDF4 file.")
+
+    def iterate_recursive_over_groups(
+        self, group: netCDF4.Group, result: list[dict], path_prefix: str = ""
+    ) -> None:
+        """Recursively iterate through the netCDF4 groups and variables.
+
+        Args:
+            group: The current netCDF4 group.
+            result: The list to store variable metadata.
+            path_prefix: The prefix for the current path.
+
+        """
+        logger.debug(f"Iterating through group: {group.name}")
+        for var_name, var in group.variables.items():
+            full_path = f"{path_prefix}/{var_name}" if path_prefix else var_name
+            logger.info(
+                f"Variable at {full_path}: shape={var.shape}, dtype={var.dtype}"
+            )
+            if var.variable_type == "data":
+                variable_dict = {
+                    "name": var.name,
+                    "dimensions": "(" + ", ".join(str(d) for d in var.dimensions) + ")",
+                    "shape": "(" + ", ".join(str(s) for s in var.shape) + ")",
+                    "domain": var.getncattr("domain"),
+                }
+                result.append(variable_dict)
+
+        for subgroup_name, subgroup in group.groups.items():
+            new_prefix = (
+                f"{path_prefix}/{subgroup_name}" if path_prefix else subgroup_name
+            )
+            self.iterate_recursive_over_groups(subgroup, result, new_prefix)
+
+    def read_meta_data_from_variables_in_netcdf4(self) -> List[dict]:
+        """Read metadata from all variables in the NetCDF4 file.
+
+        Returns:
+            List[dict]: A list of dictionaries containing variable metadata.
+
+        """
+        result = []
+        logger.info(f"Reading metadata from netCDF4 file {self.output_path}.")
+
+        with netCDF4.Dataset(str(self.output_path), "r") as ncfile:
+            logger.info("Starting recursive iteration through netCDF4 groups.")
+            self.iterate_recursive_over_groups(ncfile, result)
+
+        return result
 
     @staticmethod
     def read_variables_meta_values_from_netcdf4(
@@ -2832,16 +2879,19 @@ class AssasOdessaNetCDF4Converter:
         if isinstance(attribute, str):
             attribute = [attribute]
 
-        try:
-            base = odessa_base if domain is None else odessa_base.get(domain)
-            if base is None:
-                logger.error(f"Failed to get base for domain: {domain}")
+        if domain is None:
+            base = odessa_base
+            logger.debug("No domain specified, using the entire odessa base.")
+        else:
+            logger.debug(f"Using domain {domain} from odessa base.")
+            path = f"{domain} 1"
+            if self.check_if_odessa_path_exists(odessa_base, path):
+                base = odessa_base.get(domain)
+            else:
+                logger.error(f"Domain {domain} not found in odessa base.")
                 return meta_data
-            number_of_elements = base.len(element)
-        except (ValueError, RuntimeError, Exception) as e:
-            logger.error(f"Error reading {domain} : {element} from odessa base: {e}.")
-            return meta_data
 
+        number_of_elements = base.len(element)
         logger.debug(
             f"Number of {domain} {element} in odessa base: {number_of_elements}."
         )
@@ -2850,20 +2900,26 @@ class AssasOdessaNetCDF4Converter:
             metadata = {"number": number}
             for attr in attribute:
                 path = f"{element} {number}: {attr} 1"
-                try:
-                    structure = base.get(path)
-                    if structure is None:
+                check_path = f"{domain} 1: {path}" if domain else path
+                if self.check_if_odessa_path_exists(odessa_base, check_path):
+                    logger.debug(
+                        f"Collect {domain} {element} {attr} from path {check_path}."
+                    )
+                    try:
+                        structure = base.get(path)
+                    except (ValueError, RuntimeError, Exception) as e:
                         logger.error(
-                            f"Failed to read {domain} : {element} {number} : {attr} "
-                            f"with actual path {path}"
+                            f"Error reading {domain} : {element} {number} : {attr} "
+                            f"with actual path {path}: {e}."
                         )
                         continue
-                except (ValueError, RuntimeError, Exception) as e:
-                    logger.error(
-                        f"Error reading {domain} : {element} {number} : {attr} "
-                        f"with actual path {path}: {e}."
+                else:
+                    logger.warning(
+                        f"Path {check_path} not found in "
+                        f"odessa base for {domain} {element}."
                     )
                     continue
+
                 logger.debug(
                     f"Collect {domain} {element} {attr} structure {structure}."
                 )
@@ -3801,6 +3857,8 @@ class AssasOdessaNetCDF4Converter:
             )
             time_dataset[:] = self.time_points
             time_dataset.completed_index = -1
+            time_dataset.domain = "global"
+            time_dataset.variable_type = "data"
 
             # Create variables with proper unit handling
             for _, variable in self.variable_index.iterrows():
@@ -3848,6 +3906,7 @@ class AssasOdessaNetCDF4Converter:
                     # Set additional ASTEC-specific attributes
                     var_dataset.domain = variable["domain"]
                     var_dataset.strategy = variable["strategy"]
+                    var_dataset.variable_type = "data"
 
                     # Add group information
                     if group_name:
@@ -3889,16 +3948,12 @@ class AssasOdessaNetCDF4Converter:
 
     def add_unit_metadata_to_file(self, ncfile: netCDF4.Dataset) -> None:
         """Add global unit metadata to the NetCDF4 file."""
-        ncfile.setncattr("unit_system", "SI")
-        ncfile.setncattr("unit_manager", "cf-unit + pint")
-        ncfile.setncattr("CF_compliance", "CF-1.8")
-
         # Add unit registry info
         unique_unit = set()
         self.collect_unit_from_variables(ncfile, unique_unit)
 
-        ncfile.setncattr("unit_used", "; ".join(sorted(unique_unit)))
-        logger.info(f"Added global unit metadata with {len(unique_unit)} unique unit")
+        ncfile.setncattr("units_used", "; ".join(sorted(unique_unit)))
+        logger.info(f"Added global unit metadata with {len(unique_unit)} unique units")
 
     def collect_unit_from_variables(
         self, ncfile: netCDF4.Dataset, unique_unit: set

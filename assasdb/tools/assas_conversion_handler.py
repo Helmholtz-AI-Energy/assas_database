@@ -229,6 +229,7 @@ class AssasConversionHandler:
 
             else:
                 logger.info(f"Using existing output file {str(self.tmp_output_path)}.")
+
                 if self.rerun:
                     logger.info(
                         "Rerun conversion, resetting completed index in netcdf4 file.\n"
@@ -242,7 +243,23 @@ class AssasConversionHandler:
                         upload_directory=f"{self.lsdf_project_dir}/{LSDF_DATA_DIR}",
                     )
 
-            odessa_converter.convert_astec_variables_to_netcdf4(maximum_index=self.time)
+            # Actual conversion process
+            logger.info("Initializing groups in NetCDF4.")
+            odessa_converter.initialize_groups_in_netcdf4()
+
+            logger.info("Initializing astec variables with group assignment.")
+            odessa_converter.initialize_astec_variables_in_netcdf4()
+
+            logger.info("Creating metadata variables in groups.")
+            odessa_converter.create_metadata_variables_in_groups()
+
+            logger.info("Converting metadata from Odessa.")
+            odessa_converter.populate_metadata_variables_in_domain_groups()
+
+            logger.info("Populating data from groups to NetCDF4.")
+            odessa_converter.populate_data_from_groups_to_netcdf4(
+                maximum_index=self.time
+            )
 
             self.save_hdf5_result(
                 local_output_path=self.tmp_output_path,
@@ -451,6 +468,42 @@ class AssasConversionHandler:
         except Exception as exception:
             logger.error(f"Error when copy result from tmp to lsdf: {exception}.")
 
+    def backup_hdf5_result(
+        self,
+    ) -> str:
+        """Backup the previous HDF5 file to the LSDF backup directory with a timestamp.
+
+        Args:
+            lsdf_output_path (str): The path to the LSDF output file.
+            lsdf_backup_dir (str): The directory where the backup should be stored.
+
+        Returns:
+            str: The path to the backup file.
+
+        """
+        try:
+            if not Path(self.output_path).exists():
+                logger.warning(f"No result file found at {self.output_path} to backup.")
+                return ""
+
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            backup_dir = self.output_path.parent / "backup"
+            backup_file = (
+                Path(backup_dir)
+                / f"{timestamp}_{self.output_path.stem}{self.output_path.suffix}"
+            )
+
+            # Ensure backup directory exists
+            Path(backup_dir).mkdir(parents=True, exist_ok=True)
+
+            copy2(self.output_path, backup_file)
+            logger.info(f"Backed up {self.output_path} to {backup_file}")
+            return str(backup_file)
+
+        except Exception as e:
+            logger.error(f"Error backing up result file: {e}")
+            return ""
+
     def notify_valid_conversion(
         self,
         upload_uuid: str,
@@ -499,6 +552,24 @@ class AssasConversionHandler:
         logger.info(f"Execute command {touch_string}.")
 
         os.system(touch_string)
+
+    def remove_valid_file(self, upload_uuid: str, upload_directory: str) -> None:
+        """Remove the file that indicates a valid conversion (<upload_uuid>_valid).
+
+        Args:
+            upload_uuid (str): The UUID of the upload.
+            upload_directory (str): The directory where the upload is stored.
+
+        Returns:
+            None
+
+        """
+        valid_file = f"{upload_directory}/{upload_uuid}/{upload_uuid}_valid"
+        if os.path.exists(valid_file):
+            logger.info(f"Removing valid file: {valid_file}")
+            os.remove(valid_file)
+        else:
+            logger.info(f"No valid file found to remove: {valid_file}")
 
     def notify_rerun_conversion(
         self,
@@ -595,6 +666,8 @@ if __name__ == "__main__":
         debug=args.debug,
         lsdf_data_dir=LSDF_DATA_DIR,
         lsdf_backup_dir=LSDF_BACKUP_DIR,
-    ).handle_conversion()
+    )
 
+    conversion_handler.backup_hdf5_result()
+    conversion_handler.handle_conversion()
     conversion_handler.close_resources()

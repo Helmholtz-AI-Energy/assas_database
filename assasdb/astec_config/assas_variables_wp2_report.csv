@@ -185,4 +185,5 @@
 183,micro_ts_duration,duration of micro time step,dtfluid,[s],cesar,cesar_io,none,
 184,iteration_info,iteration information,ITER,[-],cesar,cesar_io_output,cesar_output,
 185,variable_prime,output variable prime,VARPRIM,[-],cesar,cesar_io_output,cesar_output,
-186,sensor_values,sensor values,value,[-],global,sensors,sensor,
+186,conv_variable,convolution variable,CONV,[-],cesar,cesar_io_output,cesar_output,
+187,sensor_values,sensor values,value,[-],global,sensors,sensor,
