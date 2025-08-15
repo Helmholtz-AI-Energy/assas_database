@@ -28,7 +28,7 @@ def setup_logging(
 
 def main() -> None:
     """Run the Assas Database Manager methods."""
-    setup_logging(logging.INFO)
+    setup_logging(logging.ERROR)
     logger = logging.getLogger("assas_app")
 
     start_time = datetime.datetime.now()
