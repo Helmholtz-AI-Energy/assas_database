@@ -644,7 +644,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--state",
         type=str,
-        default="Uploaded",
+        default=AssasDocumentFileStatus.UPLOADED.value,
         choices=[
             AssasDocumentFileStatus.VALID.value,
             AssasDocumentFileStatus.INVALID.value,
@@ -720,9 +720,9 @@ if __name__ == "__main__":
         remove_all_job_files(job_directory=args.job_directory)
 
         file_status_list = [
-            AssasDocumentFileStatus.VALID,
+            # AssasDocumentFileStatus.VALID,
             # AssasDocumentFileStatus.CONVERTING,
-            # AssasDocumentFileStatus.UPLOADED,
+            AssasDocumentFileStatus.UPLOADED,
         ]
         logger.info(f"File status list: {file_status_list}.")
 
@@ -748,7 +748,6 @@ if __name__ == "__main__":
         generate_job_files(
             job_directory=args.job_directory,
             database_entries=database_entries,
-            # file_status_list=[AssasDocumentFileStatus.VALID],
             limit_samples=args.limit_samples,
         )
 
