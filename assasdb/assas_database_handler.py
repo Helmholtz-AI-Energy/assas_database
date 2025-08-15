@@ -465,6 +465,26 @@ class AssasDatabaseHandler:
             }
         )
 
+    def delete_metadata_variables(
+        self,
+        system_uuid: uuid4,
+    ) -> UpdateResult:
+        """Delete the meta data variables for a file document by its system UUID.
+
+        Args:
+            system_uuid (uuid4): The system UUID of the file document.
+
+        Returns:
+            The result of the delete operation.
+
+        Example:
+            result = AssasDatabaseHandler.delete_metadata_variables(system_uuid)
+
+        """
+        return self.file_collection.update_one(
+            {"system_uuid": str(system_uuid)}, {"$unset": {"meta_data_variables": ""}}
+        )
+
     def get_file_documents_to_collect_meta_data(
         self,
     ) -> Cursor:
