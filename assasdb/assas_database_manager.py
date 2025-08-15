@@ -523,6 +523,28 @@ class AssasDatabaseManager:
         logger.info(f"Get size of {directory}")
         return float(subprocess.check_output(["du", "-sb", directory]).split()[0])
 
+    def reset_archive_sizes(self) -> None:
+        """Reset the sizes of all archives in the database to '....'.
+
+        This function retrieves all file documents from the database and sets their
+        'system_size' field to '...'.
+
+        Returns:
+            None
+
+        """
+        logger.info("Reset archive sizes in the database.")
+        documents = self.database_handler.get_file_documents_to_update_size(
+            update_key="...."
+        )
+
+        document_file_list = [AssasDocumentFile(document) for document in documents]
+        for document_file in document_file_list:
+            document_file.set_value("system_size", "...")
+            self.database_handler.update_file_document_by_path(
+                document_file.get_value("system_path"), document_file.get_document()
+            )
+
     def update_archive_sizes(
         self,
         number_of_archives: int | None = None,
