@@ -318,22 +318,22 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         """Test converting NetCDF4 on Horeka with remote data."""
         input_path = (
             "/lsdf/kit/scc/projects/ASSAS/upload_test/"
-            "32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
-            "TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/"
-            "SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin"
+            "10b6c64b-d5a4-4aac-a93e-93baeae045d0/STUDY/"
+            "TRANSIENT/BASE_SIMPLIFIED/LOCA/6I_CL/"
+            "LOCA_6I_CL_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin"
         )
 
         output_path = (
             "/lsdf/kit/scc/projects/ASSAS/upload_test/"
-            "32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
-            "TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5"
+            "10b6c64b-d5a4-4aac-a93e-93baeae045d0/STUDY/"
+            "TRANSIENT/BASE_SIMPLIFIED/LOCA/6I_CL/result/dataset.h5"
         )
 
         if os.path.exists(output_path):
             os.remove(output_path)
 
-        test_name = "SBO_KIT_init_sim_s83"
-        test_description = "SBO_KIT_init_sim_s83"
+        test_name = "LOCA_KIT_CESAR_in_ou_s980"
+        test_description = "LOCA_KIT_CESAR_in_ou_s980"
 
         AssasOdessaNetCDF4Converter.set_general_meta_data(
             output_path=output_path,
@@ -375,7 +375,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             odessa_converter.populate_metadata_variables_in_domain_groups()
 
             self.test_logger.info("Populating data from groups to NetCDF4")
-            odessa_converter.populate_data_from_groups_to_netcdf4(maximum_index=1)
+            odessa_converter.populate_data_from_groups_to_netcdf4(maximum_index=5)
 
             self.test_logger.info("Successfully generated new data structure")
         except Exception as e:

@@ -678,6 +678,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "-s", "--single", action="store_true", help="Submit only single-jobs"
     )
+    parser.add_argument(
+        "--contains",
+        type=str,
+        default=None,
+        help="Filter database entries by name containing this string (e.g., 'CESAR')",
+    )
     args = parser.parse_args()
 
     if args.debug:
@@ -735,6 +741,17 @@ if __name__ == "__main__":
         ]
 
         logger.info(f"Generate job files for {len(database_entries)} entries.")
+
+        if args.contains is not None:
+            logger.info(
+                f"Filtering database entries containing '{args.contains}' in name."
+            )
+            database_entries = database_entries[
+                database_entries["meta_name"].str.contains(
+                    args.contains, case=False, na=False
+                )
+            ]
+            logger.info(f"Entries after name filter: {len(database_entries)}.")
 
         if args.uuid is not None:
             logger.info(f"Filtering database entries by UUID: {args.uuid}.")
