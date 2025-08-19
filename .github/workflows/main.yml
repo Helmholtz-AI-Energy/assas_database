@@ -38,6 +38,7 @@ jobs:
         run: |
           docker build -f Dockerfile.base \
             --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
+            --build-arg GIT_BRANCH="${{ github.ref_name }}" \
             -t assas-database-ruff .
 
       # Step 3: Run Ruff linting inside the Docker container
@@ -62,6 +63,7 @@ jobs:
             --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
             --build-arg LSDF_USER="${{ secrets.LSDF_USER }}" \
             --build-arg LSDF_PWD="${{ secrets.LSDF_PWD }}" \
+            --build-arg GIT_BRANCH="${{ github.ref_name }}" \
             -t assas-database-test .
       
        # Step 3: Run tests in Docker container

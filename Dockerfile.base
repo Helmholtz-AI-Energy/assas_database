@@ -26,6 +26,7 @@ RUN wget https://bootstrap.pypa.io/get-pip.py && \
 
 # Add SSH key from build argument
 ARG SSH_PRIVATE_KEY
+ARG GIT_BRANCH
 
 RUN mkdir -p /root/.ssh && \
     echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
@@ -35,6 +36,9 @@ RUN mkdir -p /root/.ssh && \
 
 RUN git clone git@github.com:Helmholtz-AI-Energy/assas_database.git /app
 WORKDIR /app
+RUN git fetch origin && \
+    git checkout -b ${GIT_BRANCH} origin/${GIT_BRANCH} && \
+    echo "Checked out remote branch ${GIT_BRANCH}"
 
 RUN pip3 install --no-cache-dir -r requirements.txt
 RUN pip install ruff

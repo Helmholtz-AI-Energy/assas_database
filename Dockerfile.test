@@ -29,6 +29,7 @@ RUN wget https://bootstrap.pypa.io/get-pip.py && \
 ARG SSH_PRIVATE_KEY
 ARG LSDF_USER
 ARG LSDF_PWD
+ARG GIT_BRANCH
 
 RUN mkdir -p /root/.ssh && \
     echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
@@ -40,7 +41,9 @@ WORKDIR /app
 # Clone the repository and initialize submodules
 #RUN git clone --recurse-submodules git@github.com:Helmholtz-AI-Energy/assas_database.git $REPO_PATH
 RUN git clone git@github.com:Helmholtz-AI-Energy/assas_database.git /app
-RUN git checkout origin/main
+RUN git fetch origin && \
+    git checkout -b ${GIT_BRANCH} origin/${GIT_BRANCH} && \
+    echo "Checked out remote branch ${GIT_BRANCH}"
 
 RUN mkdir -p ${ASTEC_ROOT}
 RUN apt-get update && apt-get install -y sshpass
