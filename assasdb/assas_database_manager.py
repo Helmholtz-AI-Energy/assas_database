@@ -5,6 +5,7 @@ between the ASSAS application and the NoSql database.
 """
 
 import os
+import sys
 import pandas as pd
 import logging
 import uuid
@@ -269,6 +270,97 @@ class AssasDatabaseManager:
 
         """
         self.database_handler.drop_file_collection()
+
+    def collect_number_of_samples_safely(self, document_file: AssasDocumentFile) -> int:
+        """Run potentially segfault-prone code in a separate process."""
+        try:
+            script_content = f"""
+import sys
+sys.path.append('/root/assas-data-hub/assas_database')
+from assasdb.assas_odessa_netcdf4_converter import AssasOdessaNetCDF4Converter
+
+try:
+    converter = AssasOdessaNetCDF4Converter(
+        input_path="{document_file.get_value("system_path")}",
+        output_path="{document_file.get_value("system_result")}"
+    )
+    number_of_samples = len(converter.get_time_points())
+    print(number_of_samples)
+except Exception as e:
+    print(f"ERROR: {{e}}")
+    sys.exit(1)
+"""
+
+            result = subprocess.run(
+                [sys.executable, "-c", script_content],
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout
+            )
+
+            if result.returncode == 0:
+                return int(result.stdout.strip())
+            else:
+                logger.error(f"Subprocess failed: {result.stderr}")
+                return -1
+
+        except subprocess.TimeoutExpired:
+            logger.error("Subprocess timed out - likely segfault or infinite loop")
+            return -1
+        except Exception as e:
+            logger.error(f"Subprocess error: {e}")
+            return -1
+
+    def collect_number_of_samples(self, max_documents: int | None = None) -> None:
+        """Collect the number of samples from all archives.
+
+        This function retrieves all file documents from the database,
+        converts them to AssasDocumentFile instances, and collects the
+        number of samples from each archive using the
+        AssasOdessaNetCDF4Converter. The results are stored back in the
+        database.
+
+        Args:
+            max_documents (int | None): The maximum number of documents to process.
+
+        """
+        documents = self.database_handler.get_all_file_documents()
+        document_files = [AssasDocumentFile(document) for document in documents]
+
+        if max_documents is not None:
+            document_files = document_files[:max_documents]
+
+        for document_file in document_files:
+            try:
+                logger.debug(f"Archive path: {document_file.get_value('system_path')}")
+                logger.debug(f"Result path: {document_file.get_value('system_result')}")
+                logger.debug(
+                    f"Upload_uuid: {document_file.get_value('system_upload_uuid')}"
+                )
+
+                # Use safe subprocess method
+                number_of_samples = self.collect_number_of_samples_safely(document_file)
+
+                logger.debug(f"Number of samples collected: {number_of_samples}")
+
+            except Exception as exception:
+                logger.error(
+                    f"Error when collecting number of samples from archive "
+                    f"{document_file.get_value('system_path')} "
+                    f"with {document_file.get_value('system_upload_uuid')}, "
+                    f"exception: {exception}."
+                )
+                number_of_samples = -1
+
+            logger.info(
+                f"Archive {document_file.get_value('system_path')} "
+                f"has {number_of_samples} samples."
+            )
+            document_file.set_value("system_number_of_samples", str(number_of_samples))
+
+            self.database_handler.update_file_document_by_path(
+                document_file.get_value("system_path"), document_file.get_document()
+            )
 
     def collect_number_of_samples_of_uploaded_archives(self) -> None:
         """Collect the number of samples from all uploaded archives.
@@ -691,15 +783,26 @@ class AssasDatabaseManager:
                 upload_uuid=upload_uuid
             )
 
+            logger.debug(f"Handle documents with upload uuid {upload_uuid}.")
+
             document_files = [AssasDocumentFile(document) for document in documents]
+
+            logger.debug(f"Handle {len(document_files)} documents.")
+
             document_files = [
                 document_file
                 for document_file in document_files
                 if document_file.get_value("system_status")
                 == AssasDocumentFileStatus.CONVERTING.value
-                if document_file.get_value("system_number_of_samples")
-                == document_file.get_value("system_number_of_samples_completed")
+                if int(document_file.get_value("system_number_of_samples"))
+                == int(document_file.get_value("system_number_of_samples_completed"))
             ]
+
+            logger.debug(
+                f"Found {len(document_files)} documents "
+                f"with upload uuid {upload_uuid} "
+                f"that are converting and have completed all samples."
+            )
 
             for document_file in document_files:
                 logger.info(
@@ -1583,8 +1686,10 @@ class AssasDatabaseManager:
                 f"{document_file.get_value('system_result')}."
             )
 
-            meta_info = AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4(
-                netcdf4_file=document_file.get_value("system_result")
+            meta_info = (
+                AssasOdessaNetCDF4Converter.read_metadata_from_variables_in_netcdf4(
+                    netcdf4_file=document_file.get_value("system_result")
+                )
             )
 
             document_file.set_meta_data_values(meta_data_variables=meta_info)
@@ -1724,3 +1829,75 @@ class AssasDatabaseManager:
                 path=document_file.get_value("system_path"),
                 update=document_file.get_document(),
             )
+
+
+def setup_logging(
+    level: int = logging.INFO,
+) -> None:
+    """Set up logging configuration with both console and file output."""
+    # Create logs directory if it doesn't exist
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+
+    # Generate timestamp for unique log file name
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = log_dir / f"assas_database_manager_{timestamp}.log"
+
+    # Clear any existing handlers
+    logger = logging.getLogger()
+    logger.handlers.clear()
+
+    # Create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s"
+    )
+
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+
+    # File handler
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+
+    # Configure root logger
+    logging.basicConfig(level=level, handlers=[console_handler, file_handler])
+
+    # Also configure the assas_app logger specifically
+    assas_logger = logging.getLogger("assas_app")
+    assas_logger.setLevel(level)
+
+    logging.info(
+        f"Logging initialized. Console output and file output to: {log_filename}"
+    )
+
+
+if __name__ == "__main__":
+    setup_logging(logging.INFO)  # Changed from ERROR to INFO for more detailed logging
+    logger = logging.getLogger("assas_app")
+
+    start_time = datetime.now()
+    logger.info(f"Starting AssasDatabaseManager execution at {start_time}")
+
+    try:
+        database_manager = AssasDatabaseManager(
+            database_handler=AssasDatabaseHandler(
+                database_name="assas",
+            )
+        )
+
+        logger.info("Starting collect_number_of_samples operation")
+        database_manager.collect_number_of_samples()
+        logger.info("Completed collect_number_of_samples operation")
+
+    except Exception as e:
+        logger.error(f"Error during execution: {e}", exc_info=True)
+        raise
+
+    finally:
+        end_time = datetime.now()
+        elapsed_time = end_time - start_time
+        logger.info(f"Execution completed at {end_time}")
+        logger.info(f"Total execution time: {elapsed_time.total_seconds():.2f} seconds")
