@@ -720,47 +720,45 @@ if __name__ == "__main__":
 
     logger.info(f"All archives in database: {len(database_entries)}.")
 
+    file_status_list = [
+        # AssasDocumentFileStatus.VALID,
+        # AssasDocumentFileStatus.CONVERTING,
+        AssasDocumentFileStatus.UPLOADED,
+    ]
+    logger.info(f"File status list: {file_status_list}.")
+
+    file_status_value_list = [status.value for status in file_status_list]
+    logger.info(
+        f"Generate job files for entries with status: {file_status_value_list}."
+    )
+    database_entries = database_entries[
+        database_entries["system_status"].isin(file_status_value_list)
+    ]
+
+    logger.info(f"Generate job files for {len(database_entries)} entries.")
+
+    if args.contains is not None:
+        logger.info(f"Filtering database entries containing '{args.contains}' in name.")
+        database_entries = database_entries[
+            database_entries["meta_name"].str.contains(
+                args.contains, case=False, na=False
+            )
+        ]
+        logger.info(f"Entries after name filter: {len(database_entries)}.")
+
+    if args.uuid is not None:
+        logger.info(f"Filtering database entries by UUID: {args.uuid}.")
+        database_entries = database_entries[
+            database_entries["system_upload_uuid"] == args.uuid
+        ]
+
+    logger.info(f"Filtered database entries: {len(database_entries)}.")
+    logger.info(f"Generating job files for {len(database_entries)} entries.")
+
     if args.action == "generate":
         logger.info(f"Generating job files into {args.job_directory}.")
 
         remove_all_job_files(job_directory=args.job_directory)
-
-        file_status_list = [
-            # AssasDocumentFileStatus.VALID,
-            # AssasDocumentFileStatus.CONVERTING,
-            AssasDocumentFileStatus.UPLOADED,
-        ]
-        logger.info(f"File status list: {file_status_list}.")
-
-        file_status_value_list = [status.value for status in file_status_list]
-        logger.info(
-            f"Generate job files for entries with status: {file_status_value_list}."
-        )
-        database_entries = database_entries[
-            database_entries["system_status"].isin(file_status_value_list)
-        ]
-
-        logger.info(f"Generate job files for {len(database_entries)} entries.")
-
-        if args.contains is not None:
-            logger.info(
-                f"Filtering database entries containing '{args.contains}' in name."
-            )
-            database_entries = database_entries[
-                database_entries["meta_name"].str.contains(
-                    args.contains, case=False, na=False
-                )
-            ]
-            logger.info(f"Entries after name filter: {len(database_entries)}.")
-
-        if args.uuid is not None:
-            logger.info(f"Filtering database entries by UUID: {args.uuid}.")
-            database_entries = database_entries[
-                database_entries["system_upload_uuid"] == args.uuid
-            ]
-
-        logger.info(f"Filtered database entries: {len(database_entries)}.")
-        logger.info(f"Generating job files for {len(database_entries)} entries.")
 
         generate_job_files(
             job_directory=args.job_directory,
