@@ -39,7 +39,7 @@ class AssasConversionHandler:
         new: bool = False,
         rerun: bool = False,
         time: int = None,
-        debug: bool = False,
+        log_level: str = "WARNING",
         lsdf_data_dir: str = LSDF_DATA_DIR,
         lsdf_backup_dir: str = LSDF_BACKUP_DIR,
     ) -> None:
@@ -50,7 +50,7 @@ class AssasConversionHandler:
             new (bool): Flag to indicate if the output file should be overwritten.
             rerun (bool): Flag to indicate if the conversion should be rerun.
             time (int, optional): Number of time points to consider for conversion.
-            debug (bool): Enable debug logging.
+            log_level (str): Logging level to use.
             lsdf_data_dir (str): Directory for LSDF data.
             lsdf_backup_dir (str): Directory for LSDF backup.
 
@@ -98,13 +98,10 @@ class AssasConversionHandler:
         self.tmp_path = Path.joinpath(Path(self.tmp_dir), Path(upload_uuid))
         self.tmp_output_path = Path.joinpath(self.tmp_path, "result/dataset.h5")
 
-        if debug:
-            custom_level = logging.DEBUG
-        else:
-            custom_level = logging.INFO
+        log_level = getattr(logging, args.log_level.upper())
 
         self.setup_logging(
-            custom_level=custom_level,
+            custom_level=log_level,
         )
         self.log_config_info()
 
@@ -637,11 +634,11 @@ if __name__ == "__main__":
         required=False,
     )
     argparser.add_argument(
-        "-d",
-        "--debug",
-        help="enable debug logging for conversion",
-        required=False,
-        action="store_true",
+        "--log-level",
+        type=str,
+        default="WARNING",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level (default: WARNING)",
     )
     argparser.add_argument(
         "-n",
@@ -663,7 +660,7 @@ if __name__ == "__main__":
         upload_uuid=args.upload_uuid,
         new=args.new,
         time=args.time,
-        debug=args.debug,
+        log_level=args.log_level,
         lsdf_data_dir=LSDF_DATA_DIR,
         lsdf_backup_dir=LSDF_BACKUP_DIR,
     )

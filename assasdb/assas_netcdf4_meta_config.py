@@ -5,16 +5,19 @@ and metadata organization for the ASSAS NetCDF4 format.
 """
 
 import json
-import pkg_resources
 
-with pkg_resources.resource_stream(
-    __name__, "astec_config/assas_netcdf4_domain_group_config.json"
+from importlib.resources import files, as_file
+
+with as_file(
+    files(__package__).joinpath("astec_config/assas_netcdf4_domain_group_config.json")
 ) as json_file:
-    DOMAIN_GROUP_CONFIG = json.load(json_file)
-with pkg_resources.resource_stream(
-    __name__, "astec_config/assas_netcdf4_meta_data_var_names.json"
+    with open(json_file, "r") as json_file:
+        DOMAIN_GROUP_CONFIG = json.load(json_file)
+with as_file(
+    files(__package__).joinpath("astec_config/assas_netcdf4_meta_data_var_names.json")
 ) as json_file:
-    META_DATA_VAR_NAMES = json.load(json_file)
+    with open(json_file, "r") as json_file:
+        META_DATA_VAR_NAMES = json.load(json_file)
 
 
 # Utility function to get metadata variables for a group
