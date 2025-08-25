@@ -80,7 +80,7 @@ export ASTEC_ROOT={astec_root}
 mkdir ${{LOGDIR}}
 cd ${{LOGDIR}}
 
-srun python ${{PYDIR}}/assas_conversion_handler.py -uuid {uuid} {new_time_command}
+srun python ${{PYDIR}}/assas_conversion_handler.py -uuid {uuid} {new_time_command} --log-level {log_level}
 mv ../slurm-${{SLURM_JOBID}}.out ${{LOGDIR}}
 mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 """  # noqa: E501
@@ -173,6 +173,7 @@ def get_maximum_indizes(
 def get_job_parameter_list(
     entry: pd.Series,
     limit_samples: int,
+    log_level: str = "WARNING",
 ) -> List[dict]:
     """Return a list of job parameters for the given entry.
 
@@ -195,6 +196,7 @@ def get_job_parameter_list(
             "astec_root": os.environ.get("ASTEC_ROOT", ""),
             "uuid": uuid,
             "new_time_command": "-n",
+            "log_level": log_level,
         }
 
         job_parameter_list.append(TEMPLATE.format(**job_parameters))
@@ -209,6 +211,7 @@ def get_job_parameter_list(
                     "astec_root": os.environ.get("ASTEC_ROOT", ""),
                     "uuid": uuid,
                     "new_time_command": f"-n -t {maximum_indizes[0]}",
+                    "log_level": log_level,
                 }
 
             if i > 0:
@@ -219,6 +222,7 @@ def get_job_parameter_list(
                     "astec_root": os.environ.get("ASTEC_ROOT", ""),
                     "uuid": uuid,
                     "new_time_command": f"-t {maximum_indizes[i]}",
+                    "log_level": log_level,
                 }
 
             job_parameter_list.append(TEMPLATE.format(**job_parameters))
@@ -230,6 +234,7 @@ def generate_job_file(
     job_directory: str,
     entry: pd.Series,
     limit_samples: int,
+    log_level: str = "WARNING",
 ) -> None:
     """Generate a job file for the given entry.
 
@@ -253,6 +258,7 @@ def generate_job_file(
     job_parameter_list = get_job_parameter_list(
         entry=entry,
         limit_samples=limit_samples,
+        log_level=log_level,
     )
     logger.debug(f"Job parameter list for {uuid}: {job_parameter_list}")
 
@@ -286,23 +292,18 @@ def generate_job_files(
     job_directory: str,
     database_entries: pd.DataFrame,
     limit_samples: int = LIMIT_SAMPLES,
+    log_level: str = "WARNING",
 ) -> None:
     """Generate job files for all entries in the database with the status 'Uploaded'.
 
     It filters the database entries for those with the status 'Uploaded' and applies
     the generate_job_file function to each entry.
     """
-    # file_status_value_list = [status.value for status in file_status_list]
-    # logger.info(
-    #    f"Generate job files for entries with status: {file_status_value_list}."
-    # )
-    # database_entries = database_entries[
-    #    database_entries["system_status"].isin(file_status_value_list)
-    # ]
     logger.info(f"Generate job files for {len(database_entries)} entries.")
 
     database_entries.apply(
-        lambda entry: generate_job_file(job_directory, entry, limit_samples), axis=1
+        lambda entry: generate_job_file(job_directory, entry, limit_samples, log_level),
+        axis=1,
     )
 
 
@@ -611,7 +612,18 @@ def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ASSAS Job Generator Script")
     parser.add_argument(
-        "-d", "--debug", action="store_true", help="Enable debug logging"
+        "--log_level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level (default: WARNING)",
+    )
+    parser.add_argument(
+        "--job_log_level",
+        type=str,
+        default="WARNING",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level (default: WARNING)",
     )
     parser.add_argument(
         "-b",
@@ -686,14 +698,14 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.debug:
-        logging.basicConfig(
-            level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-        )
-    else:
-        logging.basicConfig(
-            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-        )
+    log_level = getattr(logging, args.log_level.upper(), logging.INFO)
+    logging.basicConfig(
+        level=log_level, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    logger.info(f"Logging level set to: {logging.getLevelName(log_level)}")
+
+    job_log_level = getattr(logging, args.job_log_level.upper(), logging.WARNING)
+    logger.info(f"Job logging level set to: {logging.getLevelName(job_log_level)}")
 
     logger.info(f"Parsed actions: {args.action}")
 
@@ -721,9 +733,10 @@ if __name__ == "__main__":
     logger.info(f"All archives in database: {len(database_entries)}.")
 
     file_status_list = [
+        AssasDocumentFileStatus(args.state),
         # AssasDocumentFileStatus.VALID,
         # AssasDocumentFileStatus.CONVERTING,
-        AssasDocumentFileStatus.UPLOADED,
+        # AssasDocumentFileStatus.UPLOADED,
     ]
     logger.info(f"File status list: {file_status_list}.")
 
@@ -764,6 +777,7 @@ if __name__ == "__main__":
             job_directory=args.job_directory,
             database_entries=database_entries,
             limit_samples=args.limit_samples,
+            log_level=args.job_log_level,
         )
 
     elif args.action == "submit":

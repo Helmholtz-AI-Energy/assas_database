@@ -16,10 +16,10 @@ import netCDF4
 import logging
 import numpy as np
 import pandas as pd
-import pkg_resources
 import json
 import shutil
 
+from importlib.resources import as_file, files
 from tqdm import tqdm
 from typing import List, Union, Optional
 from pathlib import Path
@@ -304,9 +304,11 @@ class AssasOdessaNetCDF4Converter:
 
         dataframe_list = []
         for file in file_list:
-            with pkg_resources.resource_stream(__name__, file) as csv_file:
-                dataframe = pd.read_csv(csv_file)
-                dataframe_list.append(dataframe)
+            with as_file(files(__package__).joinpath(file)) as csv_file_path:
+                with open(csv_file_path, "r") as csv_file:
+                    logger.info(f"Read variable index file: {csv_file_path}")
+                    dataframe = pd.read_csv(csv_file)
+                    dataframe_list.append(dataframe)
 
         dataframe = pd.concat(dataframe_list).reset_index(drop=True)
         logger.info(f"Shape of variable index is {dataframe.shape}.")
@@ -383,9 +385,10 @@ class AssasOdessaNetCDF4Converter:
             pd.DataFrame: DataFrame containing the data from the CSV file.
 
         """
-        with pkg_resources.resource_stream(__name__, resource_file) as csv_file:
-            logger.info(f"Read csv resource file {csv_file}.")
-            dataframe = pd.read_csv(csv_file)
+        with as_file(files(__package__).joinpath(resource_file)) as csv_file_path:
+            with open(csv_file_path, "r") as csv_file:
+                logger.info(f"Read csv resource file {csv_file_path}.")
+                dataframe = pd.read_csv(csv_file)
 
         logger.debug(f"{dataframe}")
 
