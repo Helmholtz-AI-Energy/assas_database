@@ -101,7 +101,7 @@ class AssasConversionHandlerTest(unittest.TestCase):
             upload_uuid=self.fake_upload_uuid,
             new=True,
             time=None,
-            debug=True,
+            log_level="DEBUG",
             lsdf_data_dir=self.fake_lsdf_data_dir,
             lsdf_backup_dir=self.fake_mongodb_backup_dir,
         )

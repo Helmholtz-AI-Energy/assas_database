@@ -98,7 +98,7 @@ class AssasConversionHandler:
         self.tmp_path = Path.joinpath(Path(self.tmp_dir), Path(upload_uuid))
         self.tmp_output_path = Path.joinpath(self.tmp_path, "result/dataset.h5")
 
-        log_level = getattr(logging, args.log_level.upper())
+        log_level = getattr(logging, log_level.upper())
 
         self.setup_logging(
             custom_level=log_level,
