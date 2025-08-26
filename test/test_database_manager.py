@@ -533,14 +533,14 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         with patch("assasdb.assas_database_manager.AssasOdessaNetCDF4Converter"):
             self.manager.reset_result_file_by_uuid(uuid)
 
-    def test_update_meta_data_of_valid_archives(self) -> None:
+    def test_update_metadata_of_valid_archives(self) -> None:
         """Test updating metadata of valid archives."""
         self.mock_handler.get_file_documents_to_collect_meta_data.return_value = []
         with patch(
             "assasdb.assas_database_manager.AssasOdessaNetCDF4Converter.read_variables_meta_values_from_netcdf4",
             return_value={},
         ):
-            self.manager.update_meta_data_of_valid_archives()
+            self.manager.update_metadata_of_valid_archives()
 
     def test_update_meta_data(self) -> None:
         """Test updating metadata for a specific UUID."""

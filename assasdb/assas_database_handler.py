@@ -257,7 +257,7 @@ class AssasDatabaseHandler:
             file_documents = AssasDatabaseHandler.get_all_file_documents()
 
         """
-        if not self.file_collection:
+        if self.file_collection is None:
             logger.warning("File collection is not initialized. Returning None.")
             return None
 
