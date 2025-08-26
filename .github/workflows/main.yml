@@ -34,7 +34,7 @@ jobs:
           ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
       - name: Set branch name
-        id: branch
+        id: branch_ruff
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             # For PRs, use the head branch name
@@ -49,7 +49,7 @@ jobs:
         run: |
           docker build -f Dockerfile.base \
             --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
-            --build-arg GIT_BRANCH="${{ steps.branch.outputs.BRANCH_NAME }}" \
+            --build-arg GIT_BRANCH="${{ steps.branch_ruff.outputs.BRANCH_NAME }}" \
             -t assas-database-ruff .
 
       # Step 3: Run Ruff linting inside the Docker container
@@ -63,6 +63,17 @@ jobs:
      runs-on: ubuntu-latest
       
      steps:
+       - name: Set branch name
+         id: branch_test
+         run: |
+           if [ "${{ github.event_name }}" = "pull_request" ]; then
+             # For PRs, use the head branch name
+             echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+           else
+             # For pushes, use the branch name
+             echo "BRANCH_NAME=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+           fi
+
        # Step 1: Check out the code
        - name: Checkout code
          uses: actions/checkout@v3
@@ -74,7 +85,7 @@ jobs:
             --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
             --build-arg LSDF_USER="${{ secrets.LSDF_USER }}" \
             --build-arg LSDF_PWD="${{ secrets.LSDF_PWD }}" \
-            --build-arg GIT_BRANCH="${{ github.ref_name }}" \
+            --build-arg GIT_BRANCH="${{ steps.branch_test.outputs.BRANCH_NAME }}" \
             -t assas-database-test .
       
        # Step 3: Run tests in Docker container
