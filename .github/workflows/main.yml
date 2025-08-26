@@ -33,12 +33,23 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
 
+      - name: Set branch name
+        id: branch
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # For PRs, use the head branch name
+            echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_OUTPUT
+          else
+            # For pushes, use the branch name
+            echo "BRANCH_NAME=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
       # Step 2: Build the Docker container
       - name: Build Docker container for Ruff
         run: |
           docker build -f Dockerfile.base \
             --build-arg SSH_PRIVATE_KEY="${{ secrets.SSH_PRIVATE_KEY }}" \
-            --build-arg GIT_BRANCH="${{ github.ref_name }}" \
+            --build-arg GIT_BRANCH="${{ steps.branch.outputs.BRANCH_NAME }}" \
             -t assas-database-ruff .
 
       # Step 3: Run Ruff linting inside the Docker container
