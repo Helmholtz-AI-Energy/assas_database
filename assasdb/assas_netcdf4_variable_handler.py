@@ -214,6 +214,19 @@ class AssasNetCDF4VariableHandler:
 
         return group_info
 
+    def get_group_structure(self, netcdf4_file: str) -> Dict[str, Any]:
+        """Get the group structure from a NetCDF4 file.
+
+        Args:
+            netcdf4_file (str): Path to the NetCDF4 file.
+
+        Returns:
+            Dict[str, Any]: Dictionary containing group structure information.
+
+        """
+        with nc.Dataset(netcdf4_file, "r") as dataset:
+            return self._read_group_structure(dataset)
+
     def _read_group_structure(self, dataset: nc.Dataset) -> Dict[str, Any]:
         """Read the complete group structure from the NetCDF4 file.
 
@@ -451,7 +464,11 @@ class AssasNetCDF4VariableHandler:
                 path_prefix=new_prefix,
             )
 
-    def read_metadata_for_variables(self, netcdf4_file: str) -> List[dict]:
+    def read_metadata_for_variables(
+        self,
+        netcdf4_file: str,
+        group: str = None,
+    ) -> List[dict]:
         """Read metadata from all variables in the NetCDF4 file.
 
         Returns:
@@ -463,7 +480,10 @@ class AssasNetCDF4VariableHandler:
 
         with nc.Dataset(netcdf4_file, "r") as ncfile:
             logger.info("Starting recursive iteration through netCDF4 groups.")
-            self.iterate_recursive_over_groups(ncfile, result)
+            if group is not None:
+                self.iterate_recursive_over_groups(ncfile.groups[group], result)
+            else:
+                self.iterate_recursive_over_groups(ncfile, result)
 
         return result
 
