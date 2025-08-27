@@ -1405,10 +1405,11 @@ class AssasDatabaseManager:
                     f"Collect meta info from file, "
                     f"filename is {document_file.get_value('system_result')}."
                 )
-
-                meta_info = AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4(
-                    netcdf4_file=document_file.get_value("system_result")
+                converter = AssasOdessaNetCDF4Converter(
+                    input_path=document_file.get_value("system_path"),
+                    output_path=document_file.get_value("system_result"),
                 )
+                meta_info = converter.read_meta_data_from_variables_in_netcdf4()
 
                 document_file.set_meta_data_values(meta_data_variables=meta_info)
 
