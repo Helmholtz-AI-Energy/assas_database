@@ -2736,9 +2736,9 @@ class AssasOdessaNetCDF4Converter:
                     "name": var.name,
                     "dimensions": "(" + ", ".join(str(d) for d in var.dimensions) + ")",
                     "shape": "(" + ", ".join(str(s) for s in var.shape) + ")",
-                    "domain": var.getncattr("domain")
-                    if "domain" in var.ncattrs()
-                    else "-",
+                    "domain": (
+                        var.getncattr("domain") if "domain" in var.ncattrs() else "-"
+                    ),
                 }
                 result.append(variable_dict)
 
