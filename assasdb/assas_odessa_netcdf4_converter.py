@@ -2696,6 +2696,12 @@ class AssasOdessaNetCDF4Converter:
         archive_description: str,
     ) -> None:
         """Set general metadata for the NetCDF4 file with unit information."""
+        output_path = Path(output_path)
+
+        if not output_path.parent.exists():
+            logger.info(f"Create missing directories for output path {output_path}.")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
         with netCDF4.Dataset(f"{output_path}", "a", format="NETCDF4") as ncfile:
             ncfile.archive_name = archive_name
             ncfile.archive_description = archive_description
