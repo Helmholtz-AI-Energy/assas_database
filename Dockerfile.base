@@ -1,38 +1,15 @@
-# Use a base image
-FROM ubuntu:20.04
+FROM python:3.11-slim
 
-# Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
-ENV REPO_PATH=/app
-
-# Install dependencies and Python 3.11
-RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    git \
-    openssh-client \
-    wget \
-    git-lfs \
-    && add-apt-repository ppa:deadsnakes/ppa -y && \
-    apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-venv \
-    python3.11-distutils \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install pip for Python 3.11
-RUN wget https://bootstrap.pypa.io/get-pip.py && \
-    python3.11 get-pip.py && \
-    rm get-pip.py
-
-# Add SSH key from build argument
 ARG SSH_PRIVATE_KEY
 ARG GIT_BRANCH
 
-RUN mkdir -p /root/.ssh && \
+RUN apt-get update && \
+    apt-get install -y openssh-client && \
+    apt-get install -y git && \
+    mkdir -p /root/.ssh && \
     echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
     chmod 600 /root/.ssh/id_rsa && \
     ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
-
 
 RUN git clone git@github.com:Helmholtz-AI-Energy/assas_database.git /app
 WORKDIR /app
@@ -41,6 +18,5 @@ RUN git fetch origin && \
     git reset --hard origin/${GIT_BRANCH} && \
     echo "Checked out remote branch ${GIT_BRANCH}"
 
-RUN pip3 install --no-cache-dir -r requirements.txt
-RUN pip install ruff
+RUN pip install --no-cache-dir -r requirements.txt
 

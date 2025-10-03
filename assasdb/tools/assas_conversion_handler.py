@@ -224,6 +224,19 @@ class AssasConversionHandler:
                     archive_description=self.description,
                 )
 
+                # Initialization process
+                logger.info("Initializing groups in NetCDF4.")
+                odessa_converter.initialize_groups_in_netcdf4()
+
+                logger.info("Initializing astec variables with group assignment.")
+                odessa_converter.initialize_astec_variables_in_netcdf4()
+
+                logger.info("Creating metadata variables in groups.")
+                odessa_converter.create_metadata_variables_in_groups()
+
+                logger.info("Converting metadata from Odessa.")
+                odessa_converter.populate_metadata_variables_in_domain_groups()
+
             else:
                 logger.info(f"Using existing output file {str(self.tmp_output_path)}.")
 
@@ -241,18 +254,6 @@ class AssasConversionHandler:
                     )
 
             # Actual conversion process
-            logger.info("Initializing groups in NetCDF4.")
-            odessa_converter.initialize_groups_in_netcdf4()
-
-            logger.info("Initializing astec variables with group assignment.")
-            odessa_converter.initialize_astec_variables_in_netcdf4()
-
-            logger.info("Creating metadata variables in groups.")
-            odessa_converter.create_metadata_variables_in_groups()
-
-            logger.info("Converting metadata from Odessa.")
-            odessa_converter.populate_metadata_variables_in_domain_groups()
-
             logger.info("Populating data from groups to NetCDF4.")
             odessa_converter.populate_data_from_groups_to_netcdf4(
                 maximum_index=self.time
@@ -272,9 +273,8 @@ class AssasConversionHandler:
             )
 
         else:
-            logger.info("Conversion from odessa to hdf5 was successful.")
-
             finished = False
+            logger.info("Conversion process to netcf4 finished.")
 
             if self.time is not None:
                 if self.time == number_of_samples:
@@ -282,7 +282,6 @@ class AssasConversionHandler:
                     logger.info(f"Converted all {self.time} time points.")
 
                 else:
-                    finished = False
                     logger.info(
                         f"Converted only {self.time} time points, "
                         f"but {number_of_samples} are available."
@@ -293,7 +292,7 @@ class AssasConversionHandler:
                 logger.info(f"Converted all {number_of_samples} time points.")
 
             if finished:
-                logger.info("Conversion finished successfully.")
+                logger.info("Conversion of all time points finished successfully.")
                 self.notify_valid_conversion(
                     upload_uuid=self.upload_uuid,
                     upload_directory=f"{self.lsdf_project_dir}/{LSDF_DATA_DIR}",
@@ -301,7 +300,7 @@ class AssasConversionHandler:
 
             else:
                 logger.info(
-                    "Conversion did not finish completely, timepoints are missing."
+                    "Conversion did not finish completely, time points are missing."
                 )
 
             end_time = time.time()
