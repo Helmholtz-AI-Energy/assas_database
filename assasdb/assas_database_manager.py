@@ -1642,7 +1642,6 @@ except Exception as e:
                         netcdf4_file=document_file.get_value("system_result")
                     )
                 )
-                meta_info = converter.read_meta_data_from_variables_in_netcdf4()
 
                 document_file.set_meta_data_values(meta_data_variables=meta_info)
 
