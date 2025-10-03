@@ -1,2 +1,3 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
 vessel_rupture_time,time of vessel rupture,TRUP,[s],global,vessel_trup,none
+vessel_release_time,time of vessel release,TFP,[s],global,vessel_trup,none
