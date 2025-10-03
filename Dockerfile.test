@@ -10,6 +10,9 @@ ARG GIT_BRANCH
 RUN apt-get update && \
     apt-get install -y openssh-client && \
     apt-get install -y git && \
+    apt-get install -y csh && \
+    apt-get install -y file && \
+    apt-get install -y sshpass && \
     mkdir -p /root/.ssh && \
     echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
     chmod 600 /root/.ssh/id_rsa && \
@@ -24,15 +27,12 @@ RUN git fetch origin && \
     echo "Checked out remote branch ${GIT_BRANCH}"
 
 RUN mkdir -p ${ASTEC_ROOT}
-RUN apt-get update && apt-get install -y sshpass
 RUN sshpass -p "${LSDF_PWD}" scp -r -o StrictHostKeyChecking=no ${LSDF_USER}@os-login.lsdf.kit.edu:/lsdf/kit/scc/projects/ASSAS/tmp/astec_installer/astecV3.1.2_linux64.tgz ${ASTEC_ROOT}
 RUN ls -l ${ASTEC_ROOT}
 
 RUN pip3 install --no-cache-dir -r requirements.txt
 RUN pip3 install -e .
 RUN pip3 list
-
-RUN apt-get update && apt-get install -y csh
 
 RUN tar -xzf $ASTEC_ROOT/astecV3.1.2_linux64.tgz -C $ASTEC_ROOT 
 RUN ls -l $ASTEC_ROOT
