@@ -400,7 +400,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
             self.fail(f"Failed to copy new structure file: {e}")
 
         variable_index = odessa_converter.get_variable_index()
-        meta_data_list = odessa_converter.read_meta_data_from_variables_in_netcdf4()
+        meta_data_list = odessa_converter.read_metadata_from_variables_in_netcdf4()
 
         variables_from_meta_data = [meta_data["name"] for meta_data in meta_data_list]
         variables_from_meta_data.remove("time_points")

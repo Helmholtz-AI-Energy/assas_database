@@ -2696,6 +2696,12 @@ class AssasOdessaNetCDF4Converter:
         archive_description: str,
     ) -> None:
         """Set general metadata for the NetCDF4 file with unit information."""
+        output_path = Path(output_path)
+
+        if not output_path.parent.exists():
+            logger.info(f"Create missing directories for output path {output_path}.")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
         with netCDF4.Dataset(f"{output_path}", "a", format="NETCDF4") as ncfile:
             ncfile.archive_name = archive_name
             ncfile.archive_description = archive_description
@@ -2703,8 +2709,9 @@ class AssasOdessaNetCDF4Converter:
 
             logger.info("Set general metadata for the NetCDF4 file.")
 
+    @staticmethod
     def iterate_recursive_over_groups(
-        self, group: netCDF4.Group, result: list[dict], path_prefix: str = ""
+        group: netCDF4.Group, result: list[dict], path_prefix: str = ""
     ) -> None:
         """Recursively iterate through the netCDF4 groups and variables.
 
@@ -2720,12 +2727,24 @@ class AssasOdessaNetCDF4Converter:
             logger.info(
                 f"Variable at {full_path}: shape={var.shape}, dtype={var.dtype}"
             )
+            if var_name == "time_points":
+                variable_dict = {
+                    "name": var_name,
+                    "dimensions": "(" + ", ".join(str(d) for d in var.dimensions) + ")",
+                    "shape": "(" + ", ".join(str(s) for s in var.shape) + ")",
+                    "domain": "-",
+                }
+                result.append(variable_dict)
+                continue
+
             if var.variable_type == "data":
                 variable_dict = {
                     "name": var.name,
                     "dimensions": "(" + ", ".join(str(d) for d in var.dimensions) + ")",
                     "shape": "(" + ", ".join(str(s) for s in var.shape) + ")",
-                    "domain": var.getncattr("domain"),
+                    "domain": (
+                        var.getncattr("domain") if "domain" in var.ncattrs() else "-"
+                    ),
                 }
                 result.append(variable_dict)
 
@@ -2733,9 +2752,14 @@ class AssasOdessaNetCDF4Converter:
             new_prefix = (
                 f"{path_prefix}/{subgroup_name}" if path_prefix else subgroup_name
             )
-            self.iterate_recursive_over_groups(subgroup, result, new_prefix)
+            AssasOdessaNetCDF4Converter.iterate_recursive_over_groups(
+                group=subgroup,
+                result=result,
+                path_prefix=new_prefix,
+            )
 
-    def read_meta_data_from_variables_in_netcdf4(self) -> List[dict]:
+    @staticmethod
+    def read_metadata_from_variables_in_netcdf4(netcdf4_file: str) -> List[dict]:
         """Read metadata from all variables in the NetCDF4 file.
 
         Returns:
@@ -2743,11 +2767,11 @@ class AssasOdessaNetCDF4Converter:
 
         """
         result = []
-        logger.info(f"Reading metadata from netCDF4 file {self.output_path}.")
+        logger.info(f"Reading metadata from netCDF4 file {netcdf4_file}.")
 
-        with netCDF4.Dataset(str(self.output_path), "r") as ncfile:
+        with netCDF4.Dataset(netcdf4_file, "r") as ncfile:
             logger.info("Starting recursive iteration through netCDF4 groups.")
-            self.iterate_recursive_over_groups(ncfile, result)
+            AssasOdessaNetCDF4Converter.iterate_recursive_over_groups(ncfile, result)
 
         return result
 
@@ -2829,13 +2853,18 @@ class AssasOdessaNetCDF4Converter:
 
         completed_index = 0
         with netCDF4.Dataset(f"{netcdf4_file}", "r", format="NETCDF4") as ncfile:
-            if "time_points" in list(ncfile.variables.keys()):
-                completed_index = ncfile.variables["time_points"].getncattr(
+            dimension_group = ncfile.groups.get("dimensions", None)
+            if dimension_group is not None and "time_points" in list(
+                dimension_group.variables.keys()
+            ):
+                completed_index = dimension_group.variables["time_points"].getncattr(
                     "completed_index"
                 )
                 logger.info(f"Completed index is {completed_index}.")
             else:
-                logger.warning("No time points found in the netCDF4 file.")
+                logger.warning(
+                    f"No time points found in the netCDF4 file {netcdf4_file}."
+                )
 
         return completed_index
 

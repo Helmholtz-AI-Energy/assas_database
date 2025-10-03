@@ -290,6 +290,7 @@ class AssasDatabaseHandlerTest(unittest.TestCase):
         """Test case to verify the restore_collection_from_backup function."""
         database_handler = AssasDatabaseHandler(
             database_name="assas_dev",
+            restore_from_backup=True,
         )
         data_frame = pd.DataFrame(list(database_handler.get_file_collection().find()))
 

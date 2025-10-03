@@ -5,6 +5,7 @@ between the ASSAS application and the NoSql database.
 """
 
 import os
+import sys
 import pandas as pd
 import logging
 import uuid
@@ -14,7 +15,7 @@ import subprocess
 from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from assasdb.assas_astec_archive import AssasAstecArchive
 from assasdb.assas_database_handler import AssasDatabaseHandler
@@ -270,6 +271,97 @@ class AssasDatabaseManager:
         """
         self.database_handler.drop_file_collection()
 
+    def collect_number_of_samples_safely(self, document_file: AssasDocumentFile) -> int:
+        """Run potentially segfault-prone code in a separate process."""
+        try:
+            script_content = f"""
+import sys
+sys.path.append('/root/assas-data-hub/assas_database')
+from assasdb.assas_odessa_netcdf4_converter import AssasOdessaNetCDF4Converter
+
+try:
+    converter = AssasOdessaNetCDF4Converter(
+        input_path="{document_file.get_value("system_path")}",
+        output_path="{document_file.get_value("system_result")}"
+    )
+    number_of_samples = len(converter.get_time_points())
+    print(number_of_samples)
+except Exception as e:
+    print(f"ERROR: {{e}}")
+    sys.exit(1)
+"""
+
+            result = subprocess.run(
+                [sys.executable, "-c", script_content],
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout
+            )
+
+            if result.returncode == 0:
+                return int(result.stdout.strip())
+            else:
+                logger.error(f"Subprocess failed: {result.stderr}")
+                return -1
+
+        except subprocess.TimeoutExpired:
+            logger.error("Subprocess timed out - likely segfault or infinite loop")
+            return -1
+        except Exception as e:
+            logger.error(f"Subprocess error: {e}")
+            return -1
+
+    def collect_number_of_samples(self, max_documents: int | None = None) -> None:
+        """Collect the number of samples from all archives.
+
+        This function retrieves all file documents from the database,
+        converts them to AssasDocumentFile instances, and collects the
+        number of samples from each archive using the
+        AssasOdessaNetCDF4Converter. The results are stored back in the
+        database.
+
+        Args:
+            max_documents (int | None): The maximum number of documents to process.
+
+        """
+        documents = self.database_handler.get_all_file_documents()
+        document_files = [AssasDocumentFile(document) for document in documents]
+
+        if max_documents is not None:
+            document_files = document_files[:max_documents]
+
+        for document_file in document_files:
+            try:
+                logger.debug(f"Archive path: {document_file.get_value('system_path')}")
+                logger.debug(f"Result path: {document_file.get_value('system_result')}")
+                logger.debug(
+                    f"Upload_uuid: {document_file.get_value('system_upload_uuid')}"
+                )
+
+                # Use safe subprocess method
+                number_of_samples = self.collect_number_of_samples_safely(document_file)
+
+                logger.debug(f"Number of samples collected: {number_of_samples}")
+
+            except Exception as exception:
+                logger.error(
+                    f"Error when collecting number of samples from archive "
+                    f"{document_file.get_value('system_path')} "
+                    f"with {document_file.get_value('system_upload_uuid')}, "
+                    f"exception: {exception}."
+                )
+                number_of_samples = -1
+
+            logger.info(
+                f"Archive {document_file.get_value('system_path')} "
+                f"has {number_of_samples} samples."
+            )
+            document_file.set_value("system_number_of_samples", str(number_of_samples))
+
+            self.database_handler.update_file_document_by_path(
+                document_file.get_value("system_path"), document_file.get_document()
+            )
+
     def collect_number_of_samples_of_uploaded_archives(self) -> None:
         """Collect the number of samples from all uploaded archives.
 
@@ -523,6 +615,28 @@ class AssasDatabaseManager:
         logger.info(f"Get size of {directory}")
         return float(subprocess.check_output(["du", "-sb", directory]).split()[0])
 
+    def reset_archive_sizes(self) -> None:
+        """Reset the sizes of all archives in the database to '....'.
+
+        This function retrieves all file documents from the database and sets their
+        'system_size' field to '...'.
+
+        Returns:
+            None
+
+        """
+        logger.info("Reset archive sizes in the database.")
+        documents = self.database_handler.get_file_documents_to_update_size(
+            update_key="...."
+        )
+
+        document_file_list = [AssasDocumentFile(document) for document in documents]
+        for document_file in document_file_list:
+            document_file.set_value("system_size", "...")
+            self.database_handler.update_file_document_by_path(
+                document_file.get_value("system_path"), document_file.get_document()
+            )
+
     def update_archive_sizes(
         self,
         number_of_archives: int | None = None,
@@ -669,15 +783,26 @@ class AssasDatabaseManager:
                 upload_uuid=upload_uuid
             )
 
+            logger.debug(f"Handle documents with upload uuid {upload_uuid}.")
+
             document_files = [AssasDocumentFile(document) for document in documents]
+
+            logger.debug(f"Handle {len(document_files)} documents.")
+
             document_files = [
                 document_file
                 for document_file in document_files
                 if document_file.get_value("system_status")
                 == AssasDocumentFileStatus.CONVERTING.value
-                if document_file.get_value("system_number_of_samples")
-                == document_file.get_value("system_number_of_samples_completed")
+                if int(document_file.get_value("system_number_of_samples"))
+                == int(document_file.get_value("system_number_of_samples_completed"))
             ]
+
+            logger.debug(
+                f"Found {len(document_files)} documents "
+                f"with upload uuid {upload_uuid} "
+                f"that are converting and have completed all samples."
+            )
 
             for document_file in document_files:
                 logger.info(
@@ -1379,7 +1504,109 @@ class AssasDatabaseManager:
             archive_description=document_file.get_value("meta_description"),
         )
 
-    def update_meta_data_of_valid_archives(self) -> None:
+    def delete_status_files_by_uuid(self, upload_uuid: uuid4) -> None:
+        """Delete the status files in the upload directory.
+
+        Args:
+            upload_uuid (uuid4): The UUID of whose status files should be deleted.
+
+        Returns:
+            None
+
+        """
+        upload_dir = self.upload_directory / str(upload_uuid)
+        files_to_delete = [
+            upload_dir / f"{upload_uuid}_valid",
+            upload_dir / f"{upload_uuid}_converting",
+        ]
+        deleted_files = []
+
+        for file_path in files_to_delete:
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                    logger.info(f"Deleted status file: {file_path}")
+                    deleted_files.append(str(file_path))
+                else:
+                    logger.info(f"Status file does not exist: {file_path}")
+            except Exception as e:
+                logger.error(f"Failed to delete {file_path}: {e}")
+
+        logger.info(
+            f"Deleted {len(deleted_files)} status files for upload_uuid {upload_uuid}."
+        )
+
+    def reset_result_directories(self, status: AssasDocumentFileStatus) -> None:
+        """Reset the result directory of all archives in the database.
+
+        Returns:
+            None
+
+        """
+        logger.info(f"Reset result directory of archives in state {status.value}.")
+        documents = self.database_handler.get_file_documents_by_status(status.value)
+        document_files = [AssasDocumentFile(document) for document in documents]
+
+        for document in document_files:
+            document.set_value(
+                key="system_status", value=AssasDocumentFileStatus.UPLOADED.value
+            )
+            self.database_handler.update_file_document_by_path(
+                document.get_value("system_path"), document.get_document()
+            )
+
+            self.delete_status_files_by_uuid(
+                upload_uuid=uuid.UUID(document.get_value("system_upload_uuid"))
+            )
+
+    def reset_metadata_of_valid_archives(
+        self, number_of_archives: Optional[int] = None
+    ) -> None:
+        """Reset the metadata of all valid archives in the database.
+
+        This function retrieves all file documents that are in the VALID state,
+        converts them to AssasDocumentFile instances, and resets their metadata
+        to default values. The results are stored back in the database.
+
+        Args:
+            number_of_archives (Optional[int]): Optional limit on the number of
+            archives to process.
+
+        Returns:
+            None
+
+        """
+        logger.info("Reset meta data of all valid archives in the database.")
+        documents = self.database_handler.get_file_documents_by_status(
+            AssasDocumentFileStatus.VALID.value
+        )
+        document_files = [AssasDocumentFile(document) for document in documents]
+
+        if len(document_files) == 0:
+            logger.info("Found no new archive to reset meta data.")
+            return
+
+        if number_of_archives is not None:
+            logger.info(f"Handle first {number_of_archives} archives.")
+            document_files = document_files[0:number_of_archives]
+
+        try:
+            for document_file in document_files:
+                logger.info(
+                    f"Reset meta info from file, "
+                    f"filename is {document_file.get_value('system_result')}."
+                )
+
+                self.database_handler.delete_metadata_variables(
+                    system_uuid=document_file.get_value("system_uuid")
+                )
+
+        except Exception as exception:
+            logger.error(f"Reset meta info failed due to exception: {exception}.")
+
+    def update_metadata_of_valid_archives(
+        self, number_of_archives: Optional[int] = None
+    ) -> None:
         """Collect meta data from all valid archives in the database.
 
         This function retrieves all file documents that are in the VALID state,
@@ -1399,15 +1626,21 @@ class AssasDatabaseManager:
             logger.info("Found no new archive to collect meta data.")
             return
 
+        if number_of_archives is not None:
+            logger.info(f"Handle first {number_of_archives} archives.")
+            document_files = document_files[0:number_of_archives]
+
         try:
             for document_file in document_files:
                 logger.info(
                     f"Collect meta info from file, "
                     f"filename is {document_file.get_value('system_result')}."
                 )
-                converter = AssasOdessaNetCDF4Converter(
-                    input_path=document_file.get_value("system_path"),
-                    output_path=document_file.get_value("system_result"),
+
+                meta_info = (
+                    AssasOdessaNetCDF4Converter.read_metadata_from_variables_in_netcdf4(
+                        netcdf4_file=document_file.get_value("system_result")
+                    )
                 )
                 meta_info = converter.read_meta_data_from_variables_in_netcdf4()
 
@@ -1454,8 +1687,10 @@ class AssasDatabaseManager:
                 f"{document_file.get_value('system_result')}."
             )
 
-            meta_info = AssasOdessaNetCDF4Converter.read_meta_values_from_netcdf4(
-                netcdf4_file=document_file.get_value("system_result")
+            meta_info = (
+                AssasOdessaNetCDF4Converter.read_metadata_from_variables_in_netcdf4(
+                    netcdf4_file=document_file.get_value("system_result")
+                )
             )
 
             document_file.set_meta_data_values(meta_data_variables=meta_info)
@@ -1549,9 +1784,13 @@ class AssasDatabaseManager:
                 f"Collect maximum index value from file, "
                 f"filename is {document_file.get_value('system_result')}."
             )
-            actual_max_index = document_file.get_value(
-                "system_number_of_samples_completed"
-            )
+            try:
+                actual_max_index = document_file.get_value(
+                    "system_number_of_samples_completed"
+                )
+            except KeyError:
+                actual_max_index = None
+
             if actual_max_index is None:
                 actual_max_index = -1
             else:
@@ -1591,3 +1830,75 @@ class AssasDatabaseManager:
                 path=document_file.get_value("system_path"),
                 update=document_file.get_document(),
             )
+
+
+def setup_logging(
+    level: int = logging.INFO,
+) -> None:
+    """Set up logging configuration with both console and file output."""
+    # Create logs directory if it doesn't exist
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+
+    # Generate timestamp for unique log file name
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = log_dir / f"assas_database_manager_{timestamp}.log"
+
+    # Clear any existing handlers
+    logger = logging.getLogger()
+    logger.handlers.clear()
+
+    # Create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s"
+    )
+
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+
+    # File handler
+    file_handler = logging.FileHandler(log_filename)
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+
+    # Configure root logger
+    logging.basicConfig(level=level, handlers=[console_handler, file_handler])
+
+    # Also configure the assas_app logger specifically
+    assas_logger = logging.getLogger("assas_app")
+    assas_logger.setLevel(level)
+
+    logging.info(
+        f"Logging initialized. Console output and file output to: {log_filename}"
+    )
+
+
+if __name__ == "__main__":
+    setup_logging(logging.INFO)  # Changed from ERROR to INFO for more detailed logging
+    logger = logging.getLogger("assas_app")
+
+    start_time = datetime.now()
+    logger.info(f"Starting AssasDatabaseManager execution at {start_time}")
+
+    try:
+        database_manager = AssasDatabaseManager(
+            database_handler=AssasDatabaseHandler(
+                database_name="assas",
+            )
+        )
+
+        logger.info("Starting collect_number_of_samples operation")
+        database_manager.collect_number_of_samples()
+        logger.info("Completed collect_number_of_samples operation")
+
+    except Exception as e:
+        logger.error(f"Error during execution: {e}", exc_info=True)
+        raise
+
+    finally:
+        end_time = datetime.now()
+        elapsed_time = end_time - start_time
+        logger.info(f"Execution completed at {end_time}")
+        logger.info(f"Total execution time: {elapsed_time.total_seconds():.2f} seconds")

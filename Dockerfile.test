@@ -42,7 +42,8 @@ WORKDIR /app
 #RUN git clone --recurse-submodules git@github.com:Helmholtz-AI-Energy/assas_database.git $REPO_PATH
 RUN git clone git@github.com:Helmholtz-AI-Energy/assas_database.git /app
 RUN git fetch origin && \
-    git checkout -b ${GIT_BRANCH} origin/${GIT_BRANCH} && \
+    git checkout ${GIT_BRANCH} && \
+    git reset --hard origin/${GIT_BRANCH} && \
     echo "Checked out remote branch ${GIT_BRANCH}"
 
 RUN mkdir -p ${ASTEC_ROOT}
