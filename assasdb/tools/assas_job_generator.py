@@ -203,27 +203,15 @@ def get_job_parameter_list(
 
     if len(maximum_indizes) > 1:
         for i, _ in enumerate(maximum_indizes):
-            if i == 0:
-                job_parameters = {
-                    "jobname": "convert-" + uuid,
-                    "py_dir": os.path.dirname(os.path.realpath(__file__)),
-                    "env_dir": os.environ.get("VIRTUAL_ENV", ""),
-                    "astec_root": os.environ.get("ASTEC_ROOT", ""),
-                    "uuid": uuid,
-                    "new_time_command": f"-n -t {maximum_indizes[0]}",
-                    "log_level": log_level,
-                }
-
-            if i > 0:
-                job_parameters = {
-                    "jobname": "convert-" + uuid,
-                    "py_dir": os.path.dirname(os.path.realpath(__file__)),
-                    "env_dir": os.environ.get("VIRTUAL_ENV", ""),
-                    "astec_root": os.environ.get("ASTEC_ROOT", ""),
-                    "uuid": uuid,
-                    "new_time_command": f"-t {maximum_indizes[i]}",
-                    "log_level": log_level,
-                }
+            job_parameters = {
+                "jobname": "convert-" + uuid,
+                "py_dir": os.path.dirname(os.path.realpath(__file__)),
+                "env_dir": os.environ.get("VIRTUAL_ENV", ""),
+                "astec_root": os.environ.get("ASTEC_ROOT", ""),
+                "uuid": uuid,
+                "new_time_command": f"-t {maximum_indizes[i]}",
+                "log_level": log_level,
+            }
 
             job_parameter_list.append(TEMPLATE.format(**job_parameters))
 
@@ -322,7 +310,6 @@ def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
 
     """
     try:
-        # Get the list of jobs and their statuses
         result = subprocess.run(
             ["squeue", "--noheader", "--format=%i,%t"],
             stdout=subprocess.PIPE,
@@ -331,16 +318,12 @@ def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
             check=True,
         )
 
-        # Parse the output into a list of rows
         rows = [line.split(",") for line in result.stdout.strip().split("\n")]
 
-        # Convert the rows into a DataFrame
         df = pd.DataFrame(rows, columns=["job_id", "status"])
 
-        # Filter for running jobs (status 'R')
         running_jobs = df[df["status"] == state.value]["job_id"]
 
-        # Cancel each running job
         for job_id in running_jobs:
             subprocess.run(["scancel", job_id], check=True)
             logger.info(f"Cancelled job (job_id = {job_id}, state = {state.value})")
@@ -358,7 +341,7 @@ def extract_upload_uuid(job_name: str) -> str:
     For example, if the job name is "convert-<upload_uuid>", it extracts <upload_uuid>.
     """
     if "convert-" in job_name:
-        return job_name.split("convert-")[1]  # Extract the UUID
+        return job_name.split("convert-")[1]
 
     logger.warning(f"Could not extract upload UUID from job name: {job_name}")
 
@@ -382,7 +365,6 @@ def get_squeue_dataframe() -> pd.DataFrame:
 
     """
     try:
-        # Run the squeue command and capture its output
         result = subprocess.run(
             ["squeue", "--noheader", "--format=%j,%i,%t,%T"],
             stdout=subprocess.PIPE,
@@ -391,14 +373,12 @@ def get_squeue_dataframe() -> pd.DataFrame:
             check=True,
         )
 
-        # Parse the output into a list of rows
         rows = [line.split(",") for line in result.stdout.strip().split("\n")]
 
         if len(rows) == 0 or (len(rows) == 1 and rows[0] == [""]):
             logger.info("No jobs found in squeue.")
             return pd.DataFrame(columns=["job_name", "job_id", "status_code", "status"])
 
-        # Convert the rows into a DataFrame
         df = pd.DataFrame(rows, columns=["job_name", "job_id", "status_code", "status"])
         df["upload_uuid"] = df["job_name"].apply(extract_upload_uuid)
 
@@ -461,12 +441,32 @@ def submit_jobs(
             limit_samples=limit_samples,
         )
 
+        filtered_maximum_indizes = []
+        completed_samples = int(database_entry["system_number_of_samples_completed"])
+        for idx in maximum_indizes:
+            if idx <= completed_samples:
+                logger.info(
+                    f"Skipping idx {idx} for {uuid} as it is already completed."
+                )
+                filtered_maximum_indizes.append(-1)
+            else:
+                filtered_maximum_indizes.append(idx)
+
+        logger.debug(f"Filtered maximum indizes for {uuid}: {filtered_maximum_indizes}")
+
         if len(maximum_indizes) == 1:
             if multi_jobs:
                 logger.info(
                     f"Skipping single job for {uuid} with {number_of_samples} samples."
                 )
                 continue
+            if filtered_maximum_indizes[0] == -1:
+                logger.info(
+                    f"Skipping single job for {uuid} with {number_of_samples} "
+                    "samples as it is already completed."
+                )
+                continue
+
             logger.info(
                 f"No maximum indizes for {uuid} with {number_of_samples} samples."
             )
@@ -484,9 +484,24 @@ def submit_jobs(
                     f"Skipping multi-job for {uuid} with {number_of_samples} samples."
                 )
                 continue
+
             logger.info(f"Submit jobs for {uuid} with {number_of_samples} samples.")
 
             for i in range(len(maximum_indizes)):
+                if filtered_maximum_indizes[i] == -1:
+                    logger.info(
+                        f"Skipping job index {i} for {uuid} with "
+                        f"maximum index {maximum_indizes[i]} as it "
+                        "is already completed."
+                    )
+                    previous_job_id = None
+                    continue
+
+                logger.info(
+                    f"Submit job index {i} for {uuid} with "
+                    f"maximum index {maximum_indizes[i]}."
+                )
+
                 submit_call = f"sbatch {os.path.dirname(os.path.realpath(__file__))}"
                 submit_call += f"/jobs/convert-{uuid}-{i}.sh"
 
@@ -510,10 +525,9 @@ def submit_jobs(
 
                 if result.returncode != 0:
                     logger.error(f"Error submitting job for {uuid}: {result.stderr}")
+                    break
 
-                previous_job_id = result.stdout.strip().split()[
-                    -1
-                ]  # Extract job ID from sbatch output
+                previous_job_id = result.stdout.strip().split()[-1]
 
 
 def remove_all_job_files(job_directory: str) -> None:
@@ -524,10 +538,8 @@ def remove_all_job_files(job_directory: str) -> None:
 
     """
     try:
-        # List all files in the job directory
         job_files = os.listdir(job_directory)
 
-        # Remove each job file
         for job_file in job_files:
             file_path = os.path.join(job_directory, job_file)
             os.remove(file_path)
@@ -563,7 +575,6 @@ def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
 
     """
     try:
-        # Get the list of jobs and their statuses
         result = subprocess.run(
             ["squeue", "--noheader", "--format=%j,%i,%t"],
             stdout=subprocess.PIPE,
@@ -572,18 +583,14 @@ def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
             check=True,
         )
 
-        # Parse the output into a list of rows
         rows = [line.split(",") for line in result.stdout.strip().split("\n")]
 
-        # Convert the rows into a DataFrame
         df = pd.DataFrame(rows, columns=["job_name", "job_id", "status"])
         df["upload_uuid"] = df["job_name"].apply(extract_upload_uuid)
 
-        # Filter for running jobs (status 'R')
         jobs = df[df["status"] == state.value].copy()
-        jobs["job_id"] = jobs["job_id"].astype(str)  # Ensure job_id is string type
+        jobs["job_id"] = jobs["job_id"].astype(str)
 
-        # Fetch dependencies for each running job
         for job in jobs.itertuples():
             job_id = job.job_id
             index = job.Index
@@ -649,7 +656,6 @@ if __name__ == "__main__":
         "--action",
         type=str,
         required=True,
-        # nargs="+",  # Allow multiple actions
         choices=["generate", "submit", "cancel", "squeue", "dependencies", "size"],
         help="Action to perform: generate, submit, cancel, or dependencies",
     )
@@ -709,35 +715,21 @@ if __name__ == "__main__":
 
     logger.info(f"Parsed actions: {args.action}")
 
-    # Ensure the job directory exists
     if not os.path.exists(args.job_directory):
         logger.info(
             f"Job directory '{args.job_directory}' does not exist. Creating it..."
         )
         os.makedirs(args.job_directory, exist_ok=True)
 
-    # Get all database entries
     database_entries = get_database_entries()
 
-    statuses = [
-        AssasDocumentFileStatus.VALID,
-        AssasDocumentFileStatus.INVALID,
-        AssasDocumentFileStatus.CONVERTING,
-        AssasDocumentFileStatus.UPLOADED,
-    ]
-
-    for status in statuses:
+    for status in AssasDocumentFileStatus.__members__.values():
         count = count_entries_by_status(database_entries, status)
-        logger.info(f"{status} archives in database: {count}.")
+        logger.info(f"Number of archives in state {status} in database: {count}.")
 
     logger.info(f"All archives in database: {len(database_entries)}.")
 
-    file_status_list = [
-        AssasDocumentFileStatus(args.state),
-        # AssasDocumentFileStatus.VALID,
-        # AssasDocumentFileStatus.CONVERTING,
-        # AssasDocumentFileStatus.UPLOADED,
-    ]
+    file_status_list = [AssasDocumentFileStatus(args.state)]
     logger.info(f"File status list: {file_status_list}.")
 
     file_status_value_list = [status.value for status in file_status_list]

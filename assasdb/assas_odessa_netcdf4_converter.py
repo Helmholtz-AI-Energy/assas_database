@@ -319,6 +319,13 @@ class AssasOdessaNetCDF4Converter:
                 + "/astec_config/assas_variables_wp2_report.csv"
             )
             dataframe.to_csv(output_file)
+            logger.info("Saved variable index to file: ", output_file)
+
+            output_file_repo = os.path.join(
+                os.getcwd(), "assas_variables_wp2_report.csv"
+            )
+            dataframe.to_csv(output_file_repo)
+            logger.info("Saved variable index to file (repo): ", output_file_repo)
 
             output_file_latex = (
                 os.path.dirname(os.path.realpath(__file__))
