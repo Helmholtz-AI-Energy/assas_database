@@ -1082,3 +1082,53 @@ class AssasNetCDF4VariableHandler:
                 f"Error reading variable data by range for '{variable_name}': {e}"
             )
             raise
+
+    def get_all_metadata_variables(self, netcdf4_file: str) -> list[dict]:
+        """Get all variables of type 'meta_data' from the NetCDF4 file.
+
+        Args:
+            netcdf4_file (str): Path to the NetCDF4 file.
+
+        Returns:
+            list[dict]: List of dictionaries with metadata and values for each
+            meta_data variable.
+
+        """
+        result = []
+        logger.info(f"Extracting meta_data variables from {netcdf4_file}")
+
+        def _collect_meta_data_vars(group: nc.Group, path_prefix: str = "") -> None:
+            for var_name, var in group.variables.items():
+                variable_type = (
+                    var.getncattr("variable_type")
+                    if "variable_type" in var.ncattrs()
+                    else None
+                )
+                if variable_type == "metadata":
+                    full_path = f"{path_prefix}/{var_name}" if path_prefix else var_name
+                    meta = {
+                        "name": var_name,
+                        "full_path": full_path,
+                        "dimensions": var.dimensions,
+                        "shape": var.shape,
+                        "dtype": str(var.dtype),
+                        "attributes": {
+                            attr: var.getncattr(attr) for attr in var.ncattrs()
+                        },
+                        "value": var[()] if var.size == 1 else var[:].tolist(),
+                    }
+                    # Convert numpy scalars to Python types
+                    if isinstance(meta["value"], np.generic):
+                        meta["value"] = meta["value"].item()
+                    result.append(meta)
+            for subgroup_name, subgroup in group.groups.items():
+                new_prefix = (
+                    f"{path_prefix}/{subgroup_name}" if path_prefix else subgroup_name
+                )
+                _collect_meta_data_vars(subgroup, new_prefix)
+
+        with nc.Dataset(netcdf4_file, "r") as ds:
+            _collect_meta_data_vars(ds)
+
+        logger.info(f"Found {len(result)} meta_data variables")
+        return result
