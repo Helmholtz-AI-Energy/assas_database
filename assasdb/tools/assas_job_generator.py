@@ -55,7 +55,7 @@ TEMPLATE = """#!/bin/bash
 
 # Training commands
 
-#SBATCH --account=hk-project-p0024075
+#SBATCH --account=hk-project-pai00112
 #SBATCH --job-name={jobname}
 #SBATCH --partition=cpuonly
 #SBATCH --nodes=1
@@ -132,8 +132,39 @@ def get_database_sizes(
             ],
             key=key,
         )
-        size_info[status.value] = size_tuple[0]
-        sum_sizes += size_tuple[1]
+        logger.info(f"Size tuple for status {status.value}: {size_tuple}")
+
+        # size_tuple expected: (human_readable, raw_bytes)
+        human_readable = None
+        raw_bytes = 0
+        try:
+            human_readable = size_tuple[0]
+        except Exception:
+            human_readable = None
+
+        try:
+            raw_bytes = size_tuple[1]
+        except Exception:
+            raw_bytes = 0
+
+        # Ensure raw_bytes is an int
+        try:
+            raw_int = int(raw_bytes)
+        except (TypeError, ValueError):
+            logger.warning(
+                f"Non-numeric raw size for status {status.value}: {raw_bytes!r}. "
+                "Attempting to parse digits or using 0."
+            )
+            try:
+                import re
+
+                digits = re.sub(r"[^\d]", "", str(raw_bytes))
+                raw_int = int(digits) if digits else 0
+            except Exception:
+                raw_int = 0
+
+        size_info[status.value] = human_readable
+        sum_sizes += raw_int
 
     size_info["total"] = AssasDatabaseManager.convert_from_bytes(sum_sizes)
 
@@ -442,7 +473,23 @@ def submit_jobs(
         )
 
         filtered_maximum_indizes = []
-        completed_samples = int(database_entry["system_number_of_samples_completed"])
+        # Safely parse completed samples; treat NaN/None/non-int as 0
+        completed_raw = database_entry.get("system_number_of_samples_completed")
+        if pd.isna(completed_raw):
+            completed_samples = 0
+        else:
+            try:
+                completed_samples = int(completed_raw)
+            except (TypeError, ValueError):
+                logger.warning(
+                    f"Non-integer completed samples for {uuid}: {completed_raw!r}. "
+                    "Treating as 0."
+                )
+                completed_samples = 0
+
+        # ensure non-negative
+        if completed_samples < 0:
+            completed_samples = 0
         for idx in maximum_indizes:
             if idx <= completed_samples:
                 logger.info(
@@ -784,17 +831,26 @@ if __name__ == "__main__":
 
     elif args.action == "cancel":
         logger.info("Cancelling all jobs in certain states...")
-        cancel_all_jobs_in_certain_state(SlurmJobState.RUNNING)
+        # cancel_all_jobs_in_certain_state(SlurmJobState.RUNNING)
         cancel_all_jobs_in_certain_state(SlurmJobState.PENDING)
 
     elif args.action == "size":
         logger.info("Retrieving database sizes raw")
+        all_database_entries = get_database_entries()
         size_info = get_database_sizes(
-            database_entries=database_entries, key="system_size"
+            database_entries=all_database_entries, key="system_size"
         )
-        logger.info(f"Database sizes:\n{size_info}")
-        frames = database_entries[
-            database_entries["system_status"] == AssasDocumentFileStatus.VALID.value
+        logger.info(f"Database sizes raw:\n{size_info}")
+
+        logger.info("Retrieving database sizes hdf5")
+        all_database_entries = get_database_entries()
+        size_info = get_database_sizes(
+            database_entries=all_database_entries, key="system_size_hdf5"
+        )
+        logger.info(f"Database sizes hdf5:\n{size_info}")
+
+        frames = all_database_entries[
+            all_database_entries["system_status"] == AssasDocumentFileStatus.VALID.value
         ]
         logger.info(f"Calculating compression rate for {len(frames)} valid frames.")
         compression = AssasDatabaseManager.calc_compression_rate(frames)
