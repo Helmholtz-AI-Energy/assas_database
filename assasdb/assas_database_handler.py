@@ -541,8 +541,16 @@ class AssasDatabaseHandler:
             result = AssasDatabaseHandler.update_file_document_by_path(path, update)
 
         """
-        post = {"$set": update}
-        return self.file_collection.update_one({"system_path": path}, post)
+        # Ensure we don't attempt to modify the immutable '_id'.
+        # If `post` is a full document, use $set with all keys except '_id'.
+        post_copy = {k: v for k, v in update.items() if k != "_id"}
+        if not post_copy:
+            # nothing to update
+            return None
+
+        return self.file_collection.update_one(
+            {"system_path": path}, {"$set": post_copy}
+        )
 
     def update_file_document_by_upload_uuid(
         self, upload_uuid: uuid4, update: dict
