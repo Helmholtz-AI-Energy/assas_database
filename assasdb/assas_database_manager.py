@@ -16,6 +16,7 @@ from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
+from pymongo import MongoClient
 
 from assasdb.assas_astec_archive import AssasAstecArchive
 from assasdb.assas_database_handler import AssasDatabaseHandler
@@ -71,6 +72,30 @@ class AssasDatabaseManager:
     def close_resources(self) -> None:
         """Close resources used by the handler."""
         self.database_handler.close()
+
+    @staticmethod
+    def create_database_handler(
+        connection_string: str,
+        backup_directory: str,
+        database_name: str,
+        client_config: Optional[dict] = None,
+    ) -> AssasDatabaseHandler:
+        """Create a new AssasDatabaseHandler instance.
+
+        Returns:
+            AssasDatabaseHandler: A new instance of the database handler.
+
+        """
+        logger.info("Create new AssasDatabaseHandler instance.")
+        client: MongoClient = MongoClient(
+            connection_string,
+            **(client_config or {}),
+        )
+        return AssasDatabaseHandler(
+            client=client,
+            backup_directory=backup_directory,
+            database_name=database_name,
+        )
 
     def get_database_entry_by_upload_uuid(self, upload_uuid: uuid4) -> dict:
         """Retrieve a database entry by its upload UUID.
@@ -1876,74 +1901,15 @@ except Exception as e:
                 update=document_file.get_document(),
             )
 
+    def link_files_to_batch_user(self) -> None:
+        """Link all files without user to the batch user.
 
-def setup_logging(
-    level: int = logging.INFO,
-) -> None:
-    """Set up logging configuration with both console and file output."""
-    # Create logs directory if it doesn't exist
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
+        This function retrieves all file documents that do not have a user
+        assigned, converts them to AssasDocumentFile instances, and assigns
+        the batch user to them. The results are stored back in the database.
 
-    # Generate timestamp for unique log file name
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = log_dir / f"assas_database_manager_{timestamp}.log"
+        Returns:
+            None
 
-    # Clear any existing handlers
-    logger = logging.getLogger()
-    logger.handlers.clear()
-
-    # Create formatter
-    formatter = logging.Formatter(
-        "%(asctime)s %(process)d %(module)s %(levelname)s: %(message)s"
-    )
-
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(level)
-    console_handler.setFormatter(formatter)
-
-    # File handler
-    file_handler = logging.FileHandler(log_filename)
-    file_handler.setLevel(level)
-    file_handler.setFormatter(formatter)
-
-    # Configure root logger
-    logging.basicConfig(level=level, handlers=[console_handler, file_handler])
-
-    # Also configure the assas_app logger specifically
-    assas_logger = logging.getLogger("assas_app")
-    assas_logger.setLevel(level)
-
-    logging.info(
-        f"Logging initialized. Console output and file output to: {log_filename}"
-    )
-
-
-if __name__ == "__main__":
-    setup_logging(logging.INFO)  # Changed from ERROR to INFO for more detailed logging
-    logger = logging.getLogger("assas_app")
-
-    start_time = datetime.now()
-    logger.info(f"Starting AssasDatabaseManager execution at {start_time}")
-
-    try:
-        database_manager = AssasDatabaseManager(
-            database_handler=AssasDatabaseHandler(
-                database_name="assas",
-            )
-        )
-
-        logger.info("Starting collect_number_of_samples operation")
-        database_manager.collect_number_of_samples()
-        logger.info("Completed collect_number_of_samples operation")
-
-    except Exception as e:
-        logger.error(f"Error during execution: {e}", exc_info=True)
-        raise
-
-    finally:
-        end_time = datetime.now()
-        elapsed_time = end_time - start_time
-        logger.info(f"Execution completed at {end_time}")
-        logger.info(f"Total execution time: {elapsed_time.total_seconds():.2f} seconds")
+        """
+        logger.info("Link all files without user to the batch user.")

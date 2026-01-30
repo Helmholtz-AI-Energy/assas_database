@@ -40,6 +40,7 @@ class AssasDatabaseHandler:
         backup_directory: str = "/mnt/ASSAS/backup_mongodb",
         database_name: str = "assas",
         file_collection_name: str = "files",
+        user_collection_name: str = "users",
         restore_from_backup: bool = False,
     ) -> None:
         """Initialize the AssasDatabaseHandler instance.
@@ -49,6 +50,7 @@ class AssasDatabaseHandler:
             backup_directory (str): The directory where backup files will be stored.
             database_name (str): The name of the database to connect to.
             file_collection_name (str): The name of the file collection.
+            user_collection_name (str): The name of the user collection.
             restore_from_backup (bool): Whether to restore collections from backup.
 
         Returns:
@@ -68,10 +70,12 @@ class AssasDatabaseHandler:
             self.client = None
             self.db_handle = None
             self.file_collection = None
+            self.user_collection = None
         else:
             self.client = client
             self.db_handle = self.client[database_name]
             self.file_collection = self.db_handle[file_collection_name]
+            self.user_collection = self.db_handle[user_collection_name]
             logger.info(
                 f"Connected to MongoDB database '{database_name}' "
                 f"and collection '{file_collection_name}'."
@@ -243,6 +247,46 @@ class AssasDatabaseHandler:
 
         logger.info("Returning file collection.")
         return self.file_collection
+
+    def get_user_collection(self) -> Collection | None:
+        """Return the user collection.
+
+        Args:
+            None
+
+        Returns:
+            user_collection: The user collection.
+
+        Example:
+            user_collection = AssasDatabaseHandler.get_user_collection()
+
+        """
+        if self.user_collection is None:
+            logger.warning("User collection is not initialized. Returning None.")
+            return None
+
+        logger.info("Returning user collection.")
+        return self.user_collection
+
+    def get_all_user_documents(self) -> Cursor | None:
+        """Return all user documents in the user collection.
+
+        Args:
+            None
+
+        Returns:
+            A cursor to the user documents.
+
+        Example:
+            user_documents = AssasDatabaseHandler.get_all_user_documents()
+
+        """
+        if self.user_collection is None:
+            logger.warning("User collection is not initialized. Returning None.")
+            return None
+
+        logger.info("Returning all user documents.")
+        return self.user_collection.find()
 
     def get_all_file_documents(self) -> Cursor | None:
         """Return all file documents in the file collection.
