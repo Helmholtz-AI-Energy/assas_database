@@ -561,6 +561,26 @@ except Exception as e:
             logger.error(f"Unrecognized size format: {size_str}.")
             raise ValueError(f"Unrecognized size format: {size_str}")
 
+    def update_dataset_attributes(self, uuid: str, update_data: dict) -> bool:
+        """Update dataset attributes in MongoDB.
+
+        Args:
+            uuid: The UUID of the dataset to update
+            update_data: Dictionary containing fields to update
+
+        Returns:
+            bool: True if update was successful, False otherwise
+
+        """
+        try:
+            result = self.database_handler.file_collection.update_one(
+                {"uuid": uuid}, {"$set": update_data}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Error updating dataset {uuid}: {str(e)}")
+            return False
+
     @staticmethod
     def convert_to_bytes_2(size_str: str) -> int:
         """Convert a size string (e.g., '10 GB', '500 MB', '20 KB') into bytes.
