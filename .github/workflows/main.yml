@@ -61,7 +61,7 @@ jobs:
   test:
      name: Run Unit Tests
      runs-on: ubuntu-latest
-      
+
      steps:
        - name: Set branch name
          id: branch_test
@@ -87,13 +87,27 @@ jobs:
             --build-arg LSDF_PWD="${{ secrets.LSDF_PWD }}" \
             --build-arg GIT_BRANCH="${{ steps.branch_test.outputs.BRANCH_NAME }}" \
             -t assas-database-test .
-      
-       # Step 3: Run tests in Docker container
+
+       # NEW: Create an env file for docker run (from GitHub Secrets)
+       - name: Create env file for tests
+         shell: bash
+         run: |
+           cat > assas_database/.env.ci <<EOF
+           BACKUP_DIRECTORY=/app/backup_mongodb
+           UPLOAD_DIRECTORY=/app/upload_test
+           CONNECTIONSTRING=${{ secrets.MONGO_CONNECTIONSTRING }}
+           MONGO_DB_NAME=${{ secrets.MONGO_DB_NAME }}
+           USER_COLLECTION_NAME=users
+           FILE_COLLECTION_NAME=files
+           ASTEC_TYPE=linux_64
+           ASTEC_ROOT=/app/astecV3.1.2
+           EOF
+
+       # Step 3: Run tests in Docker container (use --env-file)
        - name: Run tests in Docker container
          run: |
           docker run --rm \
-            -e ASTEC_ROOT=/app/astecV3.1.2 \
-            -e ASTEC_TYPE=linux_64 \
+            --env-file assas_database/.env.ci \
             assas-database-test \
             bash -c "python3.11 test/test_astec_archive.py && \
                      python3.11 test/test_database_handler.py && \
