@@ -490,7 +490,7 @@ def submit_jobs(
         # ensure non-negative
         if completed_samples < 0:
             completed_samples = 0
-        
+
         for idx in maximum_indizes:
             if idx <= completed_samples:
                 logger.info(
