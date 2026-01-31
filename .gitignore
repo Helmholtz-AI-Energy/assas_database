@@ -165,8 +165,10 @@ assasdb/results/
 /test/log/
 assasdb/tools/jobs/
 assasdb/tools/logs/
+assasdb/tools/log/
 assasdb/tools/result/
 test_reports/
+logs/
 
 # VS Code
 .vscode/
