@@ -92,7 +92,7 @@ jobs:
        - name: Create env file for tests
          shell: bash
          run: |
-           cat > assas_database/.env.ci <<EOF
+           cat > .env.ci <<EOF
            BACKUP_DIRECTORY=/app/backup_mongodb
            UPLOAD_DIRECTORY=/app/upload_test
            CONNECTIONSTRING=${{ secrets.MONGO_CONNECTIONSTRING }}
@@ -107,7 +107,7 @@ jobs:
        - name: Run tests in Docker container
          run: |
           docker run --rm \
-            --env-file assas_database/.env.ci \
+            --env-file ./.env.ci \
             assas-database-test \
             bash -c "python3.11 test/test_astec_archive.py && \
                      python3.11 test/test_database_handler.py && \
