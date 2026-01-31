@@ -90,6 +90,9 @@ def build_arg_aprser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--show-stats", action="store_true", help="Show database statistics"
     )
+    parser.add_argument(
+        "--list-users", action="store_true", help="List all users in the database"
+    )
 
     return parser
 
@@ -121,6 +124,12 @@ if __name__ == "__main__":
         if args.show_stats:
             entries = database_manager.get_all_database_entries()
             logger.info(f"Database contains {len(entries)} entries.")
+            did_action = True
+
+        if args.list_users:
+            database_manager.link_files_to_batch_user()
+            # for user in users:
+            #    logger.info(f"User: {user['system_user_name']} (ID: {user['_id']})")
             did_action = True
 
         if not did_action:

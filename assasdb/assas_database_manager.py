@@ -1867,3 +1867,9 @@ except Exception as e:
 
         """
         logger.info("Link all files without user to the batch user.")
+
+        user_documents = self.database_handler.get_all_user_documents()
+        for user in user_documents:
+            roles = user.get("roles", [])
+            if "curator" in roles:
+                logger.info(f"curators: {user}")
