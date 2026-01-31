@@ -462,7 +462,7 @@ except Exception as e:
         dataframe = self.get_all_database_entries()
 
         dataframe["system_size_bytes"] = dataframe["system_size"].apply(
-            self.convert_to_bytes
+            self.convert_to_bytes_2
         )
 
         total_size_bytes = dataframe["system_size_bytes"].sum()
@@ -499,7 +499,7 @@ except Exception as e:
 
         dataframe = dataframe.copy()
         dataframe["system_size_bytes"] = dataframe[key].apply(
-            AssasDatabaseManager.convert_to_bytes
+            AssasDatabaseManager.convert_to_bytes_2
         )
 
         total_size_bytes = dataframe["system_size_bytes"].sum()
@@ -531,10 +531,10 @@ except Exception as e:
 
         dataframes = dataframes.copy()
         dataframes["system_size_bytes"] = dataframes["system_size"].apply(
-            AssasDatabaseManager.convert_to_bytes
+            AssasDatabaseManager.convert_to_bytes_2
         )
         dataframes["system_size_hdf5_bytes"] = dataframes["system_size_hdf5"].apply(
-            AssasDatabaseManager.convert_to_bytes
+            AssasDatabaseManager.convert_to_bytes_2
         )
 
         dataframes = dataframes[
@@ -585,6 +585,52 @@ except Exception as e:
         else:
             logger.error(f"Unrecognized size format: {size_str}.")
             raise ValueError(f"Unrecognized size format: {size_str}")
+
+    def update_dataset_attributes(self, uuid: str, update_data: dict) -> bool:
+        """Update dataset attributes in MongoDB.
+
+        Args:
+            uuid: The UUID of the dataset to update
+            update_data: Dictionary containing fields to update
+
+        Returns:
+            bool: True if update was successful, False otherwise
+
+        """
+        try:
+            result = self.database_handler.file_collection.update_one(
+                {"uuid": uuid}, {"$set": update_data}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Error updating dataset {uuid}: {str(e)}")
+            return False
+
+    @staticmethod
+    def convert_to_bytes_2(size_str: str) -> int:
+        """Convert a size string (e.g., '10 GB', '500 MB', '20 KB') into bytes.
+
+        Args:
+            size_str (str): The size string to convert.
+
+        Returns:
+            int: The size in bytes.
+
+        """
+        if size_str is None:
+            return 0
+        s = str(size_str).strip()
+        if s in ("", "...", "...."):
+            return 0
+        import re
+
+        m = re.match(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([KMGTPE]?B)?\s*$", s, re.IGNORECASE)
+        if not m:
+            raise ValueError(f"Unrecognized size format: {size_str}")
+        number = float(m.group(1))
+        unit = (m.group(2) or "B").upper()
+        multipliers = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
+        return int(number * multipliers.get(unit, 1))
 
     @staticmethod
     def convert_from_bytes(number_of_bytes: float, blocksize: float = 1024.0) -> str:
