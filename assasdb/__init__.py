@@ -37,6 +37,7 @@ from .assas_netcdf4_meta_config import (  # noqa: E402
 )  # noqa: E402
 from .assas_unit_manager import AssasUnitManager  # noqa: E402
 from .assas_netcdf4_variable_handler import AssasNetCDF4VariableHandler  # noqa: E402
+from .assas_mongodb_backup_handler import AssasMongodbBackupHandler  # noqa: E402
 
 __all__ = [
     "AssasDatabaseManager",
@@ -50,4 +51,5 @@ __all__ = [
     "DOMAIN_GROUP_CONFIG",
     "AssasUnitManager",
     "AssasNetCDF4VariableHandler",
+    "AssasMongodbBackupHandler",
 ]

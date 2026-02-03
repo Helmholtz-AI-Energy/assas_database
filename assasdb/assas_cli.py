@@ -93,6 +93,21 @@ def build_arg_aprser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--list-users", action="store_true", help="List all users in the database"
     )
+    parser.add_argument(
+        "--link-users-files",
+        action="store_true",
+        help="Link users to files in the database",
+    )
+    parser.add_argument(
+        "--backup-internal-database",
+        action="store_true",
+        help="Backup the internal database",
+    )
+    parser.add_argument(
+        "--restore-internal-database",
+        action="store_true",
+        help="Restore the internal database",
+    )
 
     return parser
 
@@ -127,9 +142,19 @@ if __name__ == "__main__":
             did_action = True
 
         if args.list_users:
+            database_manager.list_users()
+            did_action = True
+
+        if args.link_users_files:
             database_manager.link_files_to_batch_user()
-            # for user in users:
-            #    logger.info(f"User: {user['system_user_name']} (ID: {user['_id']})")
+            did_action = True
+
+        if args.backup_internal_database:
+            database_manager.backup_internal_database(verbose=True)
+            did_action = True
+
+        if args.restore_internal_database:
+            database_manager.restore_internal_database(drop=True, verbose=True)
             did_action = True
 
         if not did_action:

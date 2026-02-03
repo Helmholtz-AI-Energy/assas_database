@@ -9,16 +9,19 @@ import pandas as pd
 import logging
 import HtmlTestRunner
 
-from typing import List
+from typing import Optional, List
 from uuid import uuid4
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from unittest.mock import MagicMock, patch
 
-from assasdb import AssasDatabaseManager
-from assasdb import AssasDocumentFileStatus
-from assasdb import AssasDatabaseHandler
-from assasdb import AssasAstecArchive
+from assasdb import (
+    AssasDatabaseManager,
+    AssasDocumentFileStatus,
+    AssasDatabaseHandler,
+    AssasAstecArchive,
+    AssasMongodbBackupHandler,
+)
 
 # Configure rotating file logging
 log_dir = Path(__file__).parent / "log"
@@ -140,6 +143,49 @@ class FakeDatabaseHandler:
         pass
 
 
+class InProcessBackupHandler:
+    """Test-only backup handler that never spawns external tools.
+
+    It uses the FakeDatabaseHandler's dump/read backup methods to simulate
+    backup/restore behavior in-memory.
+    """
+
+    def __init__(self, database_handler: FakeDatabaseHandler, backup_dir: str) -> None:
+        """Initialize the in-process backup handler."""
+        self.database_handler = database_handler
+        self.backup_dir = Path(backup_dir)
+
+    def backup_with_mongodump(
+        self,
+        output_base_dir: str | None = None,
+        collections: Optional[List[str]] = None,
+        verbose: bool = False,
+    ) -> Path:
+        """Perform an in-process backup without external tools."""
+        # No external tools: just snapshot the fake collection into fake backup store
+        self.database_handler.dump_collections(collection_names=collections)
+        # Return a plausible "backup path" under the test backup dir
+        out_base = Path(output_base_dir) if output_base_dir else self.backup_dir
+        out_dir = out_base / "in_process_backup"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return out_dir
+
+    def restore_with_mongorestore(
+        self,
+        backup_dir: str | Path,
+        collections: Optional[List[str]] = None,
+        drop: bool = False,
+        verbose: bool = False,
+    ) -> Path:
+        """Perform an in-process restore without external tools."""
+        # but implement a safe in-memory restore anyway.
+        if drop:
+            self.database_handler.drop_file_collection()
+        for doc in self.database_handler.read_collection_from_backup():
+            self.database_handler.insert_file_document(doc)
+        return Path(backup_dir)
+
+
 class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
     """Integration test for AssasDatabaseManager."""
 
@@ -149,22 +195,75 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.upload_dir = tempfile.mkdtemp()
         self.backup_dir = tempfile.mkdtemp()
 
-        # Create a mock AssasDatabaseHandler
-        self.mock_handler = MagicMock(spec=AssasDatabaseHandler)
+        # Force any env-based backup logic to stay inside the test temp dir
+        self._env_patch = patch.dict(
+            os.environ,
+            {
+                "BACKUP_DIRECTORY": self.backup_dir,
+                "MONGO_DB_NAME": "assas_test",
+                # dummy value; tests must not actually connect / run tools
+                "CONNECTIONSTRING": "mongodb://localhost:27017",
+            },
+            clear=False,
+        )
+        self._env_patch.start()
 
-        # Mock the methods of AssasDatabaseHandler
+        # Hard-block any attempt to spawn MongoDB tools via subprocess
+        # (If something accidentally calls mongodump/mongorestore, the test fails.)
+        self._subprocess_run_patch = patch(
+            "assasdb.assas_mongodb_backup_handler.subprocess.run",
+            side_effect=AssertionError(
+                "subprocess.run() was called from AssasMongodbBackupHandler "
+                "during tests. "
+                "Tests must not execute mongodump/mongorestore."
+            ),
+        )
+        self._subprocess_popen_patch = patch(
+            "assasdb.assas_mongodb_backup_handler.subprocess.Popen",
+            side_effect=AssertionError(
+                "subprocess.Popen() was called from AssasMongodbBackupHandler "
+                "during tests. "
+                "Tests must not execute mongodump/mongorestore."
+            ),
+        )
+        self._subprocess_run_patch.start()
+        self._subprocess_popen_patch.start()
+
+        # Create a mock AssasDatabaseHandler + mock backup handler
+        self.mock_handler = MagicMock(spec=AssasDatabaseHandler)
+        self.mock_backup_handler = MagicMock(spec=AssasMongodbBackupHandler)
+
+        # Make sure backup/restore paths are no-ops
+        # (no real tools, no real filesystem outside temp)
+        self.mock_backup_handler.backup_with_mongodump.return_value = (
+            Path(self.backup_dir) / "dummy_backup"
+        )
+        self.mock_backup_handler.restore_with_mongorestore.return_value = (
+            Path(self.backup_dir) / "dummy_backup"
+        )
+
+        # Fake handler used for local (in-memory) backup/restore behavior
         self.fake_handler = FakeDatabaseHandler(
             client=MagicMock(),  # Mock MongoClient
             backup_directory=self.backup_dir,
         )
 
+        # IMPORTANT: ensure manager_faked never uses the real
+        # mongodump/mongorestore handler
+        self.fake_backup_handler = InProcessBackupHandler(
+            database_handler=self.fake_handler,
+            backup_dir=self.backup_dir,
+        )
+
         self.manager = AssasDatabaseManager(
             database_handler=self.mock_handler,
             upload_directory=self.upload_dir,
+            backup_handler=self.mock_backup_handler,
         )
         self.manager_faked = AssasDatabaseManager(
             database_handler=self.fake_handler,
             upload_directory=self.upload_dir,
+            backup_handler=self.fake_backup_handler,  # <-- prevents subprocess/tools
         )
 
     def tearDown(self) -> None:
@@ -174,6 +273,10 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
 
         self.manager.close_resources()
         self.manager_faked.close_resources()
+
+        self._subprocess_run_patch.stop()
+        self._subprocess_popen_patch.stop()
+        self._env_patch.stop()
 
     def test_get_all_database_entries_empty(self) -> None:
         """Test getting all database entries when the collection is empty.
@@ -259,9 +362,12 @@ class AssasDatabaseManagerIntegrationTest(unittest.TestCase):
         self.assertIsInstance(df, pd.DataFrame)
 
     def test_backup_internal_database(self) -> None:
-        """Test backing up the internal database."""
+        """Test backing up the internal database without calling external tools."""
         self.manager.backup_internal_database()
-        self.mock_handler.dump_collections.assert_called()
+
+        # Backup must go through the injected backup handler (mock),
+        # not real subprocess/tools
+        self.mock_backup_handler.backup_with_mongodump.assert_called()
 
     def test_set_document_status_by_uuid(self) -> None:
         """Test setting the status of a document by UUID."""

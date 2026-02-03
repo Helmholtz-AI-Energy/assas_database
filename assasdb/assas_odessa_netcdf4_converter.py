@@ -285,7 +285,11 @@ class AssasOdessaNetCDF4Converter:
         """
         return self.variable_index
 
-    def read_astec_variable_index_files(self, report: bool = False) -> pd.DataFrame:
+    def read_astec_variable_index_files(
+        self,
+        report: bool = False,
+        tex_report: bool = False,
+    ) -> pd.DataFrame:
         """Read the ASTEC variable index files.
 
         This method reads multiple CSV files containing ASTEC variable information
@@ -295,6 +299,7 @@ class AssasOdessaNetCDF4Converter:
         Args:
             report (bool): If True, save the dataframe to a CSV file for
             reporting purposes.
+            tex_report (bool): If True, save the head of the dataframe to a LaTeX file.
 
         Returns:
             pd.DataFrame: A dataframe containing the ASTEC variable index.
@@ -327,6 +332,7 @@ class AssasOdessaNetCDF4Converter:
             dataframe.to_csv(output_file_repo)
             logger.info("Saved variable index to file (repo): ", output_file_repo)
 
+        if tex_report:
             output_file_latex = (
                 os.path.dirname(os.path.realpath(__file__))
                 + "/astec_config/assas_variables_wp2_report_head.tex"
