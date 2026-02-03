@@ -22,6 +22,7 @@ from assasdb.assas_astec_archive import AssasAstecArchive
 from assasdb.assas_database_handler import AssasDatabaseHandler
 from assasdb.assas_document_file import AssasDocumentFile, AssasDocumentFileStatus
 from assasdb.assas_odessa_netcdf4_converter import AssasOdessaNetCDF4Converter
+from assasdb.assas_mongodb_backup_handler import AssasMongodbBackupHandler
 
 logger = logging.getLogger("assas_app")
 
@@ -39,20 +40,25 @@ class AssasDatabaseManager:
         self,
         database_handler: AssasDatabaseHandler,
         upload_directory: str = "/mnt/ASSAS/upload_test",
+        backup_handler: AssasMongodbBackupHandler | None = None,
     ) -> None:
         """Initialize the AssasDatabaseManager instance.
 
         Args:
             database_handler (AssasDatabaseHandler): An instance of the database handler
             upload_directory (str): Directory where uploaded archives are stored.
+            backup_handler (AssasMongodbBackupHandler | None): Optional backup handler.
 
         Returns:
             None
 
         """
         self.database_handler = database_handler
+        self.backup_handler = backup_handler or AssasMongodbBackupHandler()
+
         logger.info(
-            f"Initialize AssasDatabaseManager with database handler {database_handler} "
+            f"Initialize AssasDatabaseManager with database handler {database_handler},"
+            f" backup handler {self.backup_handler}, "
             f"and upload directory {upload_directory}."
         )
 
@@ -149,6 +155,51 @@ class AssasDatabaseManager:
         logger.info(f"Get database entry by path {path}.")
         return self.database_handler.get_file_document_by_path(path)
 
+    def get_all_database_entries_safe(
+        self,
+        projection: dict | None = None,
+        limit: int | None = None,
+        batch_size: int = 500,
+        max_time_ms: int | None = None,
+    ) -> pd.DataFrame:
+        """Retrieve entries from the internal database.
+
+        Args:
+            projection: Mongo projection (e.g. {"big_field": 0} to exclude).
+            limit: Optional maximum number of documents.
+            batch_size: Cursor batch size.
+            max_time_ms: Optional server-side time limit for the query.
+
+        """
+        file_collection = self.database_handler.get_file_collection()
+
+        cursor = file_collection.find({}, projection=projection).batch_size(batch_size)
+        if max_time_ms is not None:
+            cursor = cursor.max_time_ms(max_time_ms)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+
+        data_frame = pd.DataFrame(list(cursor))
+        logger.info(
+            f"Load data frame with size {str(data_frame.size), str(data_frame.shape)}"
+        )
+
+        if data_frame.size == 0:
+            return data_frame
+
+        if "system_date" in data_frame.columns:
+            data_frame["system_datetime"] = pd.to_datetime(
+                arg=data_frame["system_date"], errors="coerce"
+            )
+            data_frame = data_frame.dropna(subset=["system_datetime"])
+            data_frame = data_frame.sort_values(by="system_datetime", ascending=True)
+
+        data_frame["system_index"] = range(1, len(data_frame) + 1)
+        if "_id" in data_frame.columns:
+            data_frame["_id"] = data_frame["_id"].astype(str)
+
+        return data_frame
+
     def get_all_database_entries(self) -> pd.DataFrame:
         """Retrieve all entries from the internal database.
 
@@ -208,18 +259,42 @@ class AssasDatabaseManager:
         return data_frame
 
     def backup_internal_database(
-        self,
+        self, collections: Optional[List[str]] = None, verbose: bool = False
     ) -> None:
-        """Create a backup of the internal database.
+        """Backup the internal database.
 
-        This function dumps the 'files' collection to the backup directory.
+        Args:
+            collections: Optional list of collection names to dump. If None, dumps all.
+            verbose: If True/int, enables/increases mongodump verbosity.
+
+        """
+        logger.info("Backup internal database.")
+        self.backup_handler.backup_with_mongodump(
+            collections=collections, verbose=verbose
+        )
+
+    def restore_internal_database(
+        self,
+        collections: Optional[List[str]] = None,
+        drop: bool = True,
+        verbose: bool = False,
+    ) -> None:
+        """Restore the internal database from backup.
+
+        Args:
+            collections: Optional[List[str]] = None,
+                If None, restores all.
+            drop: If True, drops the collections before restoring.
+            verbose: If True/int, enables/increases mongorestore verbosity.
 
         Returns:
             None
 
         """
-        logger.info("Backup internal database.")
-        self.database_handler.dump_collections(collection_names=["files"])
+        logger.info("Restore internal database from backup.")
+        self.backup_handler.restore_latest_backup(
+            collections=collections, drop=drop, verbose=verbose
+        )
 
     def set_document_status_by_uuid(
         self, uuid: uuid4, status: AssasDocumentFileStatus
@@ -1913,8 +1988,51 @@ except Exception as e:
 
         """
         logger.info("Link all files without user to the batch user.")
+
+        files = self.database_handler.get_file_collection()
+        files = list(files.find())
+
+        logger.info(f"Found {len(files)} files in the database.")
+
+        for file in files:
+            logger.debug(f"Processing file: {file}")
+            logger.debug(f"Current system_user: {file.get('system_user', None)}")
+
+            system_user = file.get("system_user", None)
+            users = self.database_handler.get_all_user_documents()
+            for user in users:
+                batch = user.get("batch", None)
+                logger.debug(f"Checking user: {user}")
+
+                if system_user == batch:
+                    logger.debug(f"Matched batch {batch} user: {user} for file.")
+                    batch_user = user
+                    logger.debug(f"Batch user found: {batch_user}")
+                    break
+            else:
+                batch_user = None
+                logger.debug("No matching batch user found for file.")
+
+            if batch_user is not None:
+                file["system_user_info"] = batch_user
+                logger.debug(f"Assigning batch user info: {batch_user} to file.")
+
+                self.database_handler.update_file_document_by_uuid(
+                    uuid=file["system_uuid"], update=file
+                )
+
+                logger.info(
+                    f"Linked file {file['system_uuid']} to batch user {batch_user}."
+                )
+            else:
+                logger.warning("No batch user found in the database.")
+
+    def list_users(self, role: str = "curator") -> None:
+        """List all users with a specific role in the database."""
+        logger.info(f"List all users with role {role} in the database.")
+
         user_documents = self.database_handler.get_all_user_documents()
         for user in user_documents:
             roles = user.get("roles", [])
-            if "curator" in roles:
-                logger.info(f"curators: {user}")
+            if role in roles:
+                logger.info(f"{role}s: {user}")

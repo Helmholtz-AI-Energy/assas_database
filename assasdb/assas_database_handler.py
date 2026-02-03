@@ -9,7 +9,7 @@ import os
 import logging
 import bson
 
-from typing import List
+from typing import List, Optional
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import BulkWriteError
@@ -22,7 +22,7 @@ from pathlib import Path
 
 from assasdb.assas_document_file import AssasDocumentFileStatus
 
-logger = logging.getLogger("assas_app")
+logger = logging.getLogger(__name__)
 
 
 class AssasDatabaseHandler:
@@ -36,9 +36,10 @@ class AssasDatabaseHandler:
 
     def __init__(
         self,
-        client: MongoClient = MongoClient("mongodb://localhost:27017"),
-        backup_directory: str = "/mnt/ASSAS/backup_mongodb",
-        database_name: str = "assas",
+        client: Optional[MongoClient] = None,
+        connection_string: Optional[str] = None,
+        database_name: Optional[str] = None,
+        backup_directory: Optional[str] = None,
         file_collection_name: str = "files",
         user_collection_name: str = "users",
         restore_from_backup: bool = False,
@@ -47,8 +48,9 @@ class AssasDatabaseHandler:
 
         Args:
             client (MongoClient): The MongoDB client to use for database operations.
-            backup_directory (str): The directory where backup files will be stored.
+            connection_string (str): The connection string for the MongoDB client.
             database_name (str): The name of the database to connect to.
+            backup_directory (str): The directory where backup files will be stored.
             file_collection_name (str): The name of the file collection.
             user_collection_name (str): The name of the user collection.
             restore_from_backup (bool): Whether to restore collections from backup.
@@ -65,38 +67,46 @@ class AssasDatabaseHandler:
             )
 
         """
-        if client is None:
-            logger.warning("No MongoDB client provided. Using a dummy client.")
-            self.client = None
-            self.db_handle = None
-            self.file_collection = None
-            self.user_collection = None
-        else:
+        if client is not None:
             self.client = client
-            self.db_handle = self.client[database_name]
-            self.file_collection = self.db_handle[file_collection_name]
-            self.user_collection = self.db_handle[user_collection_name]
-            logger.info(
-                f"Connected to MongoDB database '{database_name}' "
-                f"and collection '{file_collection_name}'."
+            self._owns_client = False
+        else:
+            uri = (
+                connection_string
+                or os.getenv("CONNECTIONSTRING")
+                or "mongodb://localhost:27017"
             )
+            self.client = MongoClient(uri)
+            self._owns_client = True
 
-        self.backup_directory = Path(backup_directory)
-        if not self.backup_directory.exists():
-            logger.warning(
-                f"Backup directory {self.backup_directory} does not exist. "
-                "Create it and check your setup."
-            )
+        self.db_name = database_name or os.getenv("MONGO_DB_NAME") or "assas"
+        self.db_handle: Database = self.client[self.db_name]
+        self.backup_directory = backup_directory or os.getenv("BACKUP_DIRECTORY")
+
+        self.file_collection_name = file_collection_name
+        self.user_collection_name = user_collection_name
+        self.file_collection: Collection = self.db_handle[self.file_collection_name]
+        self.user_collection: Collection = self.db_handle[self.user_collection_name]
+
+        logger.info(
+            f"Connected to MongoDB database '{self.db_name}' "
+            f"and collection '{self.file_collection_name}'."
+        )
 
         if restore_from_backup:
             logger.info("Restoring collections from backup files.")
             self.restore_collections()
 
     def close(self) -> None:
-        """Safely close the MongoClient."""
-        if hasattr(self, "client") and self.client is not None:
-            logger.info("Closing MongoDB client.")
-            self.client.close()
+        """Close DB resources (always close the MongoClient if present)."""
+        try:
+            client = getattr(self, "client", None)
+            if client is not None:
+                client.close()
+                # Optional: prevent double-close usage later
+                self.client = None
+        except Exception:
+            logger.exception("Failed to close MongoClient")
 
     def dump_collections(
         self,
@@ -185,12 +195,21 @@ class AssasDatabaseHandler:
             collection = AssasDatabaseHandler.read_collection_from_backup("files.bson")
 
         """
-        collection = []
+        if not getattr(self, "backup_directory", None):
+            raise RuntimeError("backup_directory is not set on AssasDatabaseHandler.")
 
-        with open(Path.joinpath(self.backup_directory, collection_file), "rb+") as f:
-            collection = bson.decode_all(f.read())
+        backup_dir = Path(self.backup_directory)  # works for str or Path
+        file_path = backup_dir / collection_file
 
-        return collection
+        if not file_path.exists():
+            raise FileNotFoundError(f"Backup collection file not found: {file_path}")
+
+        file_collection: List[dict] = []
+
+        with open(file_path, "rb") as f:
+            file_collection = bson.decode_all(f.read())
+
+        return file_collection
 
     def list_database_names(self) -> List[str]:
         """List all database names in the MongoDB client.

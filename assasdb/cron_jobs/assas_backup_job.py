@@ -12,7 +12,7 @@ import logging
 os.environ["ASTEC_ROOT"] = "/root/astecV3.1.2"
 os.environ["ASTEC_TYPE"] = "linux_64"
 
-from assasdb import AssasDatabaseManager, AssasDatabaseHandler
+from assasdb import AssasMongodbBackupHandler
 
 
 def setup_logging(
@@ -34,21 +34,9 @@ def main() -> None:
     start_time = datetime.datetime.now()
     logger.info(f"Start update of archive sizes as cron job at {start_time}.")
 
-    database_manager = AssasDatabaseManager(
-        database_handler=AssasDatabaseHandler(
-            database_name="assas",
-        )
-    )
-
-    database_manager.update_archive_sizes(number_of_archives=30)
-    database_manager.update_metadata_of_valid_archives(number_of_archives=30)
-    database_manager.collect_number_of_samples_of_uploaded_archives()
-    database_manager.collect_maximum_index_value_from_valid_archives()
-    database_manager.update_status_of_archives()
-    # database_manager.reset_metadata_of_valid_archives()
-    # database_manager.reset_result_directories(
-    #    status=AssasDocumentFileStatus.CONVERTING
-    # )
+    backup_handler = AssasMongodbBackupHandler()
+    backup_path = backup_handler.backup_with_mongodump()
+    logger.info(f"Backup created at: {backup_path}.")
 
     end_time = datetime.datetime.now()
     logger.info(f"Finished update of archives sizes at {end_time}.")
