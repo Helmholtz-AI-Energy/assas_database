@@ -15,7 +15,7 @@ import subprocess
 from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Mapping, Optional, Tuple
 from pymongo import MongoClient
 
 from assasdb.assas_astec_archive import AssasAstecArchive
@@ -661,7 +661,7 @@ except Exception as e:
             logger.error(f"Unrecognized size format: {size_str}.")
             raise ValueError(f"Unrecognized size format: {size_str}")
 
-    def update_dataset_attributes(self, uuid: str, update_data: dict) -> bool:
+    def update_dataset_attributes_old(self, uuid: str, update_data: dict) -> bool:
         """Update dataset attributes in MongoDB.
 
         Args:
@@ -1976,56 +1976,91 @@ except Exception as e:
                 update=document_file.get_document(),
             )
 
+    def update_dataset_attributes(
+        self, uuid: str, update_data: Mapping[str, Any]
+    ) -> bool:
+        """Update dataset attributes ONLY on the currently configured DB."""
+        if not update_data:
+            logger.warning(
+                "update_dataset_attributes called with empty update_data (uuid=%s).",
+                uuid,
+            )
+            return False
+
+        update_dict = dict(update_data)
+
+        # Wrap plain updates in $set (avoid accidental full-document replacement)
+        has_operator = any(str(k).startswith("$") for k in update_dict.keys())
+        update_doc = update_dict if has_operator else {"$set": update_dict}
+
+        # IMPORTANT: documents are identified by system_uuid
+        filter_doc = {"system_uuid": str(uuid)}
+
+        try:
+            result = self.database_handler.file_collection.update_one(
+                filter_doc, update_doc
+            )
+            logger.info(
+                (
+                    "update_dataset_attributes (local only) "
+                    "system_uuid=%s matched=%d modified=%d"
+                ),
+                str(uuid),
+                result.matched_count,
+                result.modified_count,
+            )
+            # matched_count is the important signal;
+            # modified_count can be 0 if values are unchanged
+            return result.matched_count > 0
+        except Exception as e:
+            logger.error(
+                "Error updating dataset %s on local DB: %s", uuid, e, exc_info=True
+            )
+            return False
+
     def link_files_to_batch_user(self) -> None:
-        """Link all files without user to the batch user.
+        """Link files to batch user (local DB only)."""
+        logger.info("Link all files without user to the batch user (local only).")
 
-        This function retrieves all file documents that do not have a user
-        assigned, converts them to AssasDocumentFile instances, and assigns
-        the batch user to them. The results are stored back in the database.
+        file_collection = self.database_handler.get_file_collection()
 
-        Returns:
-            None
+        users = list(self.database_handler.get_all_user_documents())
+        batch_to_user: dict[str, dict] = {}
+        for user in users:
+            batch = user.get("batch")
+            if batch:
+                batch_to_user[str(batch)] = user
 
-        """
-        logger.info("Link all files without user to the batch user.")
+        projection = {"system_uuid": 1, "system_user": 1}
+        cursor = file_collection.find({}, projection=projection).batch_size(500)
 
-        files = self.database_handler.get_file_collection()
-        files = list(files.find())
+        updated = 0
+        skipped = 0
 
-        logger.info(f"Found {len(files)} files in the database.")
+        for file_doc in cursor:
+            system_uuid = str(file_doc.get("system_uuid", "")).strip()
+            system_user = file_doc.get("system_user")
 
-        for file in files:
-            logger.debug(f"Processing file: {file}")
-            logger.debug(f"Current system_user: {file.get('system_user', None)}")
+            if not system_uuid or system_user is None:
+                skipped += 1
+                continue
 
-            system_user = file.get("system_user", None)
-            users = self.database_handler.get_all_user_documents()
-            for user in users:
-                batch = user.get("batch", None)
-                logger.debug(f"Checking user: {user}")
+            batch_user = batch_to_user.get(str(system_user))
+            if not batch_user:
+                skipped += 1
+                continue
 
-                if system_user == batch:
-                    logger.debug(f"Matched batch {batch} user: {user} for file.")
-                    batch_user = user
-                    logger.debug(f"Batch user found: {batch_user}")
-                    break
+            ok = self.update_dataset_attributes(
+                system_uuid, {"system_user_info": batch_user}
+            )
+            if ok:
+                updated += 1
             else:
-                batch_user = None
-                logger.debug("No matching batch user found for file.")
+                skipped += 1
 
-            if batch_user is not None:
-                file["system_user_info"] = batch_user
-                logger.debug(f"Assigning batch user info: {batch_user} to file.")
-
-                self.database_handler.update_file_document_by_uuid(
-                    uuid=file["system_uuid"], update=file
-                )
-
-                logger.info(
-                    f"Linked file {file['system_uuid']} to batch user {batch_user}."
-                )
-            else:
-                logger.warning("No batch user found in the database.")
+        logger.info(
+            "link_files_to_batch_user done: updated=%d skipped=%d", updated, skipped
+        )
 
     def list_users(self, role: str = "curator") -> None:
         """List all users with a specific role in the database."""
