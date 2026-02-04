@@ -1,3 +1,3 @@
-*/1 * * * * /root/.venv/bin/python3.11 /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/assas_validation_job.py >> /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/log/validation_job.log 2>&1
-*/1 * * * * /root/.venv/bin/python3.11 /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/assas_process_job.py >> /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/log/process_job.log 2>&1
+*/3 * * * * /root/.venv/bin/python3.11 /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/assas_validation_job.py >> /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/log/validation_job.log 2>&1
+*/10 * * * * /root/.venv/bin/python3.11 /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/assas_process_job.py >> /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/log/process_job.log 2>&1
 * 6,18 * * * /root/.venv/bin/python3.11 /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/assas_backup_job.py >> /root/assas-data-hub-dev/assas_database/assasdb/cron_jobs/log/backup_job.log 2>&1

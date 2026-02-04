@@ -108,6 +108,11 @@ def build_arg_aprser() -> argparse.ArgumentParser:
         action="store_true",
         help="Restore the internal database",
     )
+    parser.add_argument(
+        "--reset-sizes-in-progress",
+        action="store_true",
+        help="Reset archive sizes in the database",
+    )
 
     return parser
 
@@ -155,6 +160,10 @@ if __name__ == "__main__":
 
         if args.restore_internal_database:
             database_manager.restore_internal_database(drop=True, verbose=True)
+            did_action = True
+
+        if args.reset_sizes_in_progress:
+            database_manager.reset_in_progress_archive_sizes()
             did_action = True
 
         if not did_action:

@@ -98,8 +98,8 @@ def main() -> None:
             database_name=env["MONGO_DB_NAME"],
         )
     )
-    database_manager.update_archive_sizes(number_of_archives=30)
-    database_manager.update_metadata_of_valid_archives(number_of_archives=30)
+    database_manager.update_archive_sizes(number_of_archives=10)
+    database_manager.update_metadata_of_valid_archives(number_of_archives=10)
     database_manager.collect_number_of_samples_of_uploaded_archives()
     database_manager.collect_maximum_index_value_from_valid_archives()
     database_manager.update_status_of_archives()

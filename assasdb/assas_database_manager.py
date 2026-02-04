@@ -6,6 +6,8 @@ between the ASSAS application and the NoSql database.
 
 import os
 import sys
+import re
+import math
 import pandas as pd
 import logging
 import uuid
@@ -632,7 +634,7 @@ except Exception as e:
         return (dataframes["compression"].mean(), dataframes["compression_rate"].mean())
 
     @staticmethod
-    def convert_to_bytes(size_str: str) -> int:
+    def convert_to_bytes_old(size_str: str) -> int:
         """Convert a size string (e.g., '10 GB', '500 MB', '20 KB') into bytes.
 
         Args:
@@ -682,7 +684,7 @@ except Exception as e:
             return False
 
     @staticmethod
-    def convert_to_bytes_2(size_str: str) -> int:
+    def convert_to_bytes(size_str: str) -> int:
         """Convert a size string (e.g., '10 GB', '500 MB', '20 KB') into bytes.
 
         Args:
@@ -706,6 +708,58 @@ except Exception as e:
         unit = (m.group(2) or "B").upper()
         multipliers = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
         return int(number * multipliers.get(unit, 1))
+
+    @staticmethod
+    def convert_to_bytes_2(size_str: str) -> int:
+        """Convert size values to integer bytes.
+
+        Accepts:
+        - int/float (e.g., 0, 0.0, 1234.0)
+        - strings like "123", "123B", "0.0", "0.0B", "1.5 KB", "2MB", "3.1 GB"
+        Returns:
+        - int bytes (floored via int())
+        """
+        if size_str is None:
+            return 0
+
+        # numeric inputs
+        if isinstance(size_str, (int,)):
+            return int(size_str)
+        if isinstance(size_str, (float,)):
+            if math.isnan(size_str):
+                return 0
+            return int(size_str)
+
+        s = str(size_str).strip()
+        if not s or s.lower() in {"nan", "none", "null"}:
+            return 0
+
+        # normalize
+        s = s.replace(",", "").strip()
+
+        # match number + optional unit
+        m = re.match(
+            r"^\s*([0-9]*\.?[0-9]+)\s*([kmgtp]?b)?\s*$", s, flags=re.IGNORECASE
+        )
+        if not m:
+            raise ValueError(f"Unsupported size format: {size_str!r}")
+
+        value = float(m.group(1))
+        unit = (m.group(2) or "B").upper()
+
+        multipliers = {
+            "B": 1,
+            "KB": 1024,
+            "MB": 1024**2,
+            "GB": 1024**3,
+            "TB": 1024**4,
+            "PB": 1024**5,
+        }
+
+        if unit not in multipliers:
+            raise ValueError(f"Unsupported unit in size format: {size_str!r}")
+
+        return int(value * multipliers[unit])
 
     @staticmethod
     def convert_from_bytes(number_of_bytes: float, blocksize: float = 1024.0) -> str:
@@ -2071,3 +2125,48 @@ except Exception as e:
             roles = user.get("roles", [])
             if role in roles:
                 logger.info(f"{role}s: {user}")
+
+    def reset_in_progress_archive_sizes(
+        self,
+        from_placeholder: str = "....",
+        to_placeholder: str = "...",
+        *,
+        only_status: str | None = None,
+    ) -> tuple[int, int]:
+        """Reset stuck/in-progress size placeholders.
+
+        Some routines temporarily set system_size to "...." while calculating.
+        If a run crashes, documents may remain stuck at "....".
+        This function sets those back to "...", so they can be picked up again.
+
+        Args:
+            from_placeholder: Value to reset from (default: "....")
+            to_placeholder: Value to reset to (default: "...")
+            only_status: Optional filter by system_status (e.g. "UPLOADED")
+
+        Returns:
+            (matched_count, modified_count)
+
+        """
+        file_collection = self.database_handler.get_file_collection()
+
+        filter_doc: dict[str, Any] = {"system_size": from_placeholder}
+        if only_status is not None:
+            filter_doc["system_status"] = only_status
+
+        result = file_collection.update_many(
+            filter_doc, {"$set": {"system_size": to_placeholder}}
+        )
+
+        logger.info(
+            (
+                "reset_in_progress_archive_sizes: "
+                "from=%s to=%s status=%s matched=%d modified=%d"
+            ),
+            from_placeholder,
+            to_placeholder,
+            only_status,
+            result.matched_count,
+            result.modified_count,
+        )
+        return result.matched_count, result.modified_count
