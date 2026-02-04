@@ -296,7 +296,7 @@ class AssasMongodbBackupHandler:
         candidates.sort(key=lambda p: p.name)
         return candidates[-1]
 
-    def push_local_to_atlas_using_tools(
+    def push_source_to_target_using_tools(
         self,
         source_connection_string: str | None = None,
         target_connection_string: str | None = None,
@@ -376,7 +376,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 
     parser = argparse.ArgumentParser(
-        description="Push local MongoDB to Atlas using mongodump/mongorestore."
+        description="Push source MongoDB to target using mongodump/mongorestore."
     )
     parser.add_argument(
         "--source-db", default="assas", help="Local source database name"
@@ -408,7 +408,7 @@ if __name__ == "__main__":
     )
 
     handler = AssasMongodbBackupHandler()
-    handler.push_local_to_atlas_using_tools(
+    handler.push_source_to_target_using_tools(
         source_db_name=args.source_db,
         target_db_name=args.target_db,
         drop_existing=args.drop_existing,
