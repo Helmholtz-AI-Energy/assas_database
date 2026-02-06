@@ -26,6 +26,7 @@ from typing import Dict, Set, List, Tuple
 
 import uuid
 import pickle
+from datetime import datetime, timezone  # NEW
 
 from pymongo import MongoClient
 from pymongo.collection import Collection
@@ -34,6 +35,11 @@ from assasdb.assas_database_manager import AssasDatabaseManager
 from assasdb.assas_database_handler import AssasDatabaseHandler
 
 logger = logging.getLogger("assas_database_validator")
+
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:  # pragma: no cover
+    load_dotenv = None
 
 
 def setup_logging(level: int = logging.INFO) -> None:
@@ -173,61 +179,76 @@ def load_upload_info_pickle(pickle_path: Path) -> dict | None:
 
 
 def ensure_db_has_upload_info(
-    collection: Collection, upload_uuid: str, info_doc: dict
+    collection: Collection,
+    upload_uuid: str,
+    info_doc: dict,
+    *,
+    allow_update: bool,
+    allow_insert: bool,
+    dry_run: bool,
+    force_update: bool = False,  # NEW
 ) -> Tuple[bool, str]:
-    """Ensure the DB collection has a document for system_upload_uuid.
+    """Ensure DB has upload_info for a given system_upload_uuid.
 
-    If a document exists but lacks 'upload_info', add it from info_doc.
-    If no document exists, do NOT insert a new one (just report).
-
-    Args:
-      collection: pymongo Collection object
-      upload_uuid: the upload UUID to check
-      info_doc: dict to insert as 'upload_info' if needed
-
-    Returns (success, message):
-      - success: bool indicating if operation was successful
-      - message: one of:
-          * "upload_info_present" - document exists and has upload_info
-          * "updated" - document existed and was updated with upload_info
-          * "update_noop" - document existed but update did not modify
-          * "no_upload_uuid" - no document exists for this upload_uuid
-          * "error:{error_message}" - error occurred during operation
-
+    Modes are controlled by allow_update/allow_insert/dry_run.
+    If force_update=True, upload_info is overwritten even if already present.
     """
     try:
         existing = collection.find_one({"system_upload_uuid": upload_uuid})
+
         if existing:
-            # If upload_info already present, leave untouched
-            if "upload_info" in existing:
+            has_upload_info = "upload_info" in existing
+
+            # Already present and not forcing: nothing to do
+            if has_upload_info and not force_update:
                 return True, "upload_info_present"
 
-            # Add upload_info to the existing document
+            # Need an update (either missing OR forced overwrite)
+            if not allow_update:
+                return (
+                    False,
+                    "present_missing_upload_info"
+                    if not has_upload_info
+                    else "present_upload_info_no_force",
+                )
+
+            if dry_run:
+                return (
+                    True,
+                    "dry_run_forced_updated" if force_update else "dry_run_updated",
+                )
+
             update_result = collection.update_one(
                 {"_id": existing["_id"]},
                 {
                     "$set": {
                         "upload_info": info_doc,
                         "system_imported_from": "upload_info.pickle",
+                        "system_imported_at": datetime.now(timezone.utc).isoformat(),
                     }
                 },
             )
-            if update_result.modified_count > 0:
-                logger.info(
-                    "Updated existing DB document for upload_uuid %s with upload_info",
-                    upload_uuid,
-                )
-                return True, "updated"
-            else:
-                logger.info(
-                    "No update performed for upload_uuid %s (update_result=%s)",
-                    upload_uuid,
-                    update_result.raw_result,
-                )
-                return False, "update_noop"
+            if update_result.matched_count > 0:
+                return True, "forced_updated" if force_update else "updated"
+            return False, "update_noop"
 
-        logger.warning("No existing DB document for upload_uuid %s", upload_uuid)
-        return False, "no_upload_uuid"
+        # No document exists for upload_uuid
+        if not allow_insert:
+            return False, "no_upload_uuid"
+
+        new_doc = {
+            "system_uuid": str(uuid.uuid4()),
+            "system_upload_uuid": upload_uuid,
+            "upload_info": info_doc,
+            "system_imported_from": "upload_info.pickle",
+            "system_imported_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        if dry_run:
+            return True, "dry_run_inserted"
+
+        ins = collection.insert_one(new_doc)
+        return True, f"inserted:{ins.inserted_id}"
 
     except Exception as e:
         logger.error(
@@ -240,18 +261,14 @@ def validate_lsdf_vs_db(
     upload_dir: Path,
     manager: AssasDatabaseManager,
     mongo_collection: Collection | None = None,
+    *,
+    allow_update: bool = False,
+    allow_insert: bool = False,
+    dry_run: bool = False,
+    force_update: bool = False,  # NEW
+    limit: int | None = None,
 ) -> Dict:
-    """Compare LSDF folders and DB registrations.
-
-    Args:
-        upload_dir: Path to LSDF upload directory
-        manager: AssasDatabaseManager instance
-        mongo_collection: Optional pymongo Collection for direct DB access
-
-    Returns:
-        report dict with validation results and details.
-
-    """
+    """Compare LSDF folders and DB registrations."""
     lsdf_set = scan_lsdf_upload_uuids(upload_dir)
     db_counts = query_db_upload_uuids(manager)
     db_set = set(db_counts.keys())
@@ -259,39 +276,36 @@ def validate_lsdf_vs_db(
     lsdf_only = sorted(list(lsdf_set - db_set))
     db_only = sorted(list(db_set - lsdf_set))
 
-    # extra validation details
     invalid_archives: List[str] = []
     missing_pickles: List[str] = []
     already_present: List[str] = []
-    needs_update: List[str] = []  # present in DB but missing upload_info
-    missing_in_db: List[str] = []  # valid archive but no DB document present
+    needs_update: List[str] = []
+    missing_in_db: List[str] = []
+    inserted_docs: List[str] = []
     check_errors: Dict[str, str] = {}
+    forced_updated: List[str] = []  # NEW
 
-    total = len(lsdf_set)
-    logger.info("Starting LSDF <> DB validation: %d LSDF folders to check", total)
-
-    collection = None
-    if mongo_collection is not None:
-        collection = mongo_collection
-    else:
+    collection = mongo_collection
+    if collection is None:
         try:
-            # try to get pymongo collection from handler if available
             handler = manager.database_handler
-            collection = getattr(handler, "files_collection", None)
-            if collection is None:
-                # fallback: attempt to build client from handler attributes
-                client = getattr(handler, "client", None)
-                dbname = getattr(handler, "database_name", None)
-                if client and dbname:
-                    collection = client[dbname]["files"]
+            # common attribute names in this codebase are file_collection/files
+            collection = getattr(handler, "file_collection", None) or getattr(
+                handler, "files_collection", None
+            )
         except Exception:
             collection = None
 
-    # how often to emit progress (tuneable)
+    uuids_to_check = sorted(lsdf_set)
+    if limit is not None:
+        uuids_to_check = uuids_to_check[: max(0, int(limit))]
+
+    total = len(uuids_to_check)
+    logger.info("Starting LSDF <> DB validation: %d LSDF folders to check", total)
+
     log_every = 50 if total > 200 else 10
 
-    for idx, upload_uuid in enumerate(sorted(lsdf_set), start=1):
-        # periodic progress log
+    for idx, upload_uuid in enumerate(uuids_to_check, start=1):
         if idx % log_every == 0 or idx == 1 or idx == total:
             pct = (idx / total * 100) if total > 0 else 100.0
             logger.info(
@@ -305,68 +319,46 @@ def validate_lsdf_vs_db(
         folder = upload_dir / upload_uuid
         valid, issues = is_valid_archive_folder(folder, upload_uuid)
         if not valid:
-            logger.debug("Archive %s invalid: %s", upload_uuid, issues)
             if "missing_trigger_file" in issues:
                 invalid_archives.append(upload_uuid)
             if "missing_upload_info" in issues:
                 missing_pickles.append(upload_uuid)
-            # skip further checks for invalid archive
             continue
 
-        # valid archive: load pickle (we only read it for reporting; no DB insert)
         pickle_path = folder / "upload_info.pickle"
         info = load_upload_info_pickle(pickle_path)
         if info is None:
-            logger.warning("Failed to load upload_info.pickle for %s", upload_uuid)
             missing_pickles.append(upload_uuid)
             continue
-        else:
-            logger.debug(
-                "Loaded upload_info.pickle for %s (keys=%s)",
+
+        if collection is not None:
+            ok, msg = ensure_db_has_upload_info(
+                collection,
                 upload_uuid,
-                list(info.keys())[:10],
+                info,
+                allow_update=allow_update,
+                allow_insert=allow_insert,
+                dry_run=dry_run,
+                force_update=force_update,  # NEW
             )
 
-        # If collection available, check DB status without modifying
-        if collection is not None:
-            ok, msg = ensure_db_has_upload_info(collection, upload_uuid, info)
             if msg == "upload_info_present":
                 already_present.append(upload_uuid)
-                logger.debug("DB already has upload_info for %s", upload_uuid)
-            elif msg == "present_missing_upload_info":
+            elif msg in ("present_missing_upload_info",):
                 needs_update.append(upload_uuid)
-                logger.info(
-                    "DB has document for %s but missing upload_info", upload_uuid
-                )
-            elif msg == "missing_in_db" or msg == "no_upload_uuid":
+            elif msg in ("no_upload_uuid",):
                 missing_in_db.append(upload_uuid)
-                logger.info("No DB document found for %s", upload_uuid)
+            elif msg.startswith("inserted:") or msg == "dry_run_inserted":
+                inserted_docs.append(upload_uuid)
+            elif msg in ("forced_updated", "dry_run_forced_updated"):
+                forced_updated.append(upload_uuid)
+            elif msg in ("updated", "dry_run_updated", "update_noop"):
+                pass
             else:
-                check_errors[upload_uuid] = msg
-                logger.error("Error checking DB for %s: %s", upload_uuid, msg)
+                if not ok:
+                    check_errors[upload_uuid] = msg
         else:
-            logger.debug(
-                "No DB collection available to check upload_info for %s", upload_uuid
-            )
-
-    # final summary logs
-    logger.info(
-        "Validation finished: LSDF=%d, DB=%d, lsdf_only=%d, "
-        "db_only=%d, invalid_archives=%d, missing_pickles=%d",
-        total,
-        len(db_set),
-        len(lsdf_only),
-        len(db_only),
-        len(invalid_archives),
-        len(missing_pickles),
-    )
-    logger.info(
-        "Details: already_present=%d, needs_update=%d, missing_in_db=%d, errors=%d",
-        len(already_present),
-        len(needs_update),
-        len(missing_in_db),
-        len(check_errors),
-    )
+            check_errors[upload_uuid] = "no_mongo_collection"
 
     report = {
         "lsdf_count": len(lsdf_set),
@@ -379,9 +371,14 @@ def validate_lsdf_vs_db(
         "already_present": already_present,
         "needs_update": needs_update,
         "missing_in_db": missing_in_db,
+        "inserted_docs": inserted_docs,
         "check_errors": check_errors,
+        "forced_updated": forced_updated,  # NEW
+        "dry_run": bool(dry_run),
+        "allow_update": bool(allow_update),
+        "allow_insert": bool(allow_insert),
+        "limit": limit,
     }
-
     return report
 
 
@@ -399,6 +396,9 @@ def write_report(report: Dict, outfile: Path) -> None:
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     p = argparse.ArgumentParser(description="ASSAS DB <> LSDF Validator")
+    p.add_argument(
+        "--env-file", default=None, help="Optional path to .env (loaded before running)"
+    )
     p.add_argument(
         "--upload-dir",
         "-u",
@@ -418,6 +418,42 @@ def parse_args() -> argparse.Namespace:
         "--report", "-r", default=None, help="Write JSON report to this path"
     )
     p.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
+
+    # NEW: write controls
+    p.add_argument(
+        "--dry-run", action="store_true", help="Do not write to DB (no updates/inserts)"
+    )
+    p.add_argument(
+        "--update-upload-info",
+        action="store_true",
+        help=(
+            "If a DB doc exists but upload_info is missing, "
+            "add it from upload_info.pickle",
+        ),
+    )
+
+    # NEW: overwrite upload_info even if already present
+    p.add_argument(
+        "--update-all-upload-info",
+        action="store_true",
+        help=(
+            "Overwrite upload_info for all valid LSDF folders "
+            "(dangerous; use --dry-run first).",
+        ),
+    )
+    p.add_argument(
+        "--insert-missing",
+        action="store_true",
+        help=(
+            "If no DB doc exists for an upload_uuid, "
+            "insert a minimal document from upload_info.pickle",
+        ),
+    )
+    p.add_argument(
+        "--limit", type=int, default=None, help="Only check first N upload UUID folders"
+    )
+
+    # ...existing destructive flags...
     p.add_argument(
         "--delete-missing",
         action="store_true",
@@ -448,41 +484,60 @@ def main() -> int:
     args = parse_args()
     setup_logging(logging.DEBUG if args.verbose else logging.INFO)
 
-    # Build database handler / manager
-    handler_kwargs = {}
-    if args.conn:
-        handler_kwargs["connection_string"] = args.conn
-    if args.db:
-        handler_kwargs["database_name"] = args.db
+    if args.env_file:
+        if load_dotenv is None:
+            logger.warning("python-dotenv not installed; --env-file ignored")
+        else:
+            load_dotenv(args.env_file, override=True)
 
+    # Build database handler / manager
     try:
+        db_handler = AssasDatabaseHandler(
+            connection_string=args.conn, database_name=args.db
+        )
+    except TypeError:
+        # Backwards compatibility if handler doesn't accept connection_string
         db_handler = AssasDatabaseHandler(database_name=args.db)
-    except Exception as e:
-        logger.error("Failed to create AssasDatabaseHandler: %s", e)
-        return 2
 
     manager = AssasDatabaseManager(
         database_handler=db_handler, upload_directory=args.upload_dir
     )
     upload_dir = Path(args.upload_dir)
 
-    # create a direct pymongo collection handle for insertion / deletion if possible
     mongo_collection = None
     try:
-        client = getattr(db_handler, "client", None)
+        client = getattr(db_handler, "client", None) or MongoClient(args.conn)
         dbname = getattr(db_handler, "database_name", args.db)
-        if client is None:
-            client = MongoClient(args.conn)
         mongo_collection = client[dbname]["files"]
     except Exception as e:
         logger.warning("Could not obtain direct pymongo collection: %s", e)
         mongo_collection = None
 
-    logger.info("Beginning validation run (upload_dir=%s, db=%s)", upload_dir, args.db)
-    report = validate_lsdf_vs_db(
-        upload_dir=upload_dir, manager=manager, mongo_collection=mongo_collection
+    logger.info(
+        "Beginning validation run \n"
+        "(upload_dir=%s, db=%s, dry_run=%s, update=%s, insert=%s, limit=%s)",
+        upload_dir,
+        args.db,
+        args.dry_run,
+        args.update_upload_info,
+        args.insert_missing,
+        args.limit,
     )
-    logger.info("Validation run completed")
+
+    # If update-all is set, enable updates and force overwrite
+    allow_update = bool(args.update_upload_info or args.update_all_upload_info)
+    force_update = bool(args.update_all_upload_info)
+
+    report = validate_lsdf_vs_db(
+        upload_dir=upload_dir,
+        manager=manager,
+        mongo_collection=mongo_collection,
+        allow_update=allow_update,
+        allow_insert=args.insert_missing,
+        dry_run=args.dry_run,
+        force_update=force_update,  # NEW
+        limit=args.limit,
+    )
 
     # Print human readable summary
     logger.info("\nASSAS LSDF <> DB Validation Report")
@@ -584,7 +639,8 @@ def main() -> int:
                     )
                     logger.error(f"ERROR: Deletion failed: {e}")
 
-    # --- New: detect duplicated upload_uuids and optionally delete extra documents ---
+    # --- New: detect duplicated upload_uuids and
+    # optionally delete extra documents ---
     duplicate_uuids = [u for u, c in report.get("db_counts", {}).items() if c > 1]
     if duplicate_uuids:
         logger.info(

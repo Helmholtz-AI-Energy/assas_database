@@ -166,6 +166,7 @@ assasdb/results/
 assasdb/tools/jobs/
 assasdb/tools/logs/
 assasdb/tools/log/
+assasdb/tools/export_data/
 assasdb/tools/result/
 test_reports/
 logs/

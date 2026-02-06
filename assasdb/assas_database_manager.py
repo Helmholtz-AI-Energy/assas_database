@@ -6,6 +6,8 @@ between the ASSAS application and the NoSql database.
 
 import os
 import sys
+import re
+import math
 import pandas as pd
 import logging
 import uuid
@@ -15,8 +17,9 @@ import subprocess
 from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Mapping, Optional, Tuple
 from pymongo import MongoClient
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from assasdb.assas_astec_archive import AssasAstecArchive
 from assasdb.assas_database_handler import AssasDatabaseHandler
@@ -632,7 +635,7 @@ except Exception as e:
         return (dataframes["compression"].mean(), dataframes["compression_rate"].mean())
 
     @staticmethod
-    def convert_to_bytes(size_str: str) -> int:
+    def convert_to_bytes_old(size_str: str) -> int:
         """Convert a size string (e.g., '10 GB', '500 MB', '20 KB') into bytes.
 
         Args:
@@ -661,7 +664,7 @@ except Exception as e:
             logger.error(f"Unrecognized size format: {size_str}.")
             raise ValueError(f"Unrecognized size format: {size_str}")
 
-    def update_dataset_attributes(self, uuid: str, update_data: dict) -> bool:
+    def update_dataset_attributes_old(self, uuid: str, update_data: dict) -> bool:
         """Update dataset attributes in MongoDB.
 
         Args:
@@ -682,7 +685,7 @@ except Exception as e:
             return False
 
     @staticmethod
-    def convert_to_bytes_2(size_str: str) -> int:
+    def convert_to_bytes(size_str: str) -> int:
         """Convert a size string (e.g., '10 GB', '500 MB', '20 KB') into bytes.
 
         Args:
@@ -706,6 +709,58 @@ except Exception as e:
         unit = (m.group(2) or "B").upper()
         multipliers = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
         return int(number * multipliers.get(unit, 1))
+
+    @staticmethod
+    def convert_to_bytes_2(size_str: str) -> int:
+        """Convert size values to integer bytes.
+
+        Accepts:
+        - int/float (e.g., 0, 0.0, 1234.0)
+        - strings like "123", "123B", "0.0", "0.0B", "1.5 KB", "2MB", "3.1 GB"
+        Returns:
+        - int bytes (floored via int())
+        """
+        if size_str is None:
+            return 0
+
+        # numeric inputs
+        if isinstance(size_str, (int,)):
+            return int(size_str)
+        if isinstance(size_str, (float,)):
+            if math.isnan(size_str):
+                return 0
+            return int(size_str)
+
+        s = str(size_str).strip()
+        if not s or s.lower() in {"nan", "none", "null"}:
+            return 0
+
+        # normalize
+        s = s.replace(",", "").strip()
+
+        # match number + optional unit
+        m = re.match(
+            r"^\s*([0-9]*\.?[0-9]+)\s*([kmgtp]?b)?\s*$", s, flags=re.IGNORECASE
+        )
+        if not m:
+            raise ValueError(f"Unsupported size format: {size_str!r}")
+
+        value = float(m.group(1))
+        unit = (m.group(2) or "B").upper()
+
+        multipliers = {
+            "B": 1,
+            "KB": 1024,
+            "MB": 1024**2,
+            "GB": 1024**3,
+            "TB": 1024**4,
+            "PB": 1024**5,
+        }
+
+        if unit not in multipliers:
+            raise ValueError(f"Unsupported unit in size format: {size_str!r}")
+
+        return int(value * multipliers[unit])
 
     @staticmethod
     def convert_from_bytes(number_of_bytes: float, blocksize: float = 1024.0) -> str:
@@ -1976,56 +2031,91 @@ except Exception as e:
                 update=document_file.get_document(),
             )
 
+    def update_dataset_attributes(
+        self, uuid: str, update_data: Mapping[str, Any]
+    ) -> bool:
+        """Update dataset attributes ONLY on the currently configured DB."""
+        if not update_data:
+            logger.warning(
+                "update_dataset_attributes called with empty update_data (uuid=%s).",
+                uuid,
+            )
+            return False
+
+        update_dict = dict(update_data)
+
+        # Wrap plain updates in $set (avoid accidental full-document replacement)
+        has_operator = any(str(k).startswith("$") for k in update_dict.keys())
+        update_doc = update_dict if has_operator else {"$set": update_dict}
+
+        # IMPORTANT: documents are identified by system_uuid
+        filter_doc = {"system_uuid": str(uuid)}
+
+        try:
+            result = self.database_handler.file_collection.update_one(
+                filter_doc, update_doc
+            )
+            logger.info(
+                (
+                    "update_dataset_attributes (local only) "
+                    "system_uuid=%s matched=%d modified=%d"
+                ),
+                str(uuid),
+                result.matched_count,
+                result.modified_count,
+            )
+            # matched_count is the important signal;
+            # modified_count can be 0 if values are unchanged
+            return result.matched_count > 0
+        except Exception as e:
+            logger.error(
+                "Error updating dataset %s on local DB: %s", uuid, e, exc_info=True
+            )
+            return False
+
     def link_files_to_batch_user(self) -> None:
-        """Link all files without user to the batch user.
+        """Link files to batch user (local DB only)."""
+        logger.info("Link all files without user to the batch user (local only).")
 
-        This function retrieves all file documents that do not have a user
-        assigned, converts them to AssasDocumentFile instances, and assigns
-        the batch user to them. The results are stored back in the database.
+        file_collection = self.database_handler.get_file_collection()
 
-        Returns:
-            None
+        users = list(self.database_handler.get_all_user_documents())
+        batch_to_user: dict[str, dict] = {}
+        for user in users:
+            batch = user.get("batch")
+            if batch:
+                batch_to_user[str(batch)] = user
 
-        """
-        logger.info("Link all files without user to the batch user.")
+        projection = {"system_uuid": 1, "system_user": 1}
+        cursor = file_collection.find({}, projection=projection).batch_size(500)
 
-        files = self.database_handler.get_file_collection()
-        files = list(files.find())
+        updated = 0
+        skipped = 0
 
-        logger.info(f"Found {len(files)} files in the database.")
+        for file_doc in cursor:
+            system_uuid = str(file_doc.get("system_uuid", "")).strip()
+            system_user = file_doc.get("system_user")
 
-        for file in files:
-            logger.debug(f"Processing file: {file}")
-            logger.debug(f"Current system_user: {file.get('system_user', None)}")
+            if not system_uuid or system_user is None:
+                skipped += 1
+                continue
 
-            system_user = file.get("system_user", None)
-            users = self.database_handler.get_all_user_documents()
-            for user in users:
-                batch = user.get("batch", None)
-                logger.debug(f"Checking user: {user}")
+            batch_user = batch_to_user.get(str(system_user))
+            if not batch_user:
+                skipped += 1
+                continue
 
-                if system_user == batch:
-                    logger.debug(f"Matched batch {batch} user: {user} for file.")
-                    batch_user = user
-                    logger.debug(f"Batch user found: {batch_user}")
-                    break
+            ok = self.update_dataset_attributes(
+                system_uuid, {"system_user_info": batch_user}
+            )
+            if ok:
+                updated += 1
             else:
-                batch_user = None
-                logger.debug("No matching batch user found for file.")
+                skipped += 1
 
-            if batch_user is not None:
-                file["system_user_info"] = batch_user
-                logger.debug(f"Assigning batch user info: {batch_user} to file.")
-
-                self.database_handler.update_file_document_by_uuid(
-                    uuid=file["system_uuid"], update=file
-                )
-
-                logger.info(
-                    f"Linked file {file['system_uuid']} to batch user {batch_user}."
-                )
-            else:
-                logger.warning("No batch user found in the database.")
+        logger.info(
+            "link_files_to_batch_user done: updated=%d skipped=%d", updated, skipped
+        )
 
     def list_users(self, role: str = "curator") -> None:
         """List all users with a specific role in the database."""
@@ -2036,3 +2126,194 @@ except Exception as e:
             roles = user.get("roles", [])
             if role in roles:
                 logger.info(f"{role}s: {user}")
+
+    def reset_in_progress_archive_sizes(
+        self,
+        from_placeholder: str = "....",
+        to_placeholder: str = "...",
+        *,
+        only_status: str | None = None,
+    ) -> tuple[int, int]:
+        """Reset stuck/in-progress size placeholders.
+
+        Some routines temporarily set system_size to "...." while calculating.
+        If a run crashes, documents may remain stuck at "....".
+        This function sets those back to "...", so they can be picked up again.
+
+        Args:
+            from_placeholder: Value to reset from (default: "....")
+            to_placeholder: Value to reset to (default: "...")
+            only_status: Optional filter by system_status (e.g. "UPLOADED")
+
+        Returns:
+            (matched_count, modified_count)
+
+        """
+        file_collection = self.database_handler.get_file_collection()
+
+        filter_doc: dict[str, Any] = {"system_size": from_placeholder}
+        if only_status is not None:
+            filter_doc["system_status"] = only_status
+
+        result = file_collection.update_many(
+            filter_doc, {"$set": {"system_size": to_placeholder}}
+        )
+
+        logger.info(
+            (
+                "reset_in_progress_archive_sizes: "
+                "from=%s to=%s status=%s matched=%d modified=%d"
+            ),
+            from_placeholder,
+            to_placeholder,
+            only_status,
+            result.matched_count,
+            result.modified_count,
+        )
+        return result.matched_count, result.modified_count
+
+    @staticmethod
+    def _convert_from_bytes_quiet(
+        number_of_bytes: float, blocksize: float = 1024.0
+    ) -> str:
+        """Convert bytes to a human-readable string.
+
+        Note: But without logging (keeps bulk runs fast/quiet).
+
+        Args:
+            number_of_bytes: The size in bytes to convert.
+            blocksize: The block size to use for conversion (default: 1024).
+
+        """
+        x = float(number_of_bytes or 0.0)
+        for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
+            if x < blocksize:
+                return f"{round(x, 2)} {unit}"
+            x /= blocksize
+        return f"{round(x, 2)} PB"
+
+    def recalc_hdf5_sizes_fast(
+        self,
+        *,
+        only_missing_or_zero: bool = True,
+        max_documents: int | None = None,
+        workers: int = 16,
+        dry_run: bool = True,
+        set_bytes_field: bool = True,
+    ) -> dict:
+        """Recalculate system_size_hdf5 from the actual file size.
+
+        Fast: uses os.stat only; does NOT open HDF5.
+
+        Updates fields:
+          - system_size_hdf5 (human-readable, e.g. "12.34 MB")
+          - optionally system_size_hdf5_bytes (int)
+
+        Returns summary dict.
+        """
+        file_collection = self.database_handler.get_file_collection()
+
+        projection = {"system_uuid": 1, "system_result": 1, "system_size_hdf5": 1}
+
+        filter_doc: dict[str, Any] = {}
+        if only_missing_or_zero:
+            filter_doc = {
+                "$or": [
+                    {"system_size_hdf5": {"$exists": False}},
+                    {"system_size_hdf5": None},
+                    {
+                        "system_size_hdf5": {
+                            "$in": ["", "0 B", "0.0 B", "...", "....", "nan", "NaN"]
+                        }
+                    },
+                ]
+            }
+
+        cursor = file_collection.find(filter_doc, projection=projection).batch_size(500)
+        if max_documents is not None:
+            cursor = cursor.limit(int(max_documents))
+
+        docs = list(cursor)
+        logger.info(
+            "recalc_hdf5_sizes_fast: loaded %d docs (dry_run=%s)", len(docs), dry_run
+        )
+
+        def stat_one(doc: dict) -> tuple[str, str, int | None, str | None]:
+            """Calculate the size of the HDF5 file for one document.
+
+            Returns:
+                (system_uuid, system_result, size_bytes, error)
+
+            """
+            system_uuid = str(doc.get("system_uuid") or "").strip()
+            system_result = str(doc.get("system_result") or "").strip()
+            if not system_uuid or not system_result:
+                return (
+                    system_uuid,
+                    system_result,
+                    None,
+                    "missing_system_uuid_or_system_result",
+                )
+            try:
+                size_bytes = os.path.getsize(system_result)
+                return system_uuid, system_result, int(size_bytes), None
+            except FileNotFoundError:
+                return system_uuid, system_result, None, "file_not_found"
+            except Exception as e:
+                return system_uuid, system_result, None, f"stat_error:{e}"
+
+        updated = 0
+        missing = 0
+        errors = 0
+        unchanged = 0
+
+        with ThreadPoolExecutor(max_workers=max(1, int(workers))) as ex:
+            futs = [ex.submit(stat_one, d) for d in docs]
+            for fut in as_completed(futs):
+                system_uuid, system_result, size_bytes, err = fut.result()
+
+                if err is not None:
+                    if err == "file_not_found":
+                        missing += 1
+                    else:
+                        errors += 1
+                        logger.warning(
+                            "HDF5 size stat failed: uuid=%s result=%s err=%s",
+                            system_uuid,
+                            system_result,
+                            err,
+                        )
+                    continue
+
+                new_human = self._convert_from_bytes_quiet(size_bytes)
+
+                if dry_run:
+                    updated += 1
+                    continue
+
+                update_doc: dict[str, Any] = {"system_size_hdf5": new_human}
+                if set_bytes_field:
+                    update_doc["system_size_hdf5_bytes"] = int(size_bytes)
+
+                # Update by system_uuid (this is the canonical identifier in your code)
+                res = file_collection.update_one(
+                    {"system_uuid": system_uuid}, {"$set": update_doc}
+                )
+                if res.matched_count == 0:
+                    errors += 1
+                    logger.warning("No doc matched for system_uuid=%s", system_uuid)
+                elif res.modified_count == 0:
+                    unchanged += 1
+                else:
+                    updated += 1
+
+        summary = {
+            "docs_loaded": len(docs),
+            "updated_or_would_update": updated,
+            "unchanged": unchanged,
+            "missing_files": missing,
+            "errors": errors,
+            "dry_run": dry_run,
+        }
+        logger.info("recalc_hdf5_sizes_fast summary: %s", summary)
+        return summary

@@ -4,8 +4,90 @@ This module provides utility functions and classes for handling durations
 and converting seconds into a more human-readable format.
 """
 
+import sys
+import os
+import logging
+
 from collections import namedtuple
 from typing import Iterator
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+from dotenv import load_dotenv
+
+
+def redact_mongo_uri(uri: str) -> str:
+    """Redact credentials in mongodb://user:pass@host URIs before logging."""
+    if not uri:
+        return ""
+    try:
+        parts = urlsplit(uri)
+        netloc = parts.netloc
+        if "@" in netloc and ":" in netloc.split("@", 1)[0]:
+            creds, host = netloc.split("@", 1)
+            user = creds.split(":", 1)[0]
+            netloc = f"{user}:***@{host}"
+            return urlunsplit(
+                (parts.scheme, netloc, parts.path, parts.query, parts.fragment)
+            )
+        return uri
+    except Exception:
+        return "<redacted>"
+
+
+def require_env(
+    logger: logging.Logger, keys: list[str], env_path: Path | None
+) -> dict[str, str]:
+    """Fetch required env vars, exit non-zero if any are missing/empty."""
+    values: dict[str, str] = {}
+    missing: list[str] = []
+    for k in keys:
+        v = (os.getenv(k) or "").strip()
+        if not v:
+            missing.append(k)
+        else:
+            values[k] = v
+
+    if missing:
+        logger.error("Missing required environment variables: %s", ", ".join(missing))
+        logger.error(
+            "Tip: ensure your .env is loaded (loaded: %s).",
+            str(env_path) if env_path else "no",
+        )
+        sys.exit(2)
+
+    return values
+
+
+def load_assas_env() -> Path | None:
+    """Load .env from a deterministic location and return the resolved path.
+
+    Return:
+        Path | None: The path to the loaded .env file, or None if not found.
+
+    """
+    # 1) Explicit override (best for cron)
+    explicit = os.getenv("ASSAS_ENV_FILE")
+    if explicit:
+        p = Path(explicit).expanduser().resolve()
+        if p.exists():
+            load_dotenv(p, override=False)
+            return p
+
+    # 2) Search upwards from this file for ".env" (repo layout safe)
+    here = Path(__file__).resolve()
+    for parent in [here.parent, *here.parents]:
+        candidate = parent / ".env"
+        if candidate.exists():
+            load_dotenv(candidate, override=False)
+            return candidate.resolve()
+
+    # 3) Fallback: current working directory
+    cwd_candidate = (Path.cwd() / ".env").resolve()
+    if cwd_candidate.exists():
+        load_dotenv(cwd_candidate, override=False)
+        return cwd_candidate
+
+    return None
 
 
 class Duration(namedtuple("Duration", "weeks, days, hours, minutes, seconds")):
