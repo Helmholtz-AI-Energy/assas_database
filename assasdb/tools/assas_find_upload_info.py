@@ -368,6 +368,7 @@ def correct_archive_paths_for_user(lsdf_root: Optional[Path], user: str) -> int:
                 )
                 continue
 
+            ## Maunal adaption
             archive_name = str(upload_info.get("name"))
             new_archive_paths = [
                 f"/{archive_name}/LOCA_6I_CL_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin"
