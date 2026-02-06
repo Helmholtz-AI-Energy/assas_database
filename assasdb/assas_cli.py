@@ -113,6 +113,11 @@ def build_arg_aprser() -> argparse.ArgumentParser:
         action="store_true",
         help="Reset archive sizes in the database",
     )
+    parser.add_argument(
+        "--run-hdf5-recalc",
+        action="store_true",
+        help="Recalculate HDF5 sizes in the database",
+    )
 
     return parser
 
@@ -164,6 +169,12 @@ if __name__ == "__main__":
 
         if args.reset_sizes_in_progress:
             database_manager.reset_in_progress_archive_sizes()
+            did_action = True
+
+        if args.run_hdf5_recalc:
+            database_manager.recalc_hdf5_sizes_fast(
+                dry_run=True, workers=16, max_documents=200
+            )
             did_action = True
 
         if not did_action:

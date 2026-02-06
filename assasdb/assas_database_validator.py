@@ -186,24 +186,37 @@ def ensure_db_has_upload_info(
     allow_update: bool,
     allow_insert: bool,
     dry_run: bool,
+    force_update: bool = False,  # NEW
 ) -> Tuple[bool, str]:
     """Ensure DB has upload_info for a given system_upload_uuid.
 
     Modes are controlled by allow_update/allow_insert/dry_run.
+    If force_update=True, upload_info is overwritten even if already present.
     """
     try:
         existing = collection.find_one({"system_upload_uuid": upload_uuid})
 
         if existing:
-            if "upload_info" in existing:
+            has_upload_info = "upload_info" in existing
+
+            # Already present and not forcing: nothing to do
+            if has_upload_info and not force_update:
                 return True, "upload_info_present"
 
-            # Exists but missing upload_info
+            # Need an update (either missing OR forced overwrite)
             if not allow_update:
-                return False, "present_missing_upload_info"
+                return (
+                    False,
+                    "present_missing_upload_info"
+                    if not has_upload_info
+                    else "present_upload_info_no_force",
+                )
 
             if dry_run:
-                return True, "dry_run_updated"
+                return (
+                    True,
+                    "dry_run_forced_updated" if force_update else "dry_run_updated",
+                )
 
             update_result = collection.update_one(
                 {"_id": existing["_id"]},
@@ -216,15 +229,13 @@ def ensure_db_has_upload_info(
                 },
             )
             if update_result.matched_count > 0:
-                return True, "updated"
+                return True, "forced_updated" if force_update else "updated"
             return False, "update_noop"
 
         # No document exists for upload_uuid
         if not allow_insert:
             return False, "no_upload_uuid"
 
-        # Insert a minimal doc
-        # (schema-safe-ish, but may not satisfy all downstream assumptions)
         new_doc = {
             "system_uuid": str(uuid.uuid4()),
             "system_upload_uuid": upload_uuid,
@@ -254,6 +265,7 @@ def validate_lsdf_vs_db(
     allow_update: bool = False,
     allow_insert: bool = False,
     dry_run: bool = False,
+    force_update: bool = False,  # NEW
     limit: int | None = None,
 ) -> Dict:
     """Compare LSDF folders and DB registrations."""
@@ -271,6 +283,7 @@ def validate_lsdf_vs_db(
     missing_in_db: List[str] = []
     inserted_docs: List[str] = []
     check_errors: Dict[str, str] = {}
+    forced_updated: List[str] = []  # NEW
 
     collection = mongo_collection
     if collection is None:
@@ -326,6 +339,7 @@ def validate_lsdf_vs_db(
                 allow_update=allow_update,
                 allow_insert=allow_insert,
                 dry_run=dry_run,
+                force_update=force_update,  # NEW
             )
 
             if msg == "upload_info_present":
@@ -336,8 +350,9 @@ def validate_lsdf_vs_db(
                 missing_in_db.append(upload_uuid)
             elif msg.startswith("inserted:") or msg == "dry_run_inserted":
                 inserted_docs.append(upload_uuid)
+            elif msg in ("forced_updated", "dry_run_forced_updated"):
+                forced_updated.append(upload_uuid)
             elif msg in ("updated", "dry_run_updated", "update_noop"):
-                # treat these as handled (not an error)
                 pass
             else:
                 if not ok:
@@ -358,6 +373,7 @@ def validate_lsdf_vs_db(
         "missing_in_db": missing_in_db,
         "inserted_docs": inserted_docs,
         "check_errors": check_errors,
+        "forced_updated": forced_updated,  # NEW
         "dry_run": bool(dry_run),
         "allow_update": bool(allow_update),
         "allow_insert": bool(allow_insert),
@@ -413,6 +429,16 @@ def parse_args() -> argparse.Namespace:
         help=(
             "If a DB doc exists but upload_info is missing, "
             "add it from upload_info.pickle",
+        ),
+    )
+
+    # NEW: overwrite upload_info even if already present
+    p.add_argument(
+        "--update-all-upload-info",
+        action="store_true",
+        help=(
+            "Overwrite upload_info for all valid LSDF folders "
+            "(dangerous; use --dry-run first).",
         ),
     )
     p.add_argument(
@@ -498,13 +524,18 @@ def main() -> int:
         args.limit,
     )
 
+    # If update-all is set, enable updates and force overwrite
+    allow_update = bool(args.update_upload_info or args.update_all_upload_info)
+    force_update = bool(args.update_all_upload_info)
+
     report = validate_lsdf_vs_db(
         upload_dir=upload_dir,
         manager=manager,
         mongo_collection=mongo_collection,
-        allow_update=args.update_upload_info,
+        allow_update=allow_update,
         allow_insert=args.insert_missing,
         dry_run=args.dry_run,
+        force_update=force_update,  # NEW
         limit=args.limit,
     )
 
@@ -608,7 +639,8 @@ def main() -> int:
                     )
                     logger.error(f"ERROR: Deletion failed: {e}")
 
-    # --- New: detect duplicated upload_uuids and optionally delete extra documents ---
+    # --- New: detect duplicated upload_uuids and
+    # optionally delete extra documents ---
     duplicate_uuids = [u for u, c in report.get("db_counts", {}).items() if c > 1]
     if duplicate_uuids:
         logger.info(

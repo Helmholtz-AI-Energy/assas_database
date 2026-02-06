@@ -19,6 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Mapping, Optional, Tuple
 from pymongo import MongoClient
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from assasdb.assas_astec_archive import AssasAstecArchive
 from assasdb.assas_database_handler import AssasDatabaseHandler
@@ -2170,3 +2171,149 @@ except Exception as e:
             result.modified_count,
         )
         return result.matched_count, result.modified_count
+
+    @staticmethod
+    def _convert_from_bytes_quiet(
+        number_of_bytes: float, blocksize: float = 1024.0
+    ) -> str:
+        """Convert bytes to a human-readable string.
+
+        Note: But without logging (keeps bulk runs fast/quiet).
+
+        Args:
+            number_of_bytes: The size in bytes to convert.
+            blocksize: The block size to use for conversion (default: 1024).
+
+        """
+        x = float(number_of_bytes or 0.0)
+        for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
+            if x < blocksize:
+                return f"{round(x, 2)} {unit}"
+            x /= blocksize
+        return f"{round(x, 2)} PB"
+
+    def recalc_hdf5_sizes_fast(
+        self,
+        *,
+        only_missing_or_zero: bool = True,
+        max_documents: int | None = None,
+        workers: int = 16,
+        dry_run: bool = True,
+        set_bytes_field: bool = True,
+    ) -> dict:
+        """Recalculate system_size_hdf5 from the actual file size.
+
+        Fast: uses os.stat only; does NOT open HDF5.
+
+        Updates fields:
+          - system_size_hdf5 (human-readable, e.g. "12.34 MB")
+          - optionally system_size_hdf5_bytes (int)
+
+        Returns summary dict.
+        """
+        file_collection = self.database_handler.get_file_collection()
+
+        projection = {"system_uuid": 1, "system_result": 1, "system_size_hdf5": 1}
+
+        filter_doc: dict[str, Any] = {}
+        if only_missing_or_zero:
+            filter_doc = {
+                "$or": [
+                    {"system_size_hdf5": {"$exists": False}},
+                    {"system_size_hdf5": None},
+                    {
+                        "system_size_hdf5": {
+                            "$in": ["", "0 B", "0.0 B", "...", "....", "nan", "NaN"]
+                        }
+                    },
+                ]
+            }
+
+        cursor = file_collection.find(filter_doc, projection=projection).batch_size(500)
+        if max_documents is not None:
+            cursor = cursor.limit(int(max_documents))
+
+        docs = list(cursor)
+        logger.info(
+            "recalc_hdf5_sizes_fast: loaded %d docs (dry_run=%s)", len(docs), dry_run
+        )
+
+        def stat_one(doc: dict) -> tuple[str, str, int | None, str | None]:
+            """Calculate the size of the HDF5 file for one document.
+
+            Returns:
+                (system_uuid, system_result, size_bytes, error)
+
+            """
+            system_uuid = str(doc.get("system_uuid") or "").strip()
+            system_result = str(doc.get("system_result") or "").strip()
+            if not system_uuid or not system_result:
+                return (
+                    system_uuid,
+                    system_result,
+                    None,
+                    "missing_system_uuid_or_system_result",
+                )
+            try:
+                size_bytes = os.path.getsize(system_result)
+                return system_uuid, system_result, int(size_bytes), None
+            except FileNotFoundError:
+                return system_uuid, system_result, None, "file_not_found"
+            except Exception as e:
+                return system_uuid, system_result, None, f"stat_error:{e}"
+
+        updated = 0
+        missing = 0
+        errors = 0
+        unchanged = 0
+
+        with ThreadPoolExecutor(max_workers=max(1, int(workers))) as ex:
+            futs = [ex.submit(stat_one, d) for d in docs]
+            for fut in as_completed(futs):
+                system_uuid, system_result, size_bytes, err = fut.result()
+
+                if err is not None:
+                    if err == "file_not_found":
+                        missing += 1
+                    else:
+                        errors += 1
+                        logger.warning(
+                            "HDF5 size stat failed: uuid=%s result=%s err=%s",
+                            system_uuid,
+                            system_result,
+                            err,
+                        )
+                    continue
+
+                new_human = self._convert_from_bytes_quiet(size_bytes)
+
+                if dry_run:
+                    updated += 1
+                    continue
+
+                update_doc: dict[str, Any] = {"system_size_hdf5": new_human}
+                if set_bytes_field:
+                    update_doc["system_size_hdf5_bytes"] = int(size_bytes)
+
+                # Update by system_uuid (this is the canonical identifier in your code)
+                res = file_collection.update_one(
+                    {"system_uuid": system_uuid}, {"$set": update_doc}
+                )
+                if res.matched_count == 0:
+                    errors += 1
+                    logger.warning("No doc matched for system_uuid=%s", system_uuid)
+                elif res.modified_count == 0:
+                    unchanged += 1
+                else:
+                    updated += 1
+
+        summary = {
+            "docs_loaded": len(docs),
+            "updated_or_would_update": updated,
+            "unchanged": unchanged,
+            "missing_files": missing,
+            "errors": errors,
+            "dry_run": dry_run,
+        }
+        logger.info("recalc_hdf5_sizes_fast summary: %s", summary)
+        return summary
