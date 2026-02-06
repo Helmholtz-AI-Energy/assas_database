@@ -11,7 +11,7 @@ from setuptools import setup
 
 setup(
     name="assasdb",
-    version="0.1",
+    version="1.0.0",
     description="python module to access the ASSAS database",
     url="https://github.com/ke4920/assas_database",
     author="Jonas Dressner",
