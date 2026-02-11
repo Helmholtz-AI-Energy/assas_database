@@ -35,6 +35,7 @@ from .assas_utils import (  # noqa: E402
     load_assas_env,  # noqa: E402
     require_env,  # noqa: E402
     redact_mongo_uri,  # noqa: E402
+    find_env_file,  # noqa: E402
 )  # noqa: E402
 from .assas_netcdf4_meta_config import (  # noqa: E402
     META_DATA_VAR_NAMES,  # noqa: E402
@@ -60,4 +61,6 @@ __all__ = [
     "load_assas_env",
     "require_env",
     "redact_mongo_uri",
+    "find_env_file",
+    "create_database_handler",
 ]
