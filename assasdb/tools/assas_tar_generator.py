@@ -19,6 +19,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
+import sys
 from typing import Optional
 
 import pandas as pd
@@ -230,6 +231,126 @@ class BasicTarGenerator:
             "TAR_TARGET_DIR)."
         )
 
+    def _upload_uuid_from_tar_name(self, filename: str) -> Optional[str]:
+        """Extract upload_uuid from a tar filename.
+
+        Accepts:
+        - <upload_uuid>.tar
+        - <upload_uuid>.tar.gz
+
+        Returns:
+        upload_uuid (string) or None if not a tar archive name.
+
+        """
+        name = (filename or "").strip()
+        if name.endswith(".tar.gz"):
+            return name[: -len(".tar.gz")]
+        if name.endswith(".tar"):
+            return name[: -len(".tar")]
+        return None
+
+    def generate_tar_inventory_csv_from_mongo(
+        self,
+        *,
+        tar_dir: Path,
+        csv_path: Path,
+        database_manager: AssasDatabaseManager,
+        upload_uuid_column: str = "system_upload_uuid",
+        dataset_id_columns: tuple[str, ...] = ("radar_dataset_id", "dataset_uuid"),
+    ) -> Path:
+        """Generate a CSV with one row per tar file in tar_dir.
+
+        For each tar file, extract upload_uuid from the filename, then look up the
+        corresponding dataset id in MongoDB (via AssasDatabaseManager).
+
+        CSV columns:
+        upload_uuid, dataset_id, tar_path, md5
+
+        Args:
+            tar_dir: Directory containing tar/tar.gz archives.
+            csv_path: Output CSV path.
+            database_manager: Configured AssasDatabaseManager instance.
+            upload_uuid_column: Column in DB dataframe containing upload UUIDs.
+            dataset_id_columns: Candidate columns for dataset id in DB dataframe.
+
+        Returns:
+            Path to the written CSV.
+
+        Raises:
+            TarGeneratorError: On missing directory, missing columns, etc.
+
+        """
+        tar_dir = tar_dir.expanduser().resolve()
+        csv_path = csv_path.expanduser().resolve()
+
+        if not tar_dir.exists() or not tar_dir.is_dir():
+            raise TarGeneratorError(
+                f"tar_dir does not exist or is not a directory: {tar_dir}"
+            )
+
+        df = database_manager.get_all_database_entries()
+
+        if upload_uuid_column not in getattr(df, "columns", []):
+            raise TarGeneratorError(
+                f"DB dataframe missing column '{upload_uuid_column}'. "
+                f"Have: {list(getattr(df, 'columns', []))}"
+            )
+
+        dataset_col = next((c for c in dataset_id_columns if c in df.columns), None)
+        if not dataset_col:
+            raise TarGeneratorError(
+                "DB dataframe missing dataset id column. Tried: "
+                f"{list(dataset_id_columns)}. "
+                f"Have: {list(getattr(df, 'columns', []))}"
+            )
+
+        # Build mapping: upload_uuid -> dataset_id
+        uuids = df[upload_uuid_column].astype(str)
+        dataset_ids = df[dataset_col].astype(str)
+        uuid_to_dataset: dict[str, str] = dict(zip(uuids, dataset_ids, strict=False))
+
+        rows: list[dict] = []
+        for p in sorted(tar_dir.iterdir()):
+            logger.info("Processing tar file: %s", p)
+            if not p.is_file():
+                continue
+
+            upload_uuid = self._upload_uuid_from_tar_name(p.name)
+            if not upload_uuid:
+                continue
+
+            dataset_id = uuid_to_dataset.get(upload_uuid, "")
+            logger.info(
+                "Found upload_uuid=%s with dataset_id=%s", upload_uuid, dataset_id
+            )
+
+            try:
+                md5 = self._md5_file(p)
+            except Exception as e:
+                logger.warning("Could not calculate md5 for %s: %s", p, e)
+                md5 = ""
+
+            rows.append(
+                {
+                    "upload_uuid": upload_uuid,
+                    "dataset_id": dataset_id,
+                    "tar_path": str(p),
+                    "md5": md5,
+                }
+            )
+
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        with csv_path.open("w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(
+                f,
+                fieldnames=["upload_uuid", "dataset_id", "tar_path", "md5"],
+            )
+            w.writeheader()
+            w.writerows(rows)
+
+        logger.info("Wrote tar inventory CSV: %s (rows=%d)", csv_path, len(rows))
+        return csv_path
+
     def create_tars_from_dataframe(
         self,
         dataframe: pd.DataFrame,
@@ -387,7 +508,7 @@ def main() -> int:
     )
     ap.add_argument("source_dir", nargs="?", help="Directory to archive (manual mode)")
     ap.add_argument(
-        "target_dir",
+        "--target-dir",
         nargs="?",
         default=None,
         help=(
@@ -407,6 +528,17 @@ def main() -> int:
         default=None,
         help="Create only the first N archives (after filtering). Example: --limit 50",
     )
+    ap.add_argument(
+        "--generate-inventory",
+        action="store_true",
+        help="Generate a CSV inventory of all tar files in the target directory.",
+    )
+    ap.add_argument(
+        "--inventory-csv",
+        type=str,
+        default="tar_inventory.csv",
+        help="Path to write the inventory CSV (used with --generate-inventory).",
+    )
 
     ns = ap.parse_args()
 
@@ -417,29 +549,27 @@ def main() -> int:
         Path(ns.result_csv) if ns.result_csv else (target_dir / "tar_results.csv")
     )
 
+    env_path = find_env_file()
+    env = require_env(
+        env_path=env_path,
+        logger=logger,
+        keys=[
+            "CONNECTIONSTRING",
+            "BACKUP_DIRECTORY",
+            "MONGO_DB_NAME",
+            "UPLOAD_DIRECTORY",
+        ],
+    )
+
+    logger.info("Using database: %s", env["MONGO_DB_NAME"])
+    logger.info("Using backup directory: %s", env["BACKUP_DIRECTORY"])
+    logger.info("Using Mongo connection: %s", redact_mongo_uri(env["CONNECTIONSTRING"]))
+    logger.info("Using upload directory: %s", env["UPLOAD_DIRECTORY"])
+    logger.info("Using gzip: %s", ns.gz)
+    logger.info("Using UUID filter: %s", ns.uuid if ns.uuid else "<none>")
+    logger.info("Writing results CSV: %s", result_csv_path)
+
     if ns.from_db:
-        env_path = find_env_file()
-        env = require_env(
-            env_path=env_path,
-            logger=logger,
-            keys=[
-                "CONNECTIONSTRING",
-                "BACKUP_DIRECTORY",
-                "MONGO_DB_NAME",
-                "UPLOAD_DIRECTORY",
-            ],
-        )
-
-        logger.info("Using database: %s", env["MONGO_DB_NAME"])
-        logger.info("Using backup directory: %s", env["BACKUP_DIRECTORY"])
-        logger.info(
-            "Using Mongo connection: %s", redact_mongo_uri(env["CONNECTIONSTRING"])
-        )
-        logger.info("Using upload directory: %s", env["UPLOAD_DIRECTORY"])
-        logger.info("Using gzip: %s", ns.gz)
-        logger.info("Using UUID filter: %s", ns.uuid if ns.uuid else "<none>")
-        logger.info("Writing results CSV: %s", result_csv_path)
-
         database_manager = AssasDatabaseManager(
             database_handler=AssasDatabaseHandler(
                 connection_string=env["CONNECTIONSTRING"],
@@ -464,6 +594,44 @@ def main() -> int:
 
         for r in results:
             logger.info("%s  md5=%s", r["tar_path"], r["md5"])
+        return 0
+
+    if ns.generate_inventory:
+        # Assume target_dir is required for inventory
+        target_dir = (
+            Path(ns.target_dir).expanduser().resolve()
+            if hasattr(ns, "target_dir")
+            else None
+        )
+        if not target_dir or not target_dir.exists():
+            logger.error(
+                "Error: --generate-inventory requires a valid target directory "
+                "(--target-dir)."
+                f"Message {sys.stderr}."
+            )
+            return 2
+
+        # Setup database manager (adjust as needed for your environment)
+        database_manager = AssasDatabaseManager(
+            database_handler=AssasDatabaseHandler(
+                connection_string=env["CONNECTIONSTRING"],
+                backup_directory=env["BACKUP_DIRECTORY"],
+                database_name=env["MONGO_DB_NAME"],
+            )
+        )
+
+        generator = BasicTarGenerator()
+        csv_path = Path(ns.inventory_csv).expanduser().resolve()
+        try:
+            generator.generate_tar_inventory_csv_from_mongo(
+                tar_dir=target_dir,
+                csv_path=csv_path,
+                database_manager=database_manager,
+            )
+            logger.info("Inventory CSV written to: %s", csv_path)
+        except Exception as e:
+            logger.error("Failed to generate inventory CSV: %s", e)
+            return 2
         return 0
 
     if not ns.source_dir:
