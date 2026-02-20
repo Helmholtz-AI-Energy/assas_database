@@ -9,6 +9,7 @@ Usage examples:
         --uuid 123e4567-e89b-12d3-a456-426
 """
 
+import sys
 import os
 import shutil
 import subprocess
@@ -17,12 +18,13 @@ import csv
 import hashlib
 import logging
 import re
+import tempfile
+import pandas as pd
+import tarfile
+import filecmp
 from dataclasses import dataclass
 from pathlib import Path
-import sys
 from typing import Optional
-
-import pandas as pd
 
 from assasdb import (
     AssasDocumentFileStatus,
@@ -36,6 +38,19 @@ from assasdb import (
 logger = logging.getLogger(__name__)
 
 _SAFE_NAME_RE = re.compile(r"[^A-Za-z0-9._-]+")
+
+ASTEC_ROOT = os.environ.get("ASTEC_ROOT")
+ASTEC_TYPE = os.environ.get("ASTEC_TYPE")
+
+ASTEC_PYTHON_ODESSA = os.path.join(
+    ASTEC_ROOT, "odessa", "bin", ASTEC_TYPE + "-release", "wrap_python"
+)
+
+if ASTEC_PYTHON_ODESSA not in sys.path:
+    logger.info(f"Append path to odessa to environment: {ASTEC_PYTHON_ODESSA}")
+    sys.path.append(ASTEC_PYTHON_ODESSA)
+
+import pyodessa as pyod  # noqa: E402
 
 
 class TarGeneratorError(RuntimeError):
@@ -60,6 +75,13 @@ class TarJob:
 
 class BasicTarGenerator:
     """Basic tar creator: source directory -> tar file in target directory."""
+
+    def _count_files(self, directory: Path) -> int:
+        """Count total files in a directory recursively."""
+        count = 0
+        for _, _, files in os.walk(directory):
+            count += len(files)
+        return count
 
     def create(self, job: TarJob) -> Path:
         """Create a tar (or tar.gz) archive for the given job.
@@ -125,7 +147,9 @@ class BasicTarGenerator:
         logger.info("Running: %s", " ".join(cmd))
 
         if job.progress:
-            # Stream stderr live so progress shows up during long runs
+            total_files = self._count_files(src)
+            logger.info("Total files to archive: %d", total_files)
+
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.DEVNULL,
@@ -140,7 +164,6 @@ class BasicTarGenerator:
                 if line:
                     logger.info("%s", line)
                     stderr_lines.append(line)
-                    # cap memory on extremely noisy output
                     if len(stderr_lines) > 2000:
                         stderr_lines = stderr_lines[-500:]
             rc = process.wait()
@@ -447,9 +470,211 @@ class BasicTarGenerator:
                 }
             )
 
-            created += 1  # <-- add
+            created += 1
 
         return results
+
+    def safe_tar_and_delete_from_dataframe(
+        self,
+        dataframe: pd.DataFrame,
+        *,
+        gzip: bool,
+        only_uuids: Optional[set[str]] = None,
+        progress: bool = False,
+        checkpoint: int = 5000,
+        limit: Optional[int] = None,
+        path_prefix_overwrite: Optional[tuple[str, str]] = None,
+        tmp_dir: Optional[Path] = None,
+    ) -> list[dict]:
+        """Tars the directory, validates the archive, and deletes the original.
+
+        Deletion only when validation passes.
+
+        Optionally overwrites the path prefix for testing.
+
+        Returns:
+            List of dictionaries with keys 'dataset_uuid', 'upload_uuid', 'system_uuid',
+            'tar_path', 'md5' for each created archive.
+
+        """
+        required_cols = {"system_upload_uuid", "system_uuid", "system_path"}
+        missing = [
+            c for c in required_cols if c not in getattr(dataframe, "columns", [])
+        ]
+        if missing:
+            raise TarGeneratorError(
+                f"Dataframe missing required columns: {missing}. \n"
+                f"Have: {list(getattr(dataframe, 'columns', []))}"
+            )
+
+        results: list[dict] = []
+        created = 0
+
+        for _, row in dataframe.iterrows():
+            if limit is not None and created >= int(limit):
+                logger.info("Reached limit=%s archives; stopping.", limit)
+                break
+
+            upload_uuid = str(row["system_upload_uuid"])
+            system_uuid = str(row["system_uuid"])
+            system_path = str(row["system_path"])
+            system_status = AssasDocumentFileStatus(row.get("system_status", ""))
+
+            if system_status != AssasDocumentFileStatus.VALID:
+                logger.warning(
+                    "Skipping upload_uuid=%s with system_status=%s",
+                    upload_uuid,
+                    system_status,
+                )
+                continue
+
+            if only_uuids and upload_uuid not in only_uuids:
+                continue
+
+            # Overwrite prefix for testing if requested
+            if path_prefix_overwrite:
+                old_prefix, new_prefix = path_prefix_overwrite
+                if system_path.startswith(old_prefix):
+                    system_path = system_path.replace(old_prefix, new_prefix, 1)
+
+            src_dir = Path(system_path)
+            if not src_dir.exists() or not src_dir.is_dir():
+                logger.warning(
+                    "Directory does not exist for upload_uuid=%s: %s",
+                    upload_uuid,
+                    src_dir,
+                )
+                continue
+
+            base_name = src_dir.name
+            archive_name = f"{base_name}.tar.gz" if gzip else f"{base_name}.tar"
+
+            try:
+                tar_path = self.safe_tar_and_delete(
+                    src_dir=src_dir,
+                    target_dir=src_dir.parent,
+                    archive_name=archive_name,
+                    gzip=gzip,
+                    progress=progress,
+                    checkpoint=checkpoint,
+                    tmp_dir=tmp_dir,
+                )
+                # md5 = self._md5_file(tar_path)
+                results.append(
+                    {
+                        "dataset_uuid": str(row.get("dataset_uuid", "")),
+                        "upload_uuid": upload_uuid,
+                        "system_uuid": system_uuid,
+                        "tar_path": str(tar_path),
+                        # "md5": md5,
+                    }
+                )
+                logger.info(
+                    f"Created and validated tar for upload_uuid={upload_uuid}: "
+                    f"{tar_path} (deleted original {src_dir.name})"
+                )
+                created += 1
+            except TarGeneratorError as e:
+                logger.error(
+                    f"Failed safe tar-and-delete for upload_uuid={upload_uuid}: {e}"
+                )
+                continue
+
+        return results
+
+    def safe_tar_and_delete(
+        self,
+        src_dir: Path,
+        target_dir: Path,
+        archive_name: Optional[str] = None,
+        gzip: bool = False,
+        progress: bool = False,
+        checkpoint: int = 5000,
+        tmp_dir: Optional[Path] = None,
+    ) -> Path:
+        """Tar the directory, validate the archive, and delete the original archive.
+
+        Args:
+            src_dir: Directory to archive.
+            target_dir: Where to place the archive.
+            archive_name: Name for the archive file.
+            gzip: Whether to create a .tar.gz archive.
+            progress: Show tar progress.
+            checkpoint: Progress log interval.
+            tmp_dir: Temporary directory for validation extraction.
+
+        Returns:
+            Path to the created archive.
+
+        Raises:
+            TarGeneratorError if validation fails.
+
+        """
+        archive_name = archive_name or (
+            f"{src_dir.name}.tar.gz" if gzip else f"{src_dir.name}.tar"
+        )
+        logger.info(f"Creating tar for {src_dir} with safe tar-and-delete.")
+
+        tar_path = self.create(
+            TarJob(
+                source_dir=src_dir,
+                target_dir=target_dir,
+                archive_name=archive_name,
+                gzip=gzip,
+                progress=progress,
+                checkpoint=checkpoint,
+            )
+        )
+
+        logger.info(f"Tar created at {tar_path}. Starting validation by extraction.")
+
+        # Validate: extract to temp dir and compare
+        with tempfile.TemporaryDirectory(
+            dir=str(tmp_dir) if tmp_dir else None
+        ) as tmpdir:
+            tmp_extract = Path(tmpdir)
+            with tarfile.open(tar_path, "r:*") as tar:
+                tar.extractall(path=tmp_extract)
+
+            extracted_dir = tmp_extract / src_dir.name
+
+            cmp = filecmp.dircmp(src_dir, extracted_dir)
+            if cmp.left_only or cmp.right_only or cmp.diff_files or cmp.funny_files:
+                raise TarGeneratorError(
+                    f"Validation failed: {src_dir} and extracted "
+                    f"{extracted_dir} differ."
+                )
+
+            # PyOdessa time point comparison
+            try:
+                before_times = pyod.get_saving_times(str(src_dir))
+                after_times = pyod.get_saving_times(str(extracted_dir))
+                if before_times != after_times:
+                    raise TarGeneratorError(
+                        f"PyOdessa time points differ: \n"
+                        f"before={before_times}, after={after_times}."
+                    )
+                logger.info(
+                    f"PyOdessa validation succeeded for: {extracted_dir} \n"
+                    f"(time points identical)."
+                )
+
+            except Exception as e:
+                raise TarGeneratorError(
+                    f"PyOdessa validation failed for {extracted_dir}: {e}."
+                )
+
+        logger.info(
+            f"Validation successful for {tar_path}. Deleting original directory."
+        )
+
+        # If validation passed, delete the original directory
+        shutil.rmtree(src_dir)
+        logger.info(
+            f"Original directory {src_dir} deleted after successful validation."
+        )
+
+        return tar_path
 
 
 def main() -> int:
@@ -473,7 +698,7 @@ def main() -> int:
     )
 
     ap.add_argument(
-        "--from-db",
+        "--tar-complete-archive",
         action="store_true",
         help=(
             "Create one tar per DB entry using dataframe "
@@ -485,7 +710,8 @@ def main() -> int:
         action="append",
         default=[],
         help=(
-            "When used with --from-db: only create tars for these upload_uuid(s). "
+            "When used with --tar-complete-archive: "
+            "only create tars for these upload_uuid(s). "
             "Can be passed multiple times."
         ),
     )
@@ -539,6 +765,19 @@ def main() -> int:
         default="tar_inventory.csv",
         help="Path to write the inventory CSV (used with --generate-inventory).",
     )
+    ap.add_argument(
+        "--safe-tar-and-delete",
+        action="store_true",
+        help=(
+            "Tar the directory, validate the archive, and delete the "
+            "original if validation passes (manual mode only).",
+        ),
+    )
+    ap.add_argument(
+        "--safe-tar-and-delete-from-db",
+        action="store_true",
+        help="Tar, validate, and delete directories for all DB entries (batch mode).",
+    )
 
     ns = ap.parse_args()
 
@@ -569,7 +808,7 @@ def main() -> int:
     logger.info("Using UUID filter: %s", ns.uuid if ns.uuid else "<none>")
     logger.info("Writing results CSV: %s", result_csv_path)
 
-    if ns.from_db:
+    if ns.tar_complete_archive:
         database_manager = AssasDatabaseManager(
             database_handler=AssasDatabaseHandler(
                 connection_string=env["CONNECTIONSTRING"],
@@ -580,6 +819,7 @@ def main() -> int:
         dataframe = database_manager.get_all_database_entries()
 
         only = set(ns.uuid) if ns.uuid else None
+
         results = generator.create_tars_from_dataframe(
             dataframe=dataframe,
             target_dir=target_dir,
@@ -588,12 +828,17 @@ def main() -> int:
             progress=ns.progress,
             checkpoint=ns.checkpoint,
             limit=ns.limit,
+            path_prefix_overwrite=(env["UPLOAD_DIRECTORY"], "/mnt/ASSAS/upload_test"),
         )
 
         generator._write_results_csv(results, result_csv_path)
 
         for r in results:
-            logger.info("%s  md5=%s", r["tar_path"], r["md5"])
+            logger.info(
+                f"system_upload_uuid={r['upload_uuid']}  "
+                f"tar_path={r['tar_path']}  md5={r['md5']}"
+            )
+
         return 0
 
     if ns.generate_inventory:
@@ -622,6 +867,7 @@ def main() -> int:
 
         generator = BasicTarGenerator()
         csv_path = Path(ns.inventory_csv).expanduser().resolve()
+
         try:
             generator.generate_tar_inventory_csv_from_mongo(
                 tar_dir=target_dir,
@@ -629,9 +875,42 @@ def main() -> int:
                 database_manager=database_manager,
             )
             logger.info("Inventory CSV written to: %s", csv_path)
+
         except Exception as e:
             logger.error("Failed to generate inventory CSV: %s", e)
             return 2
+
+        return 0
+
+    if ns.safe_tar_and_delete_from_db:
+        database_manager = AssasDatabaseManager(
+            database_handler=AssasDatabaseHandler(
+                connection_string=env["CONNECTIONSTRING"],
+                backup_directory=env["BACKUP_DIRECTORY"],
+                database_name=env["MONGO_DB_NAME"],
+            )
+        )
+        dataframe = database_manager.get_all_database_entries()
+
+        only = set(ns.uuid) if ns.uuid else None
+
+        results = generator.safe_tar_and_delete_from_dataframe(
+            dataframe=dataframe,
+            gzip=ns.gz,
+            only_uuids=only,
+            progress=ns.progress,
+            checkpoint=ns.checkpoint,
+            limit=ns.limit,
+            path_prefix_overwrite=(env["UPLOAD_DIRECTORY"], "/mnt/ASSAS/upload_test"),
+            tmp_dir=Path("/mnt/ASSAS/tmp"),
+        )
+
+        generator._write_results_csv(results, result_csv_path)
+        for r in results:
+            logger.info(
+                f"system_upload_uuid={r['upload_uuid']}  tar_path={r['tar_path']}"
+            )
+
         return 0
 
     if not ns.source_dir:
