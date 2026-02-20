@@ -94,7 +94,7 @@ jobs:
          run: |
            cat > .env.ci <<EOF
            BACKUP_DIRECTORY=/app/backup_mongodb
-           UPLOAD_DIRECTORY=/app/upload_test
+           UPLOAD_DIRECTORY=/app/upload_datahub
            CONNECTIONSTRING=${{ secrets.MONGO_CONNECTIONSTRING }}
            MONGO_DB_NAME=${{ secrets.MONGO_DB_NAME }}
            USER_COLLECTION_NAME=users

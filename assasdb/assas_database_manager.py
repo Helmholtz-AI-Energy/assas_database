@@ -42,7 +42,7 @@ class AssasDatabaseManager:
     def __init__(
         self,
         database_handler: AssasDatabaseHandler,
-        upload_directory: str = "/mnt/ASSAS/upload_test",
+        upload_directory: str = "/mnt/ASSAS/upload_datahub",
         backup_handler: AssasMongodbBackupHandler | None = None,
     ) -> None:
         """Initialize the AssasDatabaseManager instance.
@@ -2316,4 +2316,79 @@ except Exception as e:
             "dry_run": dry_run,
         }
         logger.info("recalc_hdf5_sizes_fast summary: %s", summary)
+        return summary
+
+    def update_paths_in_database(
+        self,
+        old_dir: str = "/mnt/ASSAS/upload_test",
+        new_dir: str = "/mnt/ASSAS/upload_datahub",
+        dry_run: bool = True,
+    ) -> dict:
+        """Update the leading directory in 'system_path' and 'system_result' fields.
+
+        Args:
+            old_dir (str): The old directory prefix to replace.
+            new_dir (str): The new directory prefix to use.
+            dry_run (bool): If True, only logs what would be changed.
+
+        Returns:
+            dict: Summary of updates.
+
+        """
+        file_collection = self.database_handler.get_file_collection()
+        filter_doc = {
+            "$or": [
+                {"system_path": {"$regex": f"^{re.escape(old_dir)}"}},
+                {"system_result": {"$regex": f"^{re.escape(old_dir)}"}},
+            ]
+        }
+        cursor = file_collection.find(
+            filter_doc, {"system_uuid": 1, "system_path": 1, "system_result": 1}
+        )
+        updated = 0
+        unchanged = 0
+        errors = 0
+
+        def replace_prefix(path: str, old: str, new: str) -> str:
+            return re.sub(f"^{re.escape(old)}", new, path)
+
+        for doc in cursor:
+            system_uuid = doc.get("system_uuid")
+            system_path = doc.get("system_path", "")
+            system_result = doc.get("system_result", "")
+            new_path = replace_prefix(system_path, old_dir, new_dir)
+            new_result = replace_prefix(system_result, old_dir, new_dir)
+            if new_path == system_path and new_result == system_result:
+                unchanged += 1
+                continue
+            if dry_run:
+                logger.info(
+                    f"Would update uuid={system_uuid}: path={system_path} "
+                    f"-> {new_path}, result={system_result} -> {new_result}"
+                )
+                updated += 1
+                continue
+            try:
+                update_doc = {"system_path": new_path, "system_result": new_result}
+                file_collection.update_one(
+                    {"system_uuid": system_uuid}, {"$set": update_doc}
+                )
+                logger.info(
+                    f"Updated uuid={system_uuid}: path={system_path} "
+                    f"-> {new_path}, result={system_result} -> {new_result}"
+                )
+                updated += 1
+            except Exception as e:
+                logger.error(f"Failed to update uuid={system_uuid}: {e}")
+                errors += 1
+
+        summary = {
+            "updated_or_would_update": updated,
+            "unchanged": unchanged,
+            "errors": errors,
+            "dry_run": dry_run,
+            "old_dir": old_dir,
+            "new_dir": new_dir,
+        }
+        logger.info(f"update_paths_in_database summary: {summary}")
         return summary

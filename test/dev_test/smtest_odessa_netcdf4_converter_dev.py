@@ -45,7 +45,7 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
         )
 
     def test_initialize_file_on_assas_data_hub_with_remote_data(self):
-        output_path = "/mnt/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUD"
+        output_path = "/mnt/ASSAS/upload_datahub/32118491-31c1-47fa-870f-1f750f6cc8ea/STUD"
         output_path += "Y/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5"
         if os.path.exists(output_path):
             os.remove(output_path)
@@ -98,12 +98,12 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
     def test_convert_netcdf4_on_assas_data_hub_with_remote_data(self):
         input_path = (
-            "/mnt/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
+            "/mnt/ASSAS/upload_datahub/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
             "TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/"
             "SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin"
         )
         output_path = (
-            "/mnt/ASSAS/upload_test/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
+            "/mnt/ASSAS/upload_datahub/32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
             "TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5"
         )
 
@@ -148,13 +148,13 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
     def test_convert_netcdf4_on_horeka_with_remote_data(self):
         input_path = (
-            "/lsdf/kit/scc/projects/ASSAS/upload_test/"
+            "/lsdf/kit/scc/projects/ASSAS/upload_datahub/"
             "32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
             "TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/"
             "SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin"
         )
         output_path = (
-            "/lsdf/kit/scc/projects/ASSAS/upload_test/"
+            "/lsdf/kit/scc/projects/ASSAS/upload_datahub/"
             "32118491-31c1-47fa-870f-1f750f6cc8ea/STUDY/"
             "TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5"
         )
@@ -200,12 +200,12 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
     def test_on_demo_archive(self):
         input_path = (
-            "/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
+            "/mnt/ASSAS/upload_datahub/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
             "STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/"
             "SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin"
         )
         output_path = (
-            "/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
+            "/mnt/ASSAS/upload_datahub/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
             "STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5"
         )
 
@@ -240,12 +240,12 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
 
     def test_check_if_odessa_path_exists(self):
         input_path = (
-            "/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
+            "/mnt/ASSAS/upload_datahub/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
             "STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/"
             "SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin"
         )
         output_path = (
-            "/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
+            "/mnt/ASSAS/upload_datahub/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
             "STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/result/dataset.h5"
         )
 

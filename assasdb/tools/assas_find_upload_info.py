@@ -13,7 +13,7 @@ Optional fix mode:
 
 Configuration (env vars):
 - LSDF_DATA_DIR: absolute path to upload root OR relative path under LSDF root
-- (default: /mnt/ASSAS/upload_test)
+- (default: /mnt/ASSAS/upload_datahub)
 - TARGET_FILENAME: filename to search for (default: upload_info.pickle)
 - BACKUP_DIRECTORY: backup directory used by AssasDatabaseHandler
 - DEfault (default: /mnt/ASSAS/backup_mongodb)
@@ -52,7 +52,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-LSDF_DATA_DIR = os.environ.get("LSDF_DATA_DIR", "/mnt/ASSAS/upload_test")
+LSDF_DATA_DIR = os.environ.get("LSDF_DATA_DIR", "/mnt/ASSAS/upload_datahub")
 TARGET_FILENAME = os.environ.get("TARGET_FILENAME", "upload_info.pickle")
 BACKUP_DIRECTORY = os.environ.get("BACKUP_DIRECTORY", "/mnt/ASSAS/backup_mongodb")
 CONNECTIONSTRING = os.environ.get("CONNECTIONSTRING", "mongodb://localhost:27017/")

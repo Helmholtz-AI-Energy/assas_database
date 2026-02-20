@@ -317,14 +317,14 @@ class AssasOdessaNetCDF4ConverterTest(unittest.TestCase):
     def test_convert_netcdf4_on_horeka_with_remote_data(self) -> None:
         """Test converting NetCDF4 on Horeka with remote data."""
         input_path = (
-            "/lsdf/kit/scc/projects/ASSAS/upload_test/"
+            "/lsdf/kit/scc/projects/ASSAS/upload_datahub/"
             "10b6c64b-d5a4-4aac-a93e-93baeae045d0/STUDY/"
             "TRANSIENT/BASE_SIMPLIFIED/LOCA/6I_CL/"
             "LOCA_6I_CL_1300_LIKE_SIMPLIFIED_ASSAS_FILT.bin"
         )
 
         output_path = (
-            "/lsdf/kit/scc/projects/ASSAS/upload_test/"
+            "/lsdf/kit/scc/projects/ASSAS/upload_datahub/"
             "10b6c64b-d5a4-4aac-a93e-93baeae045d0/STUDY/"
             "TRANSIENT/BASE_SIMPLIFIED/LOCA/6I_CL/result/dataset.h5"
         )

@@ -20,7 +20,7 @@ from assasdb.assas_utils import get_duration
 
 logger = logging.getLogger("assas_app")
 
-LSDF_DATA_DIR = "ASSAS/upload_test"
+LSDF_DATA_DIR = "ASSAS/upload_datahub"
 LSDF_BACKUP_DIR = "ASSAS/backup_mongodb"
 
 
