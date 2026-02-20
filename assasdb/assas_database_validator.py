@@ -402,7 +402,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--upload-dir",
         "-u",
-        default="/mnt/ASSAS/upload_test",
+        default="/mnt/ASSAS/upload_datahub",
         help="LSDF upload directory",
     )
     p.add_argument(

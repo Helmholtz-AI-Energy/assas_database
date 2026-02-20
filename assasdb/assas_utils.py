@@ -15,6 +15,25 @@ from urllib.parse import urlsplit, urlunsplit
 from dotenv import load_dotenv
 
 
+def find_env_file() -> Path | None:
+    """Find .env deterministically without importing assasdb."""
+    explicit = os.getenv("ASSAS_ENV_FILE")
+    if explicit:
+        p = Path(explicit).expanduser().resolve()
+        return p if p.exists() else None
+
+    # Search upwards from this file
+    here = Path(__file__).resolve()
+    for parent in [here.parent, *here.parents]:
+        candidate = parent / ".env"
+        if candidate.exists():
+            return candidate.resolve()
+
+    # Fallback: cwd
+    candidate = (Path.cwd() / ".env").resolve()
+    return candidate if candidate.exists() else None
+
+
 def redact_mongo_uri(uri: str) -> str:
     """Redact credentials in mongodb://user:pass@host URIs before logging."""
     if not uri:

@@ -44,10 +44,10 @@ class SBO_fb_test_samples:
             user="ke4920",
             description="Station blackout scenario number, with 2 parameters",
             archive_path=(
-                f"/mnt/ASSAS/upload_test/{str(upload_uuid)}/STUDY/TRANSIENT/BASE_SIMPLIFIED"
+                f"/mnt/ASSAS/upload_datahub/{str(upload_uuid)}/STUDY/TRANSIENT/BASE_SIMPLIFIED"
                 "/SBO/SBO_feedbleed/SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin"
             ),
-            result_path=f"/mnt/ASSAS/upload_test/{str(upload_uuid)}/result/dataset.h5",
+            result_path=f"/mnt/ASSAS/upload_datahub/{str(upload_uuid)}/result/dataset.h5",
         )
 
 
@@ -96,7 +96,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         self.assertTrue(self.database_manager.process_uploads_with_reload_flag())
 
     def test_database_manager_get_size(self):
-        archive_path = "/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
+        archive_path = "/mnt/ASSAS/upload_datahub/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
         archive_path += "STUDY/TRANSIENT/BASE_SIMPLIFIED/SBO/SBO_feedbleed/"
         archive_path += "SBO_fb_1300_LIKE_SIMPLIFIED_ASSAS.bin"
 
@@ -106,7 +106,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
     def test_database_manager_get_file_size(self):
         archive_path = (
-            "/mnt/ASSAS/upload_test/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
+            "/mnt/ASSAS/upload_datahub/0c65e12b-a75b-486b-b3ff-cc68fc89b78a/"
             "result/dataset.h5"
         )
         size_bytes = AssasDatabaseManager.get_file_size(archive_path)
@@ -163,7 +163,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
 
     def test_database_manager_get_upload_uuids(self):
 
-        AssasDatabaseManager.get_upload_uuids2('/mnt/ASSAS/upload_test')
+        AssasDatabaseManager.get_upload_uuids2('/mnt/ASSAS/upload_datahub')
     """
 
     def test_database_manager_convert_next_10_time_points(self):
@@ -176,7 +176,7 @@ class AssasDatabaseManagerTest(unittest.TestCase):
         self.database_manager.update_metadata_of_valid_archives()
 
     def test_database_manager_get_upload_time(self):
-        directory = "/mnt/ASSAS/upload_test/defb5a82-edeb-4efb-b824-fd15d95317cf"
+        directory = "/mnt/ASSAS/upload_datahub/defb5a82-edeb-4efb-b824-fd15d95317cf"
         self.database_manager.get_upload_time(directory)
 
     def test_database_manager_backup_internal_database(self):

@@ -24,7 +24,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-LSDF_DATA_DIR = "ASSAS/upload_test"
+LSDF_DATA_DIR = "ASSAS/upload_datahub"
 LSDF_BACKUP_DIR = "ASSAS/backup_mongodb"
 
 ASTEC_ROOT = os.environ.get("ASTEC_ROOT")

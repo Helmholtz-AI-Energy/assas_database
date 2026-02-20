@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:radarDataset xmlns="http://radar-service.eu/schemas/descriptive/radar/v09/radar-elements" xmlns:ns2="http://radar-service.eu/schemas/descriptive/radar/v09/radar-dataset">
+    <creators>
+        <creator>
+            <creatorName>Stakhanova, Anastasia </creatorName>
+            <givenName>Anastasia </givenName>
+            <familyName>Stakhanova</familyName>
+            <nameIdentifier schemeURI="http://orcid.org/" nameIdentifierScheme="ORCID">0000-0001-6192-0001</nameIdentifier>
+            <creatorAffiliation schemeURI="https://ror.org/" affiliationIdentifierScheme="ROR" affiliationIdentifier="https://ror.org/04t3en479">Karlsruhe Institute of Technology</creatorAffiliation>
+        </creator>
+        <creator>
+            <creatorName>Gabrielli, Fabrizio</creatorName>
+            <givenName>Fabrizio</givenName>
+            <familyName>Gabrielli</familyName>
+            <nameIdentifier schemeURI="http://orcid.org/" nameIdentifierScheme="ORCID">0000-0001-8875-3450</nameIdentifier>
+            <creatorAffiliation schemeURI="https://ror.org/" affiliationIdentifierScheme="ROR" affiliationIdentifier="https://ror.org/04t3en479">Karlsruhe Institute of Technology</creatorAffiliation>
+        </creator>
+    </creators>
+    <title>SBO_KIT_init_sim_s1</title>
+    <descriptions>
+        <description descriptionType="Abstract">Simulation SBO Scenario</description>
+    </descriptions>
+    <keywords>
+        <keyword keywordScheme="Other" schemeURI="https://w3id.org/skgo/modsci#ComputerScience" valueURI="https://w3id.org/skgo/modsci#ComputerSciencemodsci_ComputerScience" classificationCode="modsci_ComputerScience" ontologyId="modsci">Computer Science</keyword>
+    </keywords>
+    <publishers>
+        <publisher nameIdentifierScheme="ROR" schemeURI="https://ror.org/" nameIdentifier="https://ror.org/04t3en479">Karlsruhe Institute of Technology</publisher>
+    </publishers>
+    <productionYear>2026</productionYear>
+    <language>eng</language>
+    <subjectAreas>
+        <subjectArea>
+            <controlledSubjectAreaName>Physics</controlledSubjectAreaName>
+        </subjectArea>
+    </subjectAreas>
+    <resource resourceType="Dataset"></resource>
+    <dataSources>
+        <dataSource dataSourceDetail="Other">ASTEC Simulation</dataSource>
+    </dataSources>
+    <software>
+        <softwareType type="Other">
+            <softwareName softwareVersion="3.1.2">ASTEC</softwareName>
+        </softwareType>
+    </software>
+    <rights>
+        <controlledRights>CC BY 4.0 Attribution</controlledRights>
+    </rights>
+    <rightsHolders>
+        <rightsHolder nameIdentifierScheme="ROR" schemeURI="https://ror.org/" nameIdentifier="https://ror.org/04t3en479">Karlsruhe Institute of Technology</rightsHolder>
+    </rightsHolders>
+</ns2:radarDataset>

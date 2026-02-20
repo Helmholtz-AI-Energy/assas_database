@@ -118,6 +118,24 @@ def build_arg_aprser() -> argparse.ArgumentParser:
         action="store_true",
         help="Recalculate HDF5 sizes in the database",
     )
+    parser.add_argument(
+        "--update-paths-in-database",
+        action="store_true",
+        help="Update paths in the database entries",
+    )
+    parser.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        default=True,
+        help="Do not modify the database, just show what would change (default: True)",
+    )
+    parser.add_argument(
+        "--no-dry-run",
+        dest="dry_run",
+        action="store_false",
+        help="Actually update the database (dry_run=False)",
+    )
 
     return parser
 
@@ -173,8 +191,12 @@ if __name__ == "__main__":
 
         if args.run_hdf5_recalc:
             database_manager.recalc_hdf5_sizes_fast(
-                dry_run=True, workers=16, max_documents=200
+                dry_run=args.dry_run, workers=16, max_documents=200
             )
+            did_action = True
+
+        if args.update_paths_in_database:
+            database_manager.update_paths_in_database(dry_run=args.dry_run)
             did_action = True
 
         if not did_action:
