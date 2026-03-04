@@ -124,6 +124,16 @@ def build_arg_aprser() -> argparse.ArgumentParser:
         help="Update paths in the database entries",
     )
     parser.add_argument(
+        "--radar-import-csv",
+        action="store_true",
+        help="Generate radar import CSV from database entries",
+    )
+    parser.add_argument(
+        "--calculate-md5-for-tar",
+        action="store_true",
+        help="Calculate MD5 checksums for tar files in the database",
+    )
+    parser.add_argument(
         "--dry-run",
         dest="dry_run",
         action="store_true",
@@ -197,6 +207,14 @@ if __name__ == "__main__":
 
         if args.update_paths_in_database:
             database_manager.update_paths_in_database(dry_run=args.dry_run)
+            did_action = True
+
+        if args.radar_import_csv:
+            database_manager.generate_radar_import_csv()
+            did_action = True
+
+        if args.calculate_md5_for_tar:
+            database_manager.calculate_md5_for_tar()
             did_action = True
 
         if not did_action:

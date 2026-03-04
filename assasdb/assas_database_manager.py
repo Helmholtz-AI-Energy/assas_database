@@ -4,6 +4,8 @@ This module provides the AssasDatabaseManager class, which manages the interacti
 between the ASSAS application and the NoSql database.
 """
 
+import csv
+import hashlib
 import os
 import sys
 import re
@@ -2392,3 +2394,215 @@ except Exception as e:
         }
         logger.info(f"update_paths_in_database summary: {summary}")
         return summary
+
+    def generate_radar_import_csv(self, limit: int | None = None) -> None:
+        """Generate a CSV file with the results for RADAR.
+
+        Uses the dataframe returned by `get_all_database_entries()` and only includes
+        rows that are:
+        - VALID (system_status == AssasDocumentFileStatus.VALID.value)
+        - have a non-empty `radar_dataset_id`
+
+        Args:
+            limit: Optional maximum number of rows to write.
+
+        Returns:
+            None
+
+        """
+        logger.info("Generate result CSV file for radar.")
+        dataframe = self.get_all_database_entries()
+
+        if dataframe is None or dataframe.empty:
+            logger.info("No database entries found; not writing radar_import.csv")
+            return
+
+        if "system_status" not in dataframe.columns:
+            logger.warning(
+                "generate_radar_import_csv: "
+                "missing column 'system_status'; cannot filter VALID"
+            )
+            return
+
+        # Filter VALID
+        df_valid = dataframe[
+            dataframe["system_status"] == AssasDocumentFileStatus.VALID.value
+        ]
+
+        csv_path = self.upload_directory / "radar_import.csv"
+        written = 0
+        skipped_missing_dataset_id = 0
+        skipped_missing_upload_info = 0
+        skipped_missing_archive_paths = 0
+
+        with open(csv_path, mode="w", newline="") as csv_file:
+            fieldnames = [
+                "system_uuid",
+                "upload_uuid",
+                "radar_dataset_id",
+                "upload_root",
+                "rel_tar_path",
+                "tar_md5",
+            ]
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for _, row in df_valid.iterrows():
+                if limit is not None and written >= int(limit):
+                    break
+
+                radar_dataset_id = row.get("radar_dataset_id", None)
+
+                # require dataset id
+                if radar_dataset_id is None or pd.isna(radar_dataset_id):
+                    skipped_missing_dataset_id += 1
+                    continue
+
+                radar_dataset_id = str(radar_dataset_id).strip()
+                if not radar_dataset_id or radar_dataset_id.lower() in {
+                    "nan",
+                    "none",
+                    "null",
+                }:
+                    skipped_missing_dataset_id += 1
+                    continue
+
+                upload_uuid = str(row.get("system_upload_uuid", "") or "").strip()
+                if not upload_uuid:
+                    # if upload uuid is missing, we also cannot build upload_root
+                    skipped_missing_upload_info += 1
+                    continue
+
+                upload_info = row.get("upload_info", None)
+                if not isinstance(upload_info, dict):
+                    skipped_missing_upload_info += 1
+                    continue
+
+                rel_tar_paths = upload_info.get("archive_paths", None)
+                if not isinstance(rel_tar_paths, list) or len(rel_tar_paths) == 0:
+                    skipped_missing_archive_paths += 1
+                    continue
+
+                rel_tar_path = Path(rel_tar_paths[0])
+                rel_tar_path_str = rel_tar_path.with_name(
+                    rel_tar_path.name + ".tar"
+                ).as_posix()
+
+                writer.writerow(
+                    {
+                        "system_uuid": str(row.get("system_uuid", "") or "").strip(),
+                        "upload_uuid": upload_uuid,
+                        "radar_dataset_id": radar_dataset_id,
+                        "upload_root": f"{self.upload_directory}/{upload_uuid}",
+                        "rel_tar_path": rel_tar_path_str,
+                        "tar_md5": row.get("system_md5", ""),
+                    }
+                )
+                written += 1
+
+        logger.info(
+            (
+                "Generated result CSV file at %s "
+                "(written=%d, skipped_missing_dataset_id=%d, "
+                "skipped_missing_upload_info=%d, skipped_missing_archive_paths=%d)."
+            ),
+            csv_path,
+            written,
+            skipped_missing_dataset_id,
+            skipped_missing_upload_info,
+            skipped_missing_archive_paths,
+        )
+
+    def _md5_file(self, path: Path, *, bufsize: int = 8 * 1024 * 1024) -> str:
+        """Calculate MD5 checksum of a file.
+
+        Args:
+            path: Path to the file
+            bufsize: Buffer size for reading the file
+
+        Returns:
+            MD5 checksum as a hexadecimal string
+
+        """
+        h = hashlib.md5()  # noqa: S324 (md5 requested for checksum output)
+        with path.open("rb") as f:
+            for chunk in iter(lambda: f.read(bufsize), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    def calculate_md5_for_tar(self, limit: int | None = None) -> None:
+        """Calculate the MD5 checksum for the tar files of all valid archives."""
+        logger.info("Calculate MD5 checksums for tar files of all valid archives.")
+        dataframe = self.get_all_database_entries()
+
+        df_valid = dataframe[
+            dataframe["system_status"] == AssasDocumentFileStatus.VALID.value
+        ]
+
+        written = 0
+        skipped_missing_dataset_id = 0
+
+        for _, row in df_valid.iterrows():
+            if limit is not None and written >= int(limit):
+                break
+
+            radar_dataset_id = row.get("radar_dataset_id", None)
+
+            # require dataset id
+            if radar_dataset_id is None or pd.isna(radar_dataset_id):
+                skipped_missing_dataset_id += 1
+                continue
+
+            radar_dataset_id = str(radar_dataset_id).strip()
+            if not radar_dataset_id or radar_dataset_id.lower() in {
+                "nan",
+                "none",
+                "null",
+            }:
+                skipped_missing_dataset_id += 1
+                continue
+
+            system_uuid = str(row.get("system_uuid", "") or "").strip()
+            upload_uuid = str(row.get("system_upload_uuid", "") or "").strip()
+            upload_info = row.get("upload_info", None)
+            system_path = str(row.get("system_path", "") or "").strip()
+
+            if system_path.startswith("/mnt/ASSAS"):
+                system_path = system_path.replace(
+                    "/mnt/ASSAS", "/lsdf/kit/scc/projects/ASSAS", 1
+                )
+
+            if not system_uuid or not upload_uuid or not isinstance(upload_info, dict):
+                continue
+
+            tar_path = Path(system_path)
+            tar_path = tar_path.with_name(tar_path.name + ".tar")
+            if not tar_path.exists():
+                logger.warning(
+                    f"Tar file does not exist for uuid={system_uuid}: {tar_path}"
+                )
+                continue
+
+            try:
+                logger.info(
+                    f"Calculating MD5 for uuid={system_uuid} at path {tar_path}."
+                )
+
+                md5_checksum = self._md5_file(tar_path)
+                logger.info(f"Calculated MD5 for uuid={system_uuid}: {md5_checksum}")
+
+                # Update the database with the calculated MD5
+                result = self.database_handler.file_collection.update_one(
+                    {"system_uuid": system_uuid}, {"$set": {"system_md5": md5_checksum}}
+                )
+
+                logger.info(
+                    f"Updated MD5 in database for uuid={system_uuid}: "
+                    f"matched={result.matched_count} modified={result.modified_count}"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to calculate MD5 for uuid={system_uuid}: {e}",
+                    exc_info=True,
+                )

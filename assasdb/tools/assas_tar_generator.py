@@ -76,11 +76,29 @@ class TarJob:
 class BasicTarGenerator:
     """Basic tar creator: source directory -> tar file in target directory."""
 
+    def __init__(self, database_manager: Optional[AssasDatabaseManager] = None) -> None:
+        """Initialize the BasicTarGenerator."""
+        self.database_manager = database_manager
+
     def _count_files(self, directory: Path) -> int:
         """Count total files in a directory recursively."""
         count = 0
         for _, _, files in os.walk(directory):
             count += len(files)
+        return count
+
+    def _count_entries(self, directory: Path) -> int:
+        """Count all archive entries (files, dirs, symlinks, special files)."""
+        count = 0
+        for p in directory.rglob("*"):
+            # Count files, directories, symlinks, and special files
+            if p.is_file() or p.is_dir() or p.is_symlink():
+                count += 1
+            # Optionally count special files (devices, pipes)
+            elif p.exists():
+                count += 1
+        # Also count the root directory itself
+        count += 1
         return count
 
     def create(self, job: TarJob) -> Path:
@@ -120,7 +138,7 @@ class BasicTarGenerator:
         parent = src.parent
         name = src.name
 
-        cmd = ["tar", "-C", str(parent), "-cf", str(out_path), name]
+        cmd = ["tar", "-C", str(parent), "-cvf", str(out_path), name]
 
         if job.progress:
             # GNU tar: periodically prints a line to stderr while archiving.
@@ -148,7 +166,7 @@ class BasicTarGenerator:
 
         if job.progress:
             total_files = self._count_files(src)
-            logger.info("Total files to archive: %d", total_files)
+            logger.info("Total archive entries to process: %d", total_files)
 
             process = subprocess.Popen(
                 cmd,
@@ -162,7 +180,27 @@ class BasicTarGenerator:
             for line in process.stderr:
                 line = line.rstrip("\n")
                 if line:
-                    logger.info("%s", line)
+                    # Check for tar checkpoint log
+                    if line.startswith("tar: tar checkpoint "):
+                        try:
+                            checkpoint_number = int(line.split()[-1])
+                            percent = min(
+                                int(
+                                    (checkpoint_number / ((total_files + 1682) * 100))
+                                    * 100
+                                ),
+                                100,
+                            )
+                            logger.info(
+                                f"Tar progress: {percent}% "
+                                f"({checkpoint_number}/"
+                                f"{((total_files + 1682) * 100)} entries)"
+                            )
+                        except Exception:
+                            logger.info(line)
+                    else:
+                        logger.info(line)
+
                     stderr_lines.append(line)
                     if len(stderr_lines) > 2000:
                         stderr_lines = stderr_lines[-500:]
@@ -497,7 +535,12 @@ class BasicTarGenerator:
             'tar_path', 'md5' for each created archive.
 
         """
-        required_cols = {"system_upload_uuid", "system_uuid", "system_path"}
+        required_cols = {
+            "system_upload_uuid",
+            "system_uuid",
+            "system_path",
+            "radar_dataset_id",
+        }
         missing = [
             c for c in required_cols if c not in getattr(dataframe, "columns", [])
         ]
@@ -511,6 +554,10 @@ class BasicTarGenerator:
         created = 0
 
         for _, row in dataframe.iterrows():
+            logger.info(
+                f"Processing row with upload_uuid={row.get('system_upload_uuid', '')}"
+            )
+
             if limit is not None and created >= int(limit):
                 logger.info("Reached limit=%s archives; stopping.", limit)
                 break
@@ -518,6 +565,7 @@ class BasicTarGenerator:
             upload_uuid = str(row["system_upload_uuid"])
             system_uuid = str(row["system_uuid"])
             system_path = str(row["system_path"])
+            radar_dataset_id = str(row["radar_dataset_id"])
             system_status = AssasDocumentFileStatus(row.get("system_status", ""))
 
             if system_status != AssasDocumentFileStatus.VALID:
@@ -533,9 +581,18 @@ class BasicTarGenerator:
 
             # Overwrite prefix for testing if requested
             if path_prefix_overwrite:
+                logger.info(
+                    f"Overwriting path prefix for upload_uuid={upload_uuid} "
+                    f"using mapping: {path_prefix_overwrite}"
+                )
                 old_prefix, new_prefix = path_prefix_overwrite
                 if system_path.startswith(old_prefix):
                     system_path = system_path.replace(old_prefix, new_prefix, 1)
+
+            if system_path.startswith("/mnt/ASSAS"):
+                system_path = system_path.replace(
+                    "/mnt/ASSAS", "/lsdf/kit/scc/projects/ASSAS", 1
+                )
 
             src_dir = Path(system_path)
             if not src_dir.exists() or not src_dir.is_dir():
@@ -550,6 +607,10 @@ class BasicTarGenerator:
             archive_name = f"{base_name}.tar.gz" if gzip else f"{base_name}.tar"
 
             try:
+                logger.info(
+                    f"Creating tar for upload_uuid={upload_uuid}: {archive_name}"
+                )
+
                 tar_path = self.safe_tar_and_delete(
                     src_dir=src_dir,
                     target_dir=src_dir.parent,
@@ -559,20 +620,32 @@ class BasicTarGenerator:
                     checkpoint=checkpoint,
                     tmp_dir=tmp_dir,
                 )
+
+                # logger.info(
+                #    f"Creating md5 of tar for upload_uuid={upload_uuid}: {tar_path}"
+                # )
+
                 # md5 = self._md5_file(tar_path)
+                # self.database_manager.database_handler.update_md5_for_system_uuid(
+                #    system_uuid=system_uuid,
+                #    md5=md5
+                # )
+
                 results.append(
                     {
-                        "dataset_uuid": str(row.get("dataset_uuid", "")),
+                        "radar_dataset_id": radar_dataset_id,
                         "upload_uuid": upload_uuid,
                         "system_uuid": system_uuid,
                         "tar_path": str(tar_path),
-                        # "md5": md5,
+                        # "tar_md5": md5,
                     }
                 )
+
                 logger.info(
                     f"Created and validated tar for upload_uuid={upload_uuid}: "
                     f"{tar_path} (deleted original {src_dir.name})"
                 )
+
                 created += 1
             except TarGeneratorError as e:
                 logger.error(
@@ -581,6 +654,32 @@ class BasicTarGenerator:
                 continue
 
         return results
+
+    def compare_dirs_with_progress(self, src_dir: Path, extracted_dir: Path) -> None:
+        """Compare two directories recursively with progress logging."""
+        src_files = sorted(
+            [p.relative_to(src_dir) for p in src_dir.rglob("*") if p.is_file()]
+        )
+        total = len(src_files)
+        logger.info(f"Validating {total} files...")
+        missing = []
+        diff = []
+
+        for idx, rel_path in enumerate(src_files, 1):
+            src_file = src_dir / rel_path
+            ext_file = extracted_dir / rel_path
+            if not ext_file.exists():
+                missing.append(str(rel_path))
+            elif not filecmp.cmp(src_file, ext_file, shallow=False):
+                diff.append(str(rel_path))
+            if idx % 1000 == 0 or idx == total:
+                logger.info(f"Validation progress: {idx}/{total} files checked...")
+        if missing or diff:
+            raise TarGeneratorError(
+                f"Validation failed: missing={missing}, diff={diff}"
+            )
+
+        logger.info("Validation passed: all files match.")
 
     def safe_tar_and_delete(
         self,
@@ -632,17 +731,32 @@ class BasicTarGenerator:
         with tempfile.TemporaryDirectory(
             dir=str(tmp_dir) if tmp_dir else None
         ) as tmpdir:
-            tmp_extract = Path(tmpdir)
-            with tarfile.open(tar_path, "r:*") as tar:
-                tar.extractall(path=tmp_extract)
+            # Extract the tar to a temporary directory for validation
+            try:
+                tmp_extract = Path(tmpdir)
+                with tarfile.open(tar_path, "r:*") as tar:
+                    idx = 0
+                    for member in tar:
+                        tar.extract(member, path=tmp_extract)
+                        idx += 1
+                        if idx % 1000 == 0:
+                            logger.info(
+                                f"Extraction progress: {idx} files extracted..."
+                            )
+                    logger.info("Extraction complete. Proceeding with validation.")
 
-            extracted_dir = tmp_extract / src_dir.name
+            except Exception as e:
+                raise TarGeneratorError(f"Extraction failed for {tar_path}: {e}")
 
-            cmp = filecmp.dircmp(src_dir, extracted_dir)
-            if cmp.left_only or cmp.right_only or cmp.diff_files or cmp.funny_files:
+            extracted_dir = Path(tmpdir) / src_dir.name
+
+            # Compare the original directory and the extracted directory
+            try:
+                self.compare_dirs_with_progress(src_dir, extracted_dir)
+
+            except Exception as e:
                 raise TarGeneratorError(
-                    f"Validation failed: {src_dir} and extracted "
-                    f"{extracted_dir} differ."
+                    f"Validation failed during directory comparison: {e}"
                 )
 
             # PyOdessa time point comparison
@@ -781,11 +895,8 @@ def main() -> int:
 
     ns = ap.parse_args()
 
-    generator = BasicTarGenerator()
-
-    target_dir = generator._resolve_target_dir(ns.target_dir)
     result_csv_path = (
-        Path(ns.result_csv) if ns.result_csv else (target_dir / "tar_results.csv")
+        Path(ns.result_csv) if ns.result_csv else (ns.target_dir / "tar_results.csv")
     )
 
     env_path = find_env_file()
@@ -797,6 +908,8 @@ def main() -> int:
             "BACKUP_DIRECTORY",
             "MONGO_DB_NAME",
             "UPLOAD_DIRECTORY",
+            "UPLOAD_TEST",
+            "UPLOAD_TMP",
         ],
     )
 
@@ -804,31 +917,35 @@ def main() -> int:
     logger.info("Using backup directory: %s", env["BACKUP_DIRECTORY"])
     logger.info("Using Mongo connection: %s", redact_mongo_uri(env["CONNECTIONSTRING"]))
     logger.info("Using upload directory: %s", env["UPLOAD_DIRECTORY"])
+    logger.info("Using upload test directory: %s", env["UPLOAD_TEST"])
+    logger.info("Using upload temporary directory: %s", env["UPLOAD_TMP"])
     logger.info("Using gzip: %s", ns.gz)
     logger.info("Using UUID filter: %s", ns.uuid if ns.uuid else "<none>")
     logger.info("Writing results CSV: %s", result_csv_path)
 
-    if ns.tar_complete_archive:
-        database_manager = AssasDatabaseManager(
-            database_handler=AssasDatabaseHandler(
-                connection_string=env["CONNECTIONSTRING"],
-                backup_directory=env["BACKUP_DIRECTORY"],
-                database_name=env["MONGO_DB_NAME"],
-            )
+    database_manager = AssasDatabaseManager(
+        database_handler=AssasDatabaseHandler(
+            connection_string=env["CONNECTIONSTRING"],
+            backup_directory=env["BACKUP_DIRECTORY"],
+            database_name=env["MONGO_DB_NAME"],
         )
+    )
+    generator = BasicTarGenerator(database_manager=database_manager)
+
+    if ns.tar_complete_archive:
         dataframe = database_manager.get_all_database_entries()
 
         only = set(ns.uuid) if ns.uuid else None
 
         results = generator.create_tars_from_dataframe(
             dataframe=dataframe,
-            target_dir=target_dir,
+            target_dir=ns.target_dir,
             gzip=ns.gz,
             only_uuids=only,
             progress=ns.progress,
             checkpoint=ns.checkpoint,
             limit=ns.limit,
-            path_prefix_overwrite=(env["UPLOAD_DIRECTORY"], "/mnt/ASSAS/upload_test"),
+            path_prefix_overwrite=(env["UPLOAD_DIRECTORY"], env["UPLOAD_TEST"]),
         )
 
         generator._write_results_csv(results, result_csv_path)
@@ -856,16 +973,6 @@ def main() -> int:
             )
             return 2
 
-        # Setup database manager (adjust as needed for your environment)
-        database_manager = AssasDatabaseManager(
-            database_handler=AssasDatabaseHandler(
-                connection_string=env["CONNECTIONSTRING"],
-                backup_directory=env["BACKUP_DIRECTORY"],
-                database_name=env["MONGO_DB_NAME"],
-            )
-        )
-
-        generator = BasicTarGenerator()
         csv_path = Path(ns.inventory_csv).expanduser().resolve()
 
         try:
@@ -883,13 +990,6 @@ def main() -> int:
         return 0
 
     if ns.safe_tar_and_delete_from_db:
-        database_manager = AssasDatabaseManager(
-            database_handler=AssasDatabaseHandler(
-                connection_string=env["CONNECTIONSTRING"],
-                backup_directory=env["BACKUP_DIRECTORY"],
-                database_name=env["MONGO_DB_NAME"],
-            )
-        )
         dataframe = database_manager.get_all_database_entries()
 
         only = set(ns.uuid) if ns.uuid else None
@@ -901,8 +1001,8 @@ def main() -> int:
             progress=ns.progress,
             checkpoint=ns.checkpoint,
             limit=ns.limit,
-            path_prefix_overwrite=(env["UPLOAD_DIRECTORY"], "/mnt/ASSAS/upload_test"),
-            tmp_dir=Path("/mnt/ASSAS/tmp"),
+            path_prefix_overwrite=(env["UPLOAD_DIRECTORY"], env["UPLOAD_TEST"]),
+            tmp_dir=Path(env["UPLOAD_TMP"]),
         )
 
         generator._write_results_csv(results, result_csv_path)

@@ -721,3 +721,10 @@ class AssasDatabaseHandler:
         return self.file_collection.delete_many(
             {"system_upload_uuid": str(upload_uuid)}
         )
+
+    def update_md5_for_system_uuid(self, system_uuid: str, md5: str) -> bool:
+        """Update the MD5 checksum for a given system_uuid in the MongoDB collection."""
+        result = self.file_collection.update_one(
+            {"system_uuid": system_uuid}, {"$set": {"system_md5": md5}}
+        )
+        return result.modified_count > 0

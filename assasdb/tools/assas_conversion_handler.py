@@ -8,6 +8,7 @@ import os
 import argparse
 import logging
 import time
+import tarfile
 
 from dirsync import sync
 from shutil import copytree, copy2
@@ -65,14 +66,13 @@ class AssasConversionHandler:
         self.tmp_dir = os.environ.get("TMPDIR")
 
         self.database_handler = AssasDatabaseHandler(
-            client=None,
-            backup_directory=f"{self.lsdf_project_dir}/{LSDF_BACKUP_DIR}",
+            connection_string=os.environ.get("CONNECTIONSTRING"),
+            backup_directory=os.environ.get("BACKUP_DIRECTORY"),
+            database_name=os.environ.get("MONGO_DB_NAME"),
         )
-        database_manager = AssasDatabaseManager(
-            database_handler=self.database_handler,
-        )
+        database_manager = AssasDatabaseManager(database_handler=self.database_handler)
 
-        dataframe = database_manager.get_all_database_entries_from_backup()
+        dataframe = database_manager.get_all_database_entries()
         assas_archive_meta = dataframe.loc[
             dataframe["system_upload_uuid"] == upload_uuid
         ]
@@ -86,6 +86,9 @@ class AssasConversionHandler:
                 "/mnt", f"{self.lsdf_project_dir}"
             )
         )
+        if not self.input_path.name.endswith((".tar", ".tar.gz", ".tgz")):
+            self.input_path = self.input_path.with_name(self.input_path.name + ".tar")
+
         self.output_path = Path(
             str(assas_archive_meta["system_result"].iloc[0]).replace(
                 "/mnt", f"{self.lsdf_project_dir}"
@@ -182,10 +185,53 @@ class AssasConversionHandler:
 
         self.remove_tmp(tmp_path=self.tmp_path)
 
-        tmp_input_path = self.copytree_verbose_to_tmp_with_process(
-            input_path=self.input_path,
-            tmp_path=self.tmp_path,
-        )
+        # Ensure tmp exists
+        Path(self.tmp_path).mkdir(parents=True, exist_ok=True)
+
+        # Prepare tmp input:
+        # - directory: copy to tmp (existing behavior)
+        # - tar file: copy tar to tmp and extract streaming
+        if Path(self.input_path).is_file() and str(self.input_path).endswith(
+            (".tar", ".tar.gz", ".tgz")
+        ):
+            tar_path = Path(self.tmp_path) / Path(self.input_path).name
+            logger.info("Copy tar archive to tmp: %s -> %s", self.input_path, tar_path)
+            self.copy2_verbose(source=str(self.input_path), destination=str(tar_path))
+
+            try:
+                tmp_extract = Path(self.tmp_path)
+                with tarfile.open(tar_path, "r:*") as tar:
+                    idx = 0
+                    for member in tar:
+                        tar.extract(member, path=tmp_extract)
+                        idx += 1
+                        if idx % 1000 == 0:
+                            logger.info(
+                                f"Extraction progress: {idx} files extracted..."
+                            )
+                    logger.info("Extraction complete. Proceeding with conversion.")
+
+            except Exception as e:
+                raise RuntimeError(f"Extraction failed for {tar_path}: {e}") from e
+
+            # derive extracted directory name from tar filename
+            name = tar_path.name
+            if name.endswith(".tar.gz"):
+                base = name[: -len(".tar.gz")]
+            elif name.endswith(".tgz"):
+                base = name[: -len(".tgz")]
+            elif name.endswith(".tar"):
+                base = name[: -len(".tar")]
+            else:
+                base = tar_path.stem
+
+            extracted_dir = Path(self.tmp_path) / base
+            tmp_input_path = str(extracted_dir)
+        else:
+            tmp_input_path = self.copytree_verbose_to_tmp_with_process(
+                input_path=self.input_path,
+                tmp_path=self.tmp_path,
+            )
 
         if not self.new and self.time is not None:
             logger.info(f"Only convert {self.time} time points.")
