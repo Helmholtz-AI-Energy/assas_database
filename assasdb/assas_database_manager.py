@@ -2530,8 +2530,28 @@ except Exception as e:
                 h.update(chunk)
         return h.hexdigest()
 
+    def _has_existing_md5(self, v: object) -> bool:
+        """Check if the given value is a valid existing MD5 checksum."""
+        if v is None:
+            return False
+        try:
+            if pd.isna(v):
+                return False
+        except Exception:
+            pass
+        s = str(v).strip()
+        if not s or s.lower() in {"nan", "none", "null", "...", "...."}:
+            return False
+        # md5 hex length check (best-effort)
+        if re.fullmatch(r"[a-fA-F0-9]{32}", s) is None:
+            return False
+        return True
+
     def calculate_md5_for_tar(self, limit: int | None = None) -> None:
-        """Calculate the MD5 checksum for the tar files of all valid archives."""
+        """Calculate the MD5 checksum for the tar files of all valid archives.
+
+        Only calculates and writes MD5 if no MD5 is already present in MongoDB.
+        """
         logger.info("Calculate MD5 checksums for tar files of all valid archives.")
         dataframe = self.get_all_database_entries()
 
@@ -2541,6 +2561,7 @@ except Exception as e:
 
         written = 0
         skipped_missing_dataset_id = 0
+        skipped_existing_md5 = 0
 
         for _, row in df_valid.iterrows():
             if limit is not None and written >= int(limit):
@@ -2560,6 +2581,16 @@ except Exception as e:
                 "null",
             }:
                 skipped_missing_dataset_id += 1
+                continue
+
+            # NEW: skip if md5 already exists in DB
+            existing_md5 = row.get("system_md5", None)
+            # (optional compatibility if some docs used tar_md5)
+            if existing_md5 is None:
+                existing_md5 = row.get("tar_md5", None)
+
+            if self._has_existing_md5(existing_md5):
+                skipped_existing_md5 += 1
                 continue
 
             system_uuid = str(row.get("system_uuid", "") or "").strip()
@@ -2600,9 +2631,16 @@ except Exception as e:
                     f"Updated MD5 in database for uuid={system_uuid}: "
                     f"matched={result.matched_count} modified={result.modified_count}"
                 )
+                written += 1
 
             except Exception as e:
                 logger.error(
                     f"Failed to calculate MD5 for uuid={system_uuid}: {e}",
                     exc_info=True,
                 )
+
+        logger.info(
+            f"calculate_md5_for_tar summary: written={written} "
+            f"skipped_existing_md5={skipped_existing_md5} "
+            f"skipped_missing_dataset_id={skipped_missing_dataset_id}"
+        )

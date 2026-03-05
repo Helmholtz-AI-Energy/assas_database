@@ -800,10 +800,6 @@ def main() -> int:
         Exit code (0 for success, non-zero for errors)
 
     """
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s"
-    )
-
     ap = argparse.ArgumentParser(
         description=(
             "Create tar (or tar.gz) archives for directories. "
@@ -869,34 +865,28 @@ def main() -> int:
         help="Create only the first N archives (after filtering). Example: --limit 50",
     )
     ap.add_argument(
-        "--generate-inventory",
-        action="store_true",
-        help="Generate a CSV inventory of all tar files in the target directory.",
-    )
-    ap.add_argument(
-        "--inventory-csv",
-        type=str,
-        default="tar_inventory.csv",
-        help="Path to write the inventory CSV (used with --generate-inventory).",
-    )
-    ap.add_argument(
-        "--safe-tar-and-delete",
-        action="store_true",
-        help=(
-            "Tar the directory, validate the archive, and delete the "
-            "original if validation passes (manual mode only).",
-        ),
-    )
-    ap.add_argument(
         "--safe-tar-and-delete-from-db",
         action="store_true",
         help="Tar, validate, and delete directories for all DB entries (batch mode).",
     )
+    ap.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set logging level (default: INFO)",
+    )
 
     ns = ap.parse_args()
 
+    logging.basicConfig(
+        level=getattr(logging, ns.log_level),
+        format="%(asctime)s %(levelname)s: %(message)s",
+    )
+
+    target_dir = Path(ns.target_dir) if ns.target_dir is not None else None
+
     result_csv_path = (
-        Path(ns.result_csv) if ns.result_csv else (ns.target_dir / "tar_results.csv")
+        Path(ns.result_csv) if ns.result_csv else (target_dir / "tar_results.csv")
     )
 
     env_path = find_env_file()
@@ -958,37 +948,6 @@ def main() -> int:
 
         return 0
 
-    if ns.generate_inventory:
-        # Assume target_dir is required for inventory
-        target_dir = (
-            Path(ns.target_dir).expanduser().resolve()
-            if hasattr(ns, "target_dir")
-            else None
-        )
-        if not target_dir or not target_dir.exists():
-            logger.error(
-                "Error: --generate-inventory requires a valid target directory "
-                "(--target-dir)."
-                f"Message {sys.stderr}."
-            )
-            return 2
-
-        csv_path = Path(ns.inventory_csv).expanduser().resolve()
-
-        try:
-            generator.generate_tar_inventory_csv_from_mongo(
-                tar_dir=target_dir,
-                csv_path=csv_path,
-                database_manager=database_manager,
-            )
-            logger.info("Inventory CSV written to: %s", csv_path)
-
-        except Exception as e:
-            logger.error("Failed to generate inventory CSV: %s", e)
-            return 2
-
-        return 0
-
     if ns.safe_tar_and_delete_from_db:
         dataframe = database_manager.get_all_database_entries()
 
@@ -1012,37 +971,6 @@ def main() -> int:
             )
 
         return 0
-
-    if not ns.source_dir:
-        raise TarGeneratorError(
-            "Manual mode requires source_dir. Either pass source_dir or use --from-db."
-        )
-
-    out = generator.create(
-        TarJob(
-            source_dir=Path(ns.source_dir),
-            target_dir=target_dir,
-            archive_name=ns.name,
-            gzip=ns.gz,
-            progress=ns.progress,
-            checkpoint=ns.checkpoint,
-        )
-    )
-    md5 = generator._md5_file(out)
-    generator._write_results_csv(
-        [
-            {
-                "upload_uuid": "",
-                "system_path": str(Path(ns.source_dir)),
-                "tar_path": str(out),
-                "md5": md5,
-            }
-        ],
-        result_csv_path,
-    )
-    logger.info("%s  md5=%s", str(out), md5)
-    logger.info("Results CSV: %s", result_csv_path)
-    return 0
 
 
 if __name__ == "__main__":
