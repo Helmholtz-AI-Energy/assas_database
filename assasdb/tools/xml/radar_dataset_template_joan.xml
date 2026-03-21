@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:radarDataset xmlns="http://radar-service.eu/schemas/descriptive/radar/v09/radar-elements" xmlns:ns2="http://radar-service.eu/schemas/descriptive/radar/v09/radar-dataset">
+    <relatedIdentifiers>
+        <relatedIdentifier relatedIdentifierType="DOI" relationType="IsPartOf">10.35097/6usywdcrehej9z44</relatedIdentifier>
+    </relatedIdentifiers>
+    <creators>
+        <creator>
+            <creatorName>Fontanet, Joan</creatorName>
+            <givenName>Joan</givenName>
+            <familyName>Fontanet</familyName>
+            <nameIdentifier schemeURI="http://orcid.org/" nameIdentifierScheme="ORCID">0000-0003-1682-6985</nameIdentifier>
+            <creatorAffiliation schemeURI="https://ror.org/" affiliationIdentifierScheme="ROR" affiliationIdentifier="https://ror.org/05xx77y52">Centro de Investigaciones Energéticas, Medioambientales y Tecnológicas</creatorAffiliation>
+        </creator>
+        <creator>
+            <creatorName>Centro de Investigaciones Energéticas, Medioambientales y Tecnológicas</creatorName>
+            <nameIdentifier schemeURI="https://ror.org/" nameIdentifierScheme="ROR">https://ror.org/05xx77y52</nameIdentifier>
+        </creator>
+    </creators>
+    <contributors>
+        <contributor contributorType="ProjectMember">
+            <contributorName>Karlsruhe Institute of Technology</contributorName>
+            <nameIdentifier schemeURI="https://ror.org/" nameIdentifierScheme="ROR">https://ror.org/04t3en479</nameIdentifier>
+        </contributor>
+    </contributors>
+    <title>CIEMAT-test_0</title>
+    <descriptions>
+        <description descriptionType="Abstract">Simulation of ASTEC Scenario.</description>
+    </descriptions>
+    <keywords>
+        <keyword keywordScheme="Other">ASSAS</keyword>
+        <keyword keywordScheme="Other">Nuclear Safety</keyword>
+        <keyword keywordScheme="Other" schemeURI="https://w3id.org/skgo/modsci#ComputerScience" valueURI="https://w3id.org/skgo/modsci#ComputerScience" classificationCode="modsci_ComputerScience" ontologyId="modsci">Computer Science</keyword>
+        <keyword keywordScheme="Other" schemeURI="https://w3id.org/skgo/modsci#Physics" valueURI="https://w3id.org/skgo/modsci#Physics" classificationCode="modsci_Physics" ontologyId="modsci">Physics</keyword>
+        <keyword keywordScheme="Other" schemeURI="https://w3id.org/skgo/modsci#ArtificialIntelligence" valueURI="https://w3id.org/skgo/modsci#ArtificialIntelligence" classificationCode="modsci_ArtificialIntelligence" ontologyId="modsci">Artificial Intelligence</keyword>
+        <keyword keywordScheme="Other" schemeURI="https://doi.org/10.29172/d9e32a6d-d42e-430a-9665-10aaf0776e26" valueURI="https://doi.org/10.29172/d9e32a6d-d42e-430a-9665-10aaf0776e26" classificationCode="physh_d9e32a6d-d42e-430a-9665-10aaf0776e26" ontologyId="physh">Nuclear reactors</keyword>
+    </keywords>
+    <publishers>
+        <publisher nameIdentifierScheme="ROR" schemeURI="https://ror.org/" nameIdentifier="https://ror.org/04t3en479">Karlsruhe Institute of Technology</publisher>
+    </publishers>
+    <productionYear>2026</productionYear>
+    <language>eng</language>
+    <subjectAreas>
+        <subjectArea>
+            <controlledSubjectAreaName>Engineering</controlledSubjectAreaName>
+        </subjectArea>
+        <subjectArea>
+            <controlledSubjectAreaName>Physics</controlledSubjectAreaName>
+        </subjectArea>
+        <subjectArea>
+            <controlledSubjectAreaName>Computer Science</controlledSubjectAreaName>
+        </subjectArea>
+    </subjectAreas>
+    <resource resourceType="Dataset"></resource>
+    <dataSources>
+        <dataSource dataSourceDetail="Other">ASTEC Simulation</dataSource>
+    </dataSources>
+    <software>
+        <softwareType type="Resource Production">
+            <softwareName softwareVersion="3.1.2">ASTEC</softwareName>
+        </softwareType>
+    </software>
+    <rights>
+        <controlledRights>Other</controlledRights>
+        <additionalRights>to be determined</additionalRights>
+    </rights>
+    <rightsHolders>
+        <rightsHolder nameIdentifierScheme="ROR" schemeURI="https://ror.org/" nameIdentifier="https://ror.org/04t3en479">Karlsruhe Institute of Technology</rightsHolder>
+    </rightsHolders>
+</ns2:radarDataset>

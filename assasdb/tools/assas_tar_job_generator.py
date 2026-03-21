@@ -60,7 +60,7 @@ TEMPLATE = """#!/bin/bash
 #SBATCH --partition=cpuonly
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --time=03:00:00
+#SBATCH --time=02:00:00
 #SBATCH --mem=512mb
 #SBATCH --constraint=LSDF
 #SBATCH --output={py_dir}/result/slurm-%j.out
@@ -110,7 +110,7 @@ def get_database_entries() -> pd.DataFrame:
 def get_job_parameter(
     entry: pd.Series,
     log_level: str = "WARNING",
-) -> dict:
+) -> str:
     """Return a list of job parameters for the given entry.
 
     Each job parameter is a dictionary with the keys 'jobname', 'uuid'
@@ -175,10 +175,8 @@ def generate_job_files(
     """
     logger.info(f"Generate job files for {len(database_entries)} entries.")
 
-    database_entries.apply(
-        lambda entry: generate_job_file(job_directory, entry, log_level),
-        axis=1,
-    )
+    for _, entry in database_entries.iterrows():
+        generate_job_file(job_directory, entry, log_level)
 
 
 def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
@@ -220,7 +218,7 @@ def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
         logger.error(f"Unexpected error: {e}")
 
 
-def extract_upload_uuid(job_name: str) -> str:
+def extract_upload_uuid(job_name: str) -> str | None:
     """Extract the upload UUID from the job name.
 
     Assumes the job name contains the UUID in a specific format.
@@ -335,9 +333,9 @@ def _has_radar_dataset_id(value: object) -> bool:
         return False
     # pandas NaN handling
     try:
-        if pd.isna(value):
+        if pd.isna(float(str(value))):
             return False
-    except Exception:
+    except (ValueError, TypeError):
         pass
     s = str(value).strip()
     if not s:
@@ -653,12 +651,12 @@ def get_finished_jobs_usage(
         raw[raw["is_batch"]]
         .groupby("job_id_root", as_index=False)["max_rss_mb"]
         .max()
-        .rename(columns={"job_id_root": "job_id", "max_rss_mb": "max_rss_mb_batch"})
+        .rename({"job_id_root": "job_id", "max_rss_mb": "max_rss_mb_batch"})
     )
     mem_any = (
         raw.groupby("job_id_root", as_index=False)["max_rss_mb"]
         .max()
-        .rename(columns={"job_id_root": "job_id", "max_rss_mb": "max_rss_mb_any"})
+        .rename({"job_id_root": "job_id", "max_rss_mb": "max_rss_mb_any"})
     )
 
     df = base.merge(mem_batch, on="job_id", how="left").merge(
@@ -701,6 +699,47 @@ def count_entries_by_status(
 
     """
     return len(database_entries[database_entries["system_status"] == status.value])
+
+
+def _tar_file_exists(entry: pd.Series) -> bool:
+    """Return True if a tar file already exists for the given entry.
+
+    Checks if a .tar file with the same name as the archive directory
+    exists at the system_path location.
+
+    Args:
+        entry: A row from the database entries DataFrame.
+
+    Returns:
+        True if the tar file already exists, False otherwise.
+
+    """
+    system_path = str(entry.get("system_path", "") or "").strip()
+    if not system_path:
+        logger.warning(
+            "No system_path for uuid=%s, skipping tar check.",
+            entry.get("system_upload_uuid", "?"),
+        )
+        return False
+
+    archive_dir = Path(system_path)
+    # tar file is expected next to the directory with the same name + .tar
+    tar_file = archive_dir.parent / f"{archive_dir.name}.tar"
+
+    if tar_file.exists():
+        logger.debug(
+            "Tar file already exists for uuid=%s: %s",
+            entry.get("system_upload_uuid", "?"),
+            tar_file,
+        )
+        return True
+
+    logger.debug(
+        "No tar file found for uuid=%s at expected path: %s",
+        entry.get("system_upload_uuid", "?"),
+        tar_file,
+    )
+    return False
 
 
 if __name__ == "__main__":
@@ -837,6 +876,17 @@ if __name__ == "__main__":
             before,
             len(database_entries),
         )
+
+    # Filter out entries where tar file already exists
+    before = len(database_entries)
+    database_entries = database_entries[
+        ~database_entries.apply(_tar_file_exists, axis=1)
+    ]
+    logger.info(
+        "Filtered entries without existing tar file: %d -> %d",
+        before,
+        len(database_entries),
+    )
 
     logger.info(f"Filtered database entries: {len(database_entries)}.")
     logger.info(f"Generating job files for {len(database_entries)} entries.")

@@ -27,6 +27,17 @@ RADAR_DATASET_ID_FIELD = "radar_dataset_id"
 NS_DATASET = "http://radar-service.eu/schemas/descriptive/radar/v09/radar-dataset"
 NS_ELEMENTS = "http://radar-service.eu/schemas/descriptive/radar/v09/radar-elements"
 
+XML_TEMPLATE_DIR = "xml"
+
+USER_TEMPLATE_MAPPING = {
+    "Joan": os.path.join(XML_TEMPLATE_DIR, "radar_dataset_template_joan.xml"),
+    "Marcello": os.path.join(XML_TEMPLATE_DIR, "radar_dataset_template_marcello.xml"),
+    "Anastasia": os.path.join(XML_TEMPLATE_DIR, "radar_dataset_template_anastasia.xml"),
+    "Jure": os.path.join(XML_TEMPLATE_DIR, "radar_dataset_template_jure.xml"),
+}
+
+DEFAULT_TEMPLATE = os.path.join(XML_TEMPLATE_DIR, "radar_dataset_template.xml")
+
 RadarFormat = Literal["xml", "json"]
 RowLike = Union[pd.Series, Mapping[str, Any]]
 
@@ -256,15 +267,15 @@ def _api_base(url: str) -> str:
 
 def _clean_id(value: object) -> Optional[str]:
     """Return a usable id string or None (handles pandas NaN -> None)."""
+    if value is None:
+        return None
+
     try:
         # pandas-safe NaN check (also catches None-like)
-        if pd.isna(value):
+        if pd.isna(value):  # type: ignore[arg-type]
             return None
     except Exception:
         pass
-
-    if value is None:
-        return None
 
     s = str(value).strip()
     if not s or s.lower() == "nan":
@@ -354,10 +365,12 @@ class RadarOAuthClient:
         logger.info("RADAR format (default): %s", self.radar_format)
 
         self.manager = database_manager
-        self.dataframe = database_manager.get_all_database_entries()
-        logger.info(
-            f"Loaded dataframe with {len(self.dataframe)} entries from ASSAS database."
-        )
+        self.dataframe: Optional[pd.DataFrame] = None
+        logger.info("Deferred MongoDB dataframe loading (streaming mode).")
+        # self.dataframe = database_manager.get_all_database_entries()
+        # logger.info(
+        #    f"Loaded dataframe with {len(self.dataframe)} entries from ASSAS database."
+        # )
 
     def _accept_header(self) -> str:
         return "application/json" if self.radar_format == "json" else "application/xml"
@@ -682,7 +695,7 @@ class RadarOAuthClient:
 
         if not identifier_value or not production_year or len(production_year) != 4:
             logger.error("Invalid identifierValue or productionYear!")
-            return None
+            raise ValueError("Invalid identifierValue or productionYear")
 
         payload: Dict[str, Any] = {
             "id": dataset_id,
@@ -856,35 +869,196 @@ class RadarOAuthClient:
             logger.error("Dataset metadata fetch error (XML): %s", e)
             return None
 
+    def _get_template_path_for_user(
+        self,
+        user_name: str,
+    ) -> str:
+        """Get the appropriate template path based on user name.
+
+        Args:
+            user_name: Name of the data generator/creator
+
+        Returns:
+            Template filename matching the user, or default template
+
+        """
+        # Check for exact match first
+        for user, template in USER_TEMPLATE_MAPPING.items():
+            if user.lower() in user_name.lower():
+                logger.info(f"Using template '{template}' for user '{user_name}'")
+                return template
+
+        logger.info(
+            f"No specific template found for user '{user_name}', "
+            f"using default template '{DEFAULT_TEMPLATE}'"
+        )
+        return DEFAULT_TEMPLATE
+
+    def _first_non_empty(self, row: RowLike, keys: list[str]) -> str:
+        """Return the first non-empty value from the given row for the specified keys.
+
+        Args:
+            row: The data row to search.
+            keys: List of keys to check in order.
+
+        Returns:
+            The first non-empty value as a string, or an empty string if none found.
+
+        """
+        for k in keys:
+            v = _row_get(row, k, None)
+            if v is not None and str(v).strip() and str(v).strip().lower() != "nan":
+                return str(v).strip()
+        return ""
+
+    def _find_abstract_description_value(
+        self, xml_root: ET.Element
+    ) -> Optional[ET.Element]:
+        """Return the element whose .text should be updated for ABSTRACT description.
+
+        Supports both:
+          1) <description descriptionType="Abstract">text</description>
+          2) <description>
+                <descriptionType>ABSTRACT
+                </descriptionType>
+                <descriptionValue>text
+                </descriptionValue>
+            </description>
+        """
+        # Shape 1: attribute on <description>
+        for desc in xml_root.iter():
+            if _xml_local_name(desc.tag) != "description":
+                continue
+            dtype_attr = (desc.attrib.get("descriptionType") or "").strip().upper()
+            if dtype_attr == "ABSTRACT":
+                return desc
+
+        # Shape 2: nested descriptionType + descriptionValue
+        for desc in xml_root.iter():
+            if _xml_local_name(desc.tag) != "description":
+                continue
+
+            desc_type = ""
+            desc_value_el: Optional[ET.Element] = None
+            for child in list(desc):
+                lname = _xml_local_name(child.tag)
+                if lname == "descriptionType":
+                    desc_type = (child.text or "").strip().upper()
+                elif lname == "descriptionValue":
+                    desc_value_el = child
+
+            if desc_type == "ABSTRACT" and desc_value_el is not None:
+                return desc_value_el
+
+        # Fallback: first description/descriptionValue
+        for node in xml_root.iter():
+            if _xml_local_name(node.tag) in {"description", "descriptionValue"}:
+                return node
+        return None
+
     def update_radar_metadata_with_template(
         self,
         *,
         dataframe_row: RowLike,
         dataset_id: str,
-        template_path: str = "radar_dataset_template.xml",
+        template_path: Optional[str] = None,
     ) -> bool:
-        """Load the XML template, set the title, and upload to RADAR."""
+        """Load the XML template, set the title, and upload to RADAR.
+
+        Args:
+            dataframe_row: Row from dataframe containing metadata
+            dataset_id: RADAR dataset ID
+            template_path: Optional explicit template path. If not provided,
+                          will auto-select based on user name.
+
+        """
+        # Auto-select template based on user if not explicitly provided
+        if template_path is None:
+            user_info = _row_get(dataframe_row, "system_user_info", {}) or {}
+            user_name: str = ""
+            if isinstance(user_info, Mapping):
+                user_name = str(user_info.get("name") or "").strip()
+            else:
+                user_name = str(user_info).strip()
+
+            if not user_name:
+                user_name = "ASSAS Project Team"
+
+            template_path = self._get_template_path_for_user(user_name)
+
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        template_path = os.path.join(current_dir, template_path)
+        template_full_path = os.path.join(current_dir, template_path)
 
         # Parse the XML template
-        tree = ET.parse(template_path)
-        root = tree.getroot()
-
-        logger.debug(f"Loaded XML template from {template_path}.")
-
-        # Find and update the <title> element
-
-        # The <title> tag is in the default namespace, so use root.find with namespace
-        title_elem = root.find(f"{{{NS_ELEMENTS}}}title")
-        if title_elem is not None:
-            title_elem.text = dataframe_row.get("meta_name", "")
-        else:
-            logger.error("Title element not found in template.")
+        try:
+            tree = ET.parse(template_full_path)
+            root = tree.getroot()
+        except FileNotFoundError:
+            logger.error(
+                f"Template file not found: {template_full_path}. "
+                f"Make sure the template file exists in the same "
+                f"directory as this script."
+            )
+            return False
+        except ET.ParseError as e:
+            logger.error(f"Failed to parse template {template_path}: {e}")
             return False
 
+        logger.debug(f"Loaded XML template from {template_full_path}.")
+
+        # MongoDB fields
+        meta_name = self._first_non_empty(dataframe_row, ["meta_name"])
+        meta_title = self._first_non_empty(dataframe_row, ["meta_title"])
+        meta_description = self._first_non_empty(dataframe_row, ["meta_description"])
+        n_samples = self._first_non_empty(dataframe_row, ["system_number_of_samples"])
+
+        upload_info = _row_get(dataframe_row, "upload_info", {}) or {}
+        archive_path: str = ""
+        if isinstance(upload_info, Mapping):
+            archive_path = str(upload_info.get("archive_paths") or "").strip()
+        else:
+            archive_path = str(upload_info).strip()
+
+        upload_uuid = self._first_non_empty(dataframe_row, ["system_upload_uuid"])
+        system_uuid = self._first_non_empty(dataframe_row, ["system_uuid"])
+
+        abstract_lines = [
+            "Simulation of ASTEC Scenario:",
+            f"Name: {meta_name}" if meta_name else "",
+            f"Title: {meta_title}" if meta_title else "",
+            f"Description: {meta_description}" if meta_description else "",
+            f"Number of samples: {n_samples}" if n_samples else "",
+            f"Archive path: {archive_path}" if archive_path else "",
+            (
+                f"upload_uuid_system_uuid: {upload_uuid}_{system_uuid}"
+                if upload_uuid or system_uuid
+                else ""
+            ),
+        ]
+        abstract_text = "\n".join([x for x in abstract_lines if x])
+
+        description_value_el = self._find_abstract_description_value(root)
+        if description_value_el is None:
+            logger.error("No ABSTRACT descriptionValue element found in template.")
+            return False
+
+        description_value_el.text = abstract_text
+
+        # Also set <title> as before (prefer meta_title, fallback to meta_name)
+        title_value = meta_title or meta_name
+        if title_value:
+            title_el: Optional[ET.Element] = None
+            for node in root.iter():
+                if _xml_local_name(node.tag) == "title":
+                    title_el = node
+                    break
+            if title_el is not None:
+                title_el.text = title_value
+            else:
+                logger.warning("No <title> element found in template.")
+
         # Serialize XML
-        xml_data = ET.tostring(root, encoding="utf-8", xml_declaration=True)
+        xml_data: bytes = ET.tostring(root, encoding="utf-8", xml_declaration=True)
 
         # Prepare upload
         url = f"{self.radar_api}datasets/{dataset_id}/metadata"
@@ -951,7 +1125,7 @@ class RadarOAuthClient:
             dataframe_row,
             dataset_id=dataset_id_clean,
         )
-        payload = remove_empty_fields(payload)
+        payload = remove_empty_fields(payload)  # type: ignore[assignment]
 
         existing_metadata = self.get_dataset_metadata_xml(dataset_id_clean)
         logger.info(
@@ -961,7 +1135,7 @@ class RadarOAuthClient:
 
         logger.info(f"Updating metadata for dataset {dataset_id_clean} at {url}")
 
-        xml_element = _dict_to_radar_xml(payload)
+        xml_element = _dict_to_radar_xml(payload)  # type: ignore[arg-type]
         xml_data = ET.tostring(xml_element, encoding="utf-8", xml_declaration=True)
 
         logger.info("XML to upload:\n%s", xml_data.decode("utf-8"))
@@ -1083,154 +1257,184 @@ class RadarOAuthClient:
         dry_run: bool = False,
         update: bool = False,
     ) -> list[dict[str, str]]:
-        """Create datasets for dataframe rows (one dataset per row).
-
-        If radar_dataset_id exists and update=True, update metadata instead of creating.
-        Returns list of mappings: {system_upload_uuid, dataset_id}.
-        """
+        """Create datasets from MongoDB using a streaming cursor."""
         results: list[dict[str, str]] = []
         created = 0
-        considered = 0  # counts rows that pass filtering (uuid/status)
+        considered = 0
 
-        # Acquire token once
         if not self.access_token:
             if not self.get_access_token():
                 logger.error("Could not obtain access token")
                 return results
 
-        for _, row in self.dataframe.iterrows():
-            upload_uuid = _clean_id(row.get("system_upload_uuid", "")) or ""
+        query: Dict[str, Any] = {}
+        if only_uuids:
+            query["system_upload_uuid"] = {"$in": list(only_uuids)}
 
-            # Optional filtering
-            if only_uuids and upload_uuid not in only_uuids:
-                continue
+        projection: Dict[str, int] = {
+            "_id": 0,
+            "system_upload_uuid": 1,
+            "system_uuid": 1,
+            "system_status": 1,
+            "system_user_info": 1,
+            "system_number_of_samples": 1,
+            "system_path": 1,
+            "upload_info": 1,
+            "meta_name": 1,
+            "meta_title": 1,
+            "meta_description": 1,
+            RADAR_DATASET_ID_FIELD: 1,
+        }
 
-            # Optional status filtering (skip non-VALID)
-            if "system_status" in row:
-                try:
-                    status = AssasDocumentFileStatus(row.get("system_status"))
-                    if status != AssasDocumentFileStatus.VALID:
-                        logger.info(
-                            f"Skipping upload_uuid={upload_uuid} "
-                            f"due to system_status={status}"
-                        )
-                        continue
-                except Exception:
-                    pass
+        coll = self.manager.database_handler.file_collection
+        cursor = coll.find(query, projection=projection).batch_size(200)
 
-            # Apply limit AFTER filtering (matches CLI help)
-            considered += 1
-            if limit is not None and considered > int(limit):
-                logger.info("Reached limit=%s (after filtering); stopping.", limit)
-                break
+        try:
+            for row in cursor:
+                upload_uuid = _clean_id(row.get("system_upload_uuid", "")) or ""
 
-            system_uuid = _clean_id(row.get("system_uuid"))
+                if "system_status" in row:
+                    try:
+                        status = AssasDocumentFileStatus(row.get("system_status"))
+                        if status != AssasDocumentFileStatus.VALID:
+                            logger.info(
+                                "Skipping upload_uuid=%s due to system_status=%s",
+                                upload_uuid,
+                                status,
+                            )
+                            continue
+                    except Exception:
+                        pass
 
-            # Check whether radar_dataset_id already exists (prefer fresh DB state)
-            existing_dataset_id: Optional[str] = None
-            try:
-                if system_uuid:
-                    document: dict[str, Any] = (
-                        self.manager.database_handler.get_file_document_by_uuid(
-                            uuid=system_uuid
-                        )
-                    )
-                    if document:
-                        existing_dataset_id = _clean_id(
-                            document.get(RADAR_DATASET_ID_FIELD)
-                        )
-            except Exception as e:
-                logger.warning(
-                    f"Could not fetch existing document for "
-                    f"system_uuid={system_uuid} to check {RADAR_DATASET_ID_FIELD}: {e}"
-                )
+                considered += 1
+                if limit is not None and considered > int(limit):
+                    logger.info("Reached limit=%s (after filtering); stopping.", limit)
+                    break
 
-            if not existing_dataset_id:
+                system_uuid = _clean_id(row.get("system_uuid"))
                 existing_dataset_id = _clean_id(row.get(RADAR_DATASET_ID_FIELD))
 
-            # Existing dataset_id path
-            if existing_dataset_id:
-                if update:
-                    if dry_run:
-                        logger.info(
-                            "[DRY-RUN] Would update metadata "
-                            f"for upload_uuid={upload_uuid}"
-                            f"dataset_id={existing_dataset_id}.",
+                if not existing_dataset_id and system_uuid:
+                    try:
+                        document: Optional[dict[str, Any]] = (
+                            self.manager.database_handler.get_file_document_by_uuid(
+                                uuid=system_uuid
+                            )
                         )
-                        results.append(
-                            {
-                                "system_upload_uuid": upload_uuid,
-                                "dataset_id": existing_dataset_id,
-                            }
+                        if document:
+                            existing_dataset_id = _clean_id(
+                                document.get(RADAR_DATASET_ID_FIELD)
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            "Could not fetch existing document for system_uuid=%s "
+                            "to check %s: %s",
+                            system_uuid,
+                            RADAR_DATASET_ID_FIELD,
+                            e,
                         )
+
+                if existing_dataset_id:
+                    if update:
+                        if dry_run:
+                            logger.info(
+                                "[DRY-RUN] Would update metadata for "
+                                "upload_uuid=%s dataset_id=%s.",
+                                upload_uuid,
+                                existing_dataset_id,
+                            )
+                            results.append(
+                                {
+                                    "system_upload_uuid": upload_uuid,
+                                    "dataset_id": existing_dataset_id,
+                                }
+                            )
+                            continue
+
+                        ok = self.update_radar_metadata_with_template(
+                            dataframe_row=row,
+                            dataset_id=existing_dataset_id,
+                        )
+                        if ok:
+                            results.append(
+                                {
+                                    "system_upload_uuid": upload_uuid,
+                                    "dataset_id": existing_dataset_id,
+                                }
+                            )
+                        else:
+                            logger.error(
+                                "Failed updating dataset metadata for "
+                                "upload_uuid=%s dataset_id=%s",
+                                upload_uuid,
+                                existing_dataset_id,
+                            )
                         continue
 
-                    ok = self.update_radar_metadata_with_template(
-                        dataframe_row=row,
-                        dataset_id=existing_dataset_id,
+                    logger.info(
+                        "Skipping creation for upload_uuid=%s because %s already "
+                        "exists: %s.",
+                        upload_uuid,
+                        RADAR_DATASET_ID_FIELD,
+                        existing_dataset_id,
                     )
-                    if ok:
-                        results.append(
-                            {
-                                "system_upload_uuid": upload_uuid,
-                                "dataset_id": existing_dataset_id,
-                            }
-                        )
-                    else:
-                        logger.error(
-                            "Failed updating dataset "
-                            f"metadata for upload_uuid={upload_uuid} "
-                            f"dataset_id={existing_dataset_id}",
-                        )
+                    results.append(
+                        {
+                            "system_upload_uuid": upload_uuid,
+                            "dataset_id": existing_dataset_id,
+                        }
+                    )
                     continue
 
-                logger.info(
-                    f"Skipping creation for upload_uuid={upload_uuid} "
-                    f"because {RADAR_DATASET_ID_FIELD} "
-                    f"already exists: {existing_dataset_id}."
+                if dry_run:
+                    logger.info(
+                        "[DRY-RUN] Would create dataset for upload_uuid=%s.",
+                        upload_uuid,
+                    )
+                    results.append(
+                        {"system_upload_uuid": upload_uuid, "dataset_id": ""}
+                    )
+                    created += 1
+                    continue
+
+                dataset_id = self.create_dataset_from_dataframe_row(
+                    row, api_url=api_url
                 )
+                if not dataset_id:
+                    logger.error(
+                        "Failed creating dataset for upload_uuid=%s",
+                        upload_uuid,
+                    )
+                    continue
+
+                if system_uuid:
+                    self.persist_radar_dataset_id(
+                        upload_uuid=upload_uuid,
+                        system_uuid=system_uuid,
+                        dataset_id=dataset_id,
+                    )
+                else:
+                    logger.error(
+                        "Created dataset_id=%s for upload_uuid=%s but cannot persist: "
+                        "missing system_uuid in row.",
+                        dataset_id,
+                        upload_uuid,
+                    )
+
                 results.append(
                     {
                         "system_upload_uuid": upload_uuid,
-                        "dataset_id": existing_dataset_id,
+                        "dataset_id": dataset_id,
                     }
                 )
-                continue
-
-            # Create path (only when no existing dataset_id)
-            if dry_run:
                 logger.info(
-                    "[DRY-RUN] Would create dataset for upload_uuid=%s.", upload_uuid
+                    "Created dataset_id=%s for upload_uuid=%s.",
+                    dataset_id,
+                    upload_uuid,
                 )
-                results.append({"system_upload_uuid": upload_uuid, "dataset_id": ""})
                 created += 1
-                continue
-
-            dataset_id = self.create_dataset_from_dataframe_row(row, api_url=api_url)
-            if not dataset_id:
-                logger.error("Failed creating dataset for upload_uuid=%s", upload_uuid)
-                continue
-
-            # Persist mapping in MongoDB
-            if system_uuid:
-                self.persist_radar_dataset_id(
-                    upload_uuid=upload_uuid,
-                    system_uuid=system_uuid,
-                    dataset_id=dataset_id,
-                )
-            else:
-                logger.error(
-                    f"Created dataset_id={dataset_id} for upload_uuid={upload_uuid} "
-                    f"but cannot persist: missing system_uuid in dataframe row.",
-                )
-
-            results.append(
-                {"system_upload_uuid": upload_uuid, "dataset_id": dataset_id}
-            )
-            logger.info(
-                f"Created dataset_id={dataset_id} for upload_uuid={upload_uuid}."
-            )
-            created += 1
+        finally:
+            cursor.close()
 
         return results
 
@@ -1425,9 +1629,10 @@ class RadarOAuthClient:
                 # Expecting: {"data": [ { "id": ... }, ... ]}
                 if isinstance(parsed, dict) and isinstance(parsed.get("data"), list):
                     ids = [
-                        _clean_id(entry.get("id"))
+                        cleaned_id
                         for entry in parsed["data"]
-                        if isinstance(entry, dict) and _clean_id(entry.get("id"))
+                        if isinstance(entry, dict)
+                        and (cleaned_id := _clean_id(entry.get("id")))
                     ]
                     if limit is not None:
                         ids = ids[: int(limit)]
@@ -1445,6 +1650,21 @@ class RadarOAuthClient:
         except Exception as e:
             logger.error("Workspace GET error: %s", e)
             return []
+
+
+def _verify_file_collection_access(database_manager: AssasDatabaseManager) -> None:
+    """Fail fast if Atlas user cannot read file_collection."""
+    try:
+        coll = database_manager.database_handler.file_collection
+        _ = coll.find_one({}, {"_id": 1})  # read test
+        logger.info("MongoDB access check OK: file_collection is readable.")
+    except Exception as e:
+        logger.error("MongoDB access check failed for file_collection: %s", e)
+        raise PermissionError(
+            "Cannot read MongoDB file_collection. "
+            "Check Atlas Database Access role (readWrite), Network Access allowlist, "
+            "and CONNECTIONSTRING credentials."
+        ) from e
 
 
 if __name__ == "__main__":
@@ -1473,7 +1693,7 @@ if __name__ == "__main__":
         default=[],
         help=(
             "When used with --action from-db: only create "
-            "datasets for these system_upload_uuid(s).",
+            "datasets for these system_upload_uuid(s)."
         ),
     )
     parser.add_argument(
@@ -1482,7 +1702,7 @@ if __name__ == "__main__":
         default=None,
         help=(
             "When used with --action from-db: "
-            "create only the first N datasets (after filtering).",
+            "create only the first N datasets (after filtering)."
         ),
     )
     parser.add_argument(
@@ -1490,7 +1710,7 @@ if __name__ == "__main__":
         action="store_true",
         help=(
             "When used with --action from-db: "
-            "do not call RADAR, only log what would happen.",
+            "do not call RADAR, only log what would happen."
         ),
     )
     parser.add_argument(
@@ -1498,7 +1718,7 @@ if __name__ == "__main__":
         action="store_true",
         help=(
             "When used with --action from-db: if radar_dataset_id already exists, "
-            "update that dataset's metadata instead of creating a new one.",
+            "update that dataset's metadata instead of creating a new one."
         ),
     )
     parser.add_argument(
@@ -1519,7 +1739,7 @@ if __name__ == "__main__":
         choices=["xml", "json"],
         help=(
             "RADAR API payload/accept format (default: xml). "
-            "Use json to keep old behavior.",
+            "Use json to keep old behavior."
         ),
     )
     parser.add_argument(
@@ -1545,6 +1765,8 @@ if __name__ == "__main__":
             database_name=env["MONGO_DB_NAME"],
         )
     )
+
+    _verify_file_collection_access(database_manager)
 
     oauth_client = RadarOAuthClient(
         database_manager=database_manager,
