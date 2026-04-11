@@ -21,8 +21,13 @@ import argparse
 
 from pathlib import Path
 from enum import Enum
+from collections.abc import Iterable, Iterator
 
-from assasdb import AssasDatabaseManager, AssasDocumentFileStatus, AssasDatabaseHandler
+from assasdb import (
+    AssasDatabaseManager,
+    AssasDocumentFileStatus,
+    AssasDatabaseHandler,
+)
 
 pd.set_option("display.max_rows", None)  # Show all rows
 pd.set_option("display.max_columns", None)  # Show all columns
@@ -60,7 +65,7 @@ TEMPLATE = """#!/bin/bash
 #SBATCH --partition=cpuonly
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --time=02:00:00
+#SBATCH --time=06:00:00
 #SBATCH --mem=512mb
 #SBATCH --constraint=LSDF
 #SBATCH --output={py_dir}/result/slurm-%j.out
@@ -86,13 +91,9 @@ mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 """  # noqa: E501
 
 
-def get_database_entries() -> pd.DataFrame:
-    """Return all database entries from the internal database.
-
-    This function initializes an instance of `AssasDatabaseManager` with the
-    specified internal database and retrieves all database entries.
-    """
-    database_manager = AssasDatabaseManager(
+def get_database_manager() -> AssasDatabaseManager:
+    """Create and return database manager."""
+    return AssasDatabaseManager(
         database_handler=AssasDatabaseHandler(
             connection_string=os.environ.get("CONNECTIONSTRING"),
             backup_directory=os.environ.get("BACKUP_DIRECTORY"),
@@ -100,11 +101,92 @@ def get_database_entries() -> pd.DataFrame:
         ),
     )
 
-    logger.info("Get all database entries from internal database.")
-    database_entries = database_manager.get_all_database_entries()
-    logger.info(f"Number of database entries: {len(database_entries)}.")
 
-    return database_entries
+def iter_database_entries(
+    database_manager: AssasDatabaseManager,
+    *,
+    state_values: list[str],
+    uuid: str | None = None,
+) -> Iterator[pd.Series]:
+    """Stream database entries with projection (no full collection load)."""
+    query: dict = {"system_status": {"$in": state_values}}
+    if uuid:
+        query["system_upload_uuid"] = uuid
+
+    projection = {
+        "_id": 0,
+        "system_upload_uuid": 1,
+        "system_status": 1,
+        "system_path": 1,
+        "radar_dataset_id": 1,
+    }
+
+    coll = database_manager.database_handler.file_collection
+    cursor = coll.find(query, projection=projection).batch_size(200)
+
+    try:
+        for doc in cursor:
+            yield pd.Series(doc)
+    finally:
+        cursor.close()
+
+
+def iter_filtered_entries(
+    entries: Iterable[pd.Series],
+    *,
+    skipped_tar_uuids: list[str] | None = None,
+    skip_existing_tar: bool = True,
+    readiness_stats: dict[str, int] | None = None,
+) -> Iterator[pd.Series]:
+    """Filter streamed entries by radar_dataset_id and archive readiness.
+
+    An entry is skipped only if it is already ready for RADAR integration:
+    - tar file exists
+    - original binary path was deleted
+    """
+    for entry in entries:
+        if readiness_stats is not None:
+            readiness_stats["entries_seen"] = readiness_stats.get("entries_seen", 0) + 1
+
+        if not _has_radar_dataset_id(entry.get("radar_dataset_id")):
+            continue
+
+        if readiness_stats is not None:
+            readiness_stats["with_radar_dataset_id"] = (
+                readiness_stats.get("with_radar_dataset_id", 0) + 1
+            )
+
+        tar_exists, original_deleted, ready = _archive_readiness(entry)
+
+        if readiness_stats is not None:
+            if tar_exists:
+                readiness_stats["tar_exists"] = readiness_stats.get("tar_exists", 0) + 1
+            if original_deleted:
+                readiness_stats["original_binary_deleted"] = (
+                    readiness_stats.get("original_binary_deleted", 0) + 1
+                )
+            if ready:
+                readiness_stats["ready_for_radar"] = (
+                    readiness_stats.get("ready_for_radar", 0) + 1
+                )
+
+        if skip_existing_tar and ready:
+            if skipped_tar_uuids is not None:
+                skipped_tar_uuids.append(str(entry.get("system_upload_uuid", "")))
+            continue
+
+        yield entry
+
+
+def _iter_entry_series(
+    database_entries: pd.DataFrame | Iterable[pd.Series],
+) -> Iterator[pd.Series]:
+    """Yield entries as pandas Series from either DataFrame rows or streamed Series."""
+    if isinstance(database_entries, pd.DataFrame):
+        for _, entry in database_entries.iterrows():
+            yield entry
+    else:
+        yield from database_entries
 
 
 def get_job_parameter(
@@ -165,18 +247,24 @@ def generate_job_file(
 
 def generate_job_files(
     job_directory: str,
-    database_entries: pd.DataFrame,
+    database_entries: pd.DataFrame | Iterable[pd.Series],
     log_level: str = "WARNING",
-) -> None:
-    """Generate job files for all entries in the database with the status 'Uploaded'.
+) -> tuple[int, list[str]]:
+    """Generate job files for entries.
 
-    It filters the database entries for those with the status 'Uploaded' and applies
-    the generate_job_file function to each entry.
+    Returns:
+        tuple[count_generated, generated_uuids]
+
     """
-    logger.info(f"Generate job files for {len(database_entries)} entries.")
+    count = 0
+    generated_uuids: list[str] = []
 
-    for _, entry in database_entries.iterrows():
+    for entry in _iter_entry_series(database_entries):
         generate_job_file(job_directory, entry, log_level)
+        count += 1
+        generated_uuids.append(str(entry.get("system_upload_uuid", "")))
+
+    return count, generated_uuids
 
 
 def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
@@ -274,21 +362,11 @@ def get_squeue_dataframe() -> pd.DataFrame:
 
 
 def submit_jobs(
-    database_entries: pd.DataFrame,
-) -> None:
-    """Submit jobs for each entry in the database not in 'Valid' or 'Invalid' status.
-
-    It checks the status of each entry and submits jobs accordingly.
-    If there are multiple jobs for an entry, it sets dependencies between them.
-
-    Args:
-        database_entries (pd.DataFrame): DataFrame containing database entries.
-
-    Returns:
-        None: This function does not return any value.
-
-    """
-    for _, database_entry in database_entries.iterrows():
+    database_entries: pd.DataFrame | Iterable[pd.Series],
+) -> int:
+    """Submit jobs for entries. Returns number of submitted jobs."""
+    submitted = 0
+    for database_entry in _iter_entry_series(database_entries):
         uuid = database_entry["system_upload_uuid"]
 
         if database_entry["system_status"] != AssasDocumentFileStatus.VALID.value:
@@ -300,10 +378,11 @@ def submit_jobs(
         logger.info(f"Submit job for {uuid}.")
         submit_call = f"sbatch {os.path.dirname(os.path.realpath(__file__))}"
         submit_call += f"/jobs/tar-{uuid}.sh"
-
         logger.debug(f"Submit_call: {submit_call}")
-
         os.system(submit_call)
+        submitted += 1
+
+    return submitted
 
 
 def remove_all_job_files(job_directory: str) -> None:
@@ -685,61 +764,132 @@ def get_finished_jobs_usage(
     return df.head(int(limit))
 
 
-def count_entries_by_status(
-    database_entries: pd.DataFrame, status: AssasDocumentFileStatus
-) -> int:
-    """Count the number of entries in the database with the given status.
+def _remap_system_path_for_horeka(system_path: str) -> str:
+    """Remap DB path prefix to local mount prefix when needed.
 
-    Args:
-        database_entries (pd.DataFrame): DataFrame containing database entries.
-        status (AssasDocumentFileStatus): The status to count entries for.
-
-    Returns:
-        int: The count of entries with the specified status.
+    Example:
+      /mnt/ASSAS/...  ->  /lsdf/kit/scc/projects/ASSAS/...
 
     """
-    return len(database_entries[database_entries["system_status"] == status.value])
+    p = (system_path or "").strip()
+    if not p:
+        return p
+
+    # HOREKA mapping: DB stores LSDF prefix, local filesystem uses /mnt/ASSAS
+    if p.startswith("/mnt/ASSAS/"):
+        return p.replace("/mnt/ASSAS/", "/lsdf/kit/scc/projects/ASSAS/", 1)
+
+    return p
+
+
+def _get_system_path_candidates(system_path: str) -> list[Path]:
+    """Return original and remapped candidate paths for existence checks."""
+    p = (system_path or "").strip()
+    if not p:
+        return []
+
+    candidates = [Path(p)]
+    remapped = _remap_system_path_for_horeka(p)
+    if remapped != p:
+        candidates.append(Path(remapped))
+    return candidates
+
+
+def _original_binary_deleted(entry: pd.Series) -> bool:
+    """Return True if the original binary path from system_path is gone."""
+    system_path_raw = str(entry.get("system_path", "") or "").strip()
+    uuid = str(entry.get("system_upload_uuid", "?"))
+
+    if not system_path_raw:
+        logger.warning(
+            "No system_path for uuid=%s, cannot verify original binary deletion.",
+            uuid,
+        )
+        return False
+
+    for candidate in _get_system_path_candidates(system_path_raw):
+        if candidate.exists():
+            logger.debug(
+                "Original binary still exists for uuid=%s: %s",
+                uuid,
+                candidate,
+            )
+            return False
+
+    logger.debug("Original binary deleted for uuid=%s.", uuid)
+    return True
 
 
 def _tar_file_exists(entry: pd.Series) -> bool:
-    """Return True if a tar file already exists for the given entry.
-
-    Checks if a .tar file with the same name as the archive directory
-    exists at the system_path location.
-
-    Args:
-        entry: A row from the database entries DataFrame.
-
-    Returns:
-        True if the tar file already exists, False otherwise.
-
-    """
-    system_path = str(entry.get("system_path", "") or "").strip()
-    if not system_path:
+    """Return True if a tar file already exists for the given entry."""
+    system_path_raw = str(entry.get("system_path", "") or "").strip()
+    if not system_path_raw:
         logger.warning(
             "No system_path for uuid=%s, skipping tar check.",
             entry.get("system_upload_uuid", "?"),
         )
         return False
 
-    archive_dir = Path(system_path)
-    # tar file is expected next to the directory with the same name + .tar
-    tar_file = archive_dir.parent / f"{archive_dir.name}.tar"
-
-    if tar_file.exists():
-        logger.debug(
-            "Tar file already exists for uuid=%s: %s",
-            entry.get("system_upload_uuid", "?"),
-            tar_file,
-        )
-        return True
+    for archive_dir in _get_system_path_candidates(system_path_raw):
+        tar_file = archive_dir.parent / f"{archive_dir.name}.tar"
+        if tar_file.exists():
+            logger.debug(
+                "Tar file already exists for uuid=%s: %s",
+                entry.get("system_upload_uuid", "?"),
+                tar_file,
+            )
+            return True
 
     logger.debug(
-        "No tar file found for uuid=%s at expected path: %s",
+        "No tar file found for uuid=%s at expected paths derived from system_path=%s",
         entry.get("system_upload_uuid", "?"),
-        tar_file,
+        system_path_raw,
     )
     return False
+
+
+def _archive_readiness(entry: pd.Series) -> tuple[bool, bool, bool]:
+    """Return (tar_exists, original_binary_deleted, ready_for_radar)."""
+    uuid = str(entry.get("system_upload_uuid", "?"))
+    tar_exists = _tar_file_exists(entry)
+    original_deleted = _original_binary_deleted(entry)
+    ready = tar_exists and original_deleted
+
+    if ready:
+        logger.debug("Archive is ready for RADAR integration for uuid=%s.", uuid)
+    elif tar_exists and not original_deleted:
+        logger.debug(
+            "Tar exists but original binary still present for uuid=%s; not ready yet.",
+            uuid,
+        )
+    elif not tar_exists and original_deleted:
+        logger.debug(
+            "Original binary deleted but tar missing for uuid=%s; not ready yet.",
+            uuid,
+        )
+
+    return tar_exists, original_deleted, ready
+
+
+def _archive_ready_for_radar_integration(entry: pd.Series) -> bool:
+    """Return True if archive is ready for RADAR integration."""
+    _, _, ready = _archive_readiness(entry)
+    return ready
+
+
+def get_status_counts(
+    database_manager: AssasDatabaseManager,
+) -> dict[str, int]:
+    """Return counts grouped by system_status without loading full collection."""
+    coll = database_manager.database_handler.file_collection
+    pipeline = [
+        {"$group": {"_id": "$system_status", "count": {"$sum": 1}}},
+    ]
+    out: dict[str, int] = {}
+    for row in coll.aggregate(pipeline):
+        key = str(row.get("_id", ""))
+        out[key] = int(row.get("count", 0))
+    return out
 
 
 if __name__ == "__main__":
@@ -813,6 +963,11 @@ if __name__ == "__main__":
         default=200,
         help="Max number of finished jobs to show for 'measure-finished'.",
     )
+    parser.add_argument(
+        "--rerun-existing-tar",
+        action="store_true",
+        help="Generate or submit again even if the tar file already exists.",
+    )
     args = parser.parse_args()
 
     log_level = getattr(logging, args.log_level.upper(), logging.INFO)
@@ -823,94 +978,119 @@ if __name__ == "__main__":
 
     job_log_level = getattr(logging, args.job_log_level.upper(), logging.WARNING)
     logger.info(f"Job logging level set to: {logging.getLevelName(job_log_level)}")
-
     logger.info(f"Parsed actions: {args.action}")
 
-    if not os.path.exists(args.job_directory):
+    # DB commands only (streaming for generate/submit)
+    if args.action == "generate" and not os.path.exists(args.job_directory):
         logger.info(
             f"Job directory '{args.job_directory}' does not exist. Creating it..."
         )
         os.makedirs(args.job_directory, exist_ok=True)
 
-    database_entries = get_database_entries()
+    database_manager = get_database_manager()
+    coll = database_manager.database_handler.file_collection
 
-    for status in AssasDocumentFileStatus.__members__.values():
-        count = count_entries_by_status(database_entries, status)
-        logger.info(f"Number of archives in state {status} in database: {count}.")
-
-    logger.info(f"All archives in database: {len(database_entries)}.")
-
-    file_status_list = [AssasDocumentFileStatus(args.state)]
-    logger.info(f"File status list: {file_status_list}.")
-
-    file_status_value_list = [status.value for status in file_status_list]
-    logger.info(
-        f"Generate job files for entries with status: {file_status_value_list}."
-    )
-    database_entries = database_entries[
-        database_entries["system_status"].isin(file_status_value_list)
-    ]
-
-    logger.info(f"Generate job files for {len(database_entries)} entries.")
-
-    # If a UUID is provided, filter the database entries for that specific UUID
-    if args.uuid is not None:
-        logger.info(f"Filtering database entries by UUID: {args.uuid}.")
-        database_entries = database_entries[
-            database_entries["system_upload_uuid"] == args.uuid
-        ]
-
-    if "radar_dataset_id" not in getattr(database_entries, "columns", []):
-        logger.warning(
-            "Column 'radar_dataset_id' not present in database entries; "
-            "cannot filter. No jobs will be generated."
-        )
-        database_entries = database_entries.iloc[0:0]
-    else:
-        before = len(database_entries)
-        database_entries = database_entries[
-            database_entries["radar_dataset_id"].apply(_has_radar_dataset_id)
-        ]
+    status_counts = get_status_counts(database_manager)
+    for status in AssasDocumentFileStatus:
         logger.info(
-            "Filtered entries by radar_dataset_id: %d -> %d",
-            before,
-            len(database_entries),
+            "Number of archives in state %s in database: %d.",
+            status.value,
+            status_counts.get(status.value, 0),
         )
+    logger.info("All archives in database: %d.", coll.count_documents({}))
 
-    # Filter out entries where tar file already exists
-    before = len(database_entries)
-    database_entries = database_entries[
-        ~database_entries.apply(_tar_file_exists, axis=1)
-    ]
-    logger.info(
-        "Filtered entries without existing tar file: %d -> %d",
-        before,
-        len(database_entries),
+    file_status_values = [AssasDocumentFileStatus(args.state).value]
+    logger.info("File status list: %s", file_status_values)
+
+    streamed_entries = iter_database_entries(
+        database_manager,
+        state_values=file_status_values,
+        uuid=args.uuid,
     )
 
-    logger.info(f"Filtered database entries: {len(database_entries)}.")
-    logger.info(f"Generating job files for {len(database_entries)} entries.")
+    skipped_tar_uuids: list[str] = []
+    readiness_stats: dict[str, int] = {
+        "entries_seen": 0,
+        "with_radar_dataset_id": 0,
+        "tar_exists": 0,
+        "original_binary_deleted": 0,
+        "ready_for_radar": 0,
+    }
+
+    filtered_entries = iter_filtered_entries(
+        streamed_entries,
+        skipped_tar_uuids=skipped_tar_uuids,
+        skip_existing_tar=not args.rerun_existing_tar,
+        readiness_stats=readiness_stats,
+    )
 
     if args.action == "generate":
         logger.info(f"Generating job files into {args.job_directory}.")
-
         remove_all_job_files(job_directory=args.job_directory)
-
-        generate_job_files(
+        generated_count, generated_uuids = generate_job_files(
             job_directory=args.job_directory,
-            database_entries=database_entries,
+            database_entries=filtered_entries,
             log_level=args.job_log_level,
         )
 
+        logger.info(
+            "Archive readiness summary: queried=%d, "
+            "with_radar_dataset_id=%d, tar_exists=%d, "
+            "original_binary_deleted=%d, ready_for_radar=%d",
+            readiness_stats["entries_seen"],
+            readiness_stats["with_radar_dataset_id"],
+            readiness_stats["tar_exists"],
+            readiness_stats["original_binary_deleted"],
+            readiness_stats["ready_for_radar"],
+        )
+
+        logger.info("Generated %d job files.", generated_count)
+        logger.info(
+            "Generated job files for UUIDs (%d): %s",
+            len(generated_uuids),
+            ", ".join(generated_uuids) if generated_uuids else "-",
+        )
+        if args.rerun_existing_tar:
+            logger.info("Archive readiness check skipped due to --rerun-existing-tar.")
+        else:
+            logger.info(
+                "Skipped because archive is already ready for RADAR integration "
+                "(tar exists and original binary deleted) (%d): %s",
+                len(skipped_tar_uuids),
+                ", ".join(skipped_tar_uuids) if skipped_tar_uuids else "-",
+            )
+
     elif args.action == "submit":
         logger.info("Submitting jobs...")
+        submitted = submit_jobs(database_entries=filtered_entries)
 
-        submit_jobs(database_entries=database_entries)
+        logger.info(
+            "Archive readiness summary: queried=%d, "
+            "with_radar_dataset_id=%d, tar_exists=%d, "
+            "original_binary_deleted=%d, ready_for_radar=%d",
+            readiness_stats["entries_seen"],
+            readiness_stats["with_radar_dataset_id"],
+            readiness_stats["tar_exists"],
+            readiness_stats["original_binary_deleted"],
+            readiness_stats["ready_for_radar"],
+        )
 
+        logger.info("Submitted %d jobs.", submitted)
+        if args.rerun_existing_tar:
+            logger.info("Archive readiness check skipped due to --rerun-existing-tar.")
+        else:
+            logger.info(
+                "Skipped because archive is already ready for RADAR integration "
+                "(tar exists and original binary deleted) (%d): %s",
+                len(skipped_tar_uuids),
+                ", ".join(skipped_tar_uuids) if skipped_tar_uuids else "-",
+            )
+
+    # Non-DB commands first (no MongoDB load)
     elif args.action == "cancel":
         logger.info("Cancelling all jobs in certain states...")
-        # cancel_all_jobs_in_certain_state(SlurmJobState.RUNNING)
         cancel_all_jobs_in_certain_state(SlurmJobState.PENDING)
+        logger.info("Cancelled all jobs in certain states.")
 
     elif args.action == "squeue":
         logger.info("Retrieving squeue DataFrame...")
@@ -932,10 +1112,11 @@ if __name__ == "__main__":
             f"Number of pending jobs in squeue: {pending_jobs}.\n"
             f"Number of completed jobs in squeue: {completed_jobs}."
         )
+        # raise SystemExit(0)
 
     elif args.action == "memory":
         logger.info("Retrieving memory usage for RUNNING jobs...")
-        mem_df = get_running_jobs_memory(job_name_prefix="tar-")
+        mem_df = get_running_jobs_memory(job_name_prefix=args.job_name_prefix)
         logger.info(f"Memory usage for RUNNING jobs:\n{mem_df}")
         df = get_finished_jobs_usage(
             job_name_prefix=args.job_name_prefix, limit=args.limit
@@ -956,10 +1137,14 @@ if __name__ == "__main__":
             cols = [c for c in cols if c in df.columns]
             print(df[cols].to_string(index=False))
 
+        logger.info("Memory usage retrieval completed.")
+        # raise SystemExit(0)
+
     else:
         logger.error(
-            f"Invalid action: {args.action}. "
-            "Choose from 'generate', 'submit', 'cancel', 'squeue', or 'memory'."
+            "Invalid action: %s. "
+            "Choose from 'generate', 'submit', 'cancel', 'squeue', or 'memory'.",
+            args.action,
         )
 
     logger.info("Script execution completed.")

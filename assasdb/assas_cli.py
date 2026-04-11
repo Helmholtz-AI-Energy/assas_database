@@ -134,6 +134,15 @@ def build_arg_aprser() -> argparse.ArgumentParser:
         help="Calculate MD5 checksums for tar files in the database",
     )
     parser.add_argument(
+        "--force-md5",
+        action="store_true",
+        default=False,
+        help=(
+            "Recalculate MD5 even if one already exists "
+            "in the database (default: False)",
+        ),
+    )
+    parser.add_argument(
         "--dry-run",
         dest="dry_run",
         action="store_true",
@@ -214,7 +223,7 @@ if __name__ == "__main__":
             did_action = True
 
         if args.calculate_md5_for_tar:
-            database_manager.calculate_md5_for_tar()
+            database_manager.calculate_md5_for_tar(force=args.force_md5)
             did_action = True
 
         if not did_action:

@@ -2547,12 +2547,18 @@ except Exception as e:
             return False
         return True
 
-    def calculate_md5_for_tar(self, limit: int | None = None) -> None:
+    def calculate_md5_for_tar(
+        self, limit: int | None = None, force: bool = False
+    ) -> None:
         """Calculate the MD5 checksum for the tar files of all valid archives.
 
-        Only calculates and writes MD5 if no MD5 is already present in MongoDB.
+        Only calculates and writes MD5 if no MD5 is already present in MongoDB,
+        unless force=True, in which case all existing MD5 values are recalculated.
         """
-        logger.info("Calculate MD5 checksums for tar files of all valid archives.")
+        logger.info(
+            "Calculate MD5 checksums for tar files of all valid archives (force=%s).",
+            force,
+        )
         dataframe = self.get_all_database_entries()
 
         df_valid = dataframe[
@@ -2569,7 +2575,6 @@ except Exception as e:
 
             radar_dataset_id = row.get("radar_dataset_id", None)
 
-            # require dataset id
             if radar_dataset_id is None or pd.isna(radar_dataset_id):
                 skipped_missing_dataset_id += 1
                 continue
@@ -2583,15 +2588,14 @@ except Exception as e:
                 skipped_missing_dataset_id += 1
                 continue
 
-            # NEW: skip if md5 already exists in DB
-            existing_md5 = row.get("system_md5", None)
-            # (optional compatibility if some docs used tar_md5)
-            if existing_md5 is None:
-                existing_md5 = row.get("tar_md5", None)
-
-            if self._has_existing_md5(existing_md5):
-                skipped_existing_md5 += 1
-                continue
+            # Skip if md5 already exists, unless force=True
+            if not force:
+                existing_md5 = row.get("system_md5", None)
+                if existing_md5 is None:
+                    existing_md5 = row.get("tar_md5", None)
+                if self._has_existing_md5(existing_md5):
+                    skipped_existing_md5 += 1
+                    continue
 
             system_uuid = str(row.get("system_uuid", "") or "").strip()
             upload_uuid = str(row.get("system_upload_uuid", "") or "").strip()

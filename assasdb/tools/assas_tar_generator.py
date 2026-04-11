@@ -523,6 +523,7 @@ class BasicTarGenerator:
         limit: Optional[int] = None,
         path_prefix_overwrite: Optional[tuple[str, str]] = None,
         tmp_dir: Optional[Path] = None,
+        cleanup_tmp_root: bool = True,
     ) -> list[dict]:
         """Tars the directory, validates the archive, and deletes the original.
 
@@ -619,6 +620,7 @@ class BasicTarGenerator:
                     progress=progress,
                     checkpoint=checkpoint,
                     tmp_dir=tmp_dir,
+                    cleanup_tmp_root=cleanup_tmp_root,
                 )
 
                 # logger.info(
@@ -690,6 +692,7 @@ class BasicTarGenerator:
         progress: bool = False,
         checkpoint: int = 5000,
         tmp_dir: Optional[Path] = None,
+        cleanup_tmp_root: bool = True,
     ) -> Path:
         """Tar the directory, validate the archive, and delete the original archive.
 
@@ -701,6 +704,7 @@ class BasicTarGenerator:
             progress: Show tar progress.
             checkpoint: Progress log interval.
             tmp_dir: Temporary directory for validation extraction.
+            cleanup_tmp_root: Whether to clean up the temporary root directory.
 
         Returns:
             Path to the created archive.
@@ -728,12 +732,15 @@ class BasicTarGenerator:
         logger.info(f"Tar created at {tar_path}. Starting validation by extraction.")
 
         # Validate: extract to temp dir and compare
+        tmp_root = tmp_dir.resolve() if tmp_dir else None
+
         with tempfile.TemporaryDirectory(
-            dir=str(tmp_dir) if tmp_dir else None
+            dir=str(tmp_root) if tmp_root else None
         ) as tmpdir:
             # Extract the tar to a temporary directory for validation
             try:
                 tmp_extract = Path(tmpdir)
+                tmp_root = tmp_extract
                 with tarfile.open(tar_path, "r:*") as tar:
                     idx = 0
                     for member in tar:
@@ -783,10 +790,22 @@ class BasicTarGenerator:
         )
 
         # If validation passed, delete the original directory
-        shutil.rmtree(src_dir)
-        logger.info(
-            f"Original directory {src_dir} deleted after successful validation."
-        )
+        try:
+            shutil.rmtree(src_dir)
+            logger.info(
+                f"Original directory {src_dir} deleted after successful validation."
+            )
+        except Exception as exc:
+            logger.warning("Failed to delete original directory %s: %s", src_dir, exc)
+
+        # optional cleanup of tmp root (delete recursively)
+        if cleanup_tmp_root and tmp_root is not None:
+            try:
+                if tmp_root.exists():
+                    shutil.rmtree(tmp_root)
+                    logger.info("Removed tmp root directory recursively: %s", tmp_root)
+            except Exception as exc:
+                logger.warning("Failed to remove tmp root %s: %s", tmp_root, exc)
 
         return tar_path
 
@@ -875,6 +894,13 @@ def main() -> int:
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set logging level (default: INFO)",
     )
+    ap.add_argument(
+        "--keep-tmp-root",
+        action="store_true",
+        help=(
+            "Keep tmp root directory after safe tar+delete (default: cleanup if empty)."
+        ),
+    )
 
     ns = ap.parse_args()
 
@@ -912,6 +938,7 @@ def main() -> int:
     logger.info("Using gzip: %s", ns.gz)
     logger.info("Using UUID filter: %s", ns.uuid if ns.uuid else "<none>")
     logger.info("Writing results CSV: %s", result_csv_path)
+    logger.info("Tmp root cleanup enabled: %s", not ns.keep_tmp_root)
 
     database_manager = AssasDatabaseManager(
         database_handler=AssasDatabaseHandler(
@@ -962,6 +989,7 @@ def main() -> int:
             limit=ns.limit,
             path_prefix_overwrite=(env["UPLOAD_DIRECTORY"], env["UPLOAD_TEST"]),
             tmp_dir=Path(env["UPLOAD_TMP"]),
+            cleanup_tmp_root=not ns.keep_tmp_root,
         )
 
         generator._write_results_csv(results, result_csv_path)

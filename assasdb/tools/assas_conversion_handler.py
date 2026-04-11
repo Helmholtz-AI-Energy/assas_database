@@ -89,11 +89,12 @@ class AssasConversionHandler:
         if not self.input_path.name.endswith((".tar", ".tar.gz", ".tgz")):
             self.input_path = self.input_path.with_name(self.input_path.name + ".tar")
 
-        self.output_path = Path(
+        raw_output_path = Path(
             str(assas_archive_meta["system_result"].iloc[0]).replace(
                 "/mnt", f"{self.lsdf_project_dir}"
             )
         )
+        self.output_path = Path(os.path.normpath(raw_output_path))
 
         self.name = assas_archive_meta["meta_name"].iloc[0]
         self.description = assas_archive_meta["meta_description"].iloc[0]

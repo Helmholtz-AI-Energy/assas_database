@@ -19,6 +19,7 @@ import argparse
 
 from enum import Enum
 from typing import List
+from pathlib import Path
 
 from assasdb import AssasDatabaseManager, AssasDocumentFileStatus, AssasDatabaseHandler
 
@@ -55,13 +56,13 @@ TEMPLATE = """#!/bin/bash
 
 # Training commands
 
-#SBATCH --account=hk-project-pai00112
+#SBATCH --account=hk-project-pai00119
 #SBATCH --job-name={jobname}
 #SBATCH --partition=cpuonly
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --time=3-00:00:00
-#SBATCH --mem=239400mb
+#SBATCH --mem=24G
 #SBATCH --constraint=LSDF
 #SBATCH --output={py_dir}/result/slurm-%j.out
 #SBATCH --error={py_dir}/result/slurm-error-%j.out
@@ -86,22 +87,40 @@ mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 """  # noqa: E501
 
 
-def get_database_entries() -> pd.DataFrame:
-    """Return all database entries from the backup directory.
-
-    This function initializes an instance of `AssasDatabaseManager` with the
-    specified backup directory and retrieves all database entries.
-    """
-    database_manager = AssasDatabaseManager(
+def get_database_manager() -> AssasDatabaseManager:
+    """Create and return database manager (Atlas-backed)."""
+    return AssasDatabaseManager(
         database_handler=AssasDatabaseHandler(
-            client=None, backup_directory=BACKUP_DIRECTORY
+            connection_string=os.environ.get("CONNECTIONSTRING"),
+            backup_directory=os.environ.get("BACKUP_DIRECTORY"),
+            database_name=os.environ.get("MONGO_DB_NAME"),
         ),
     )
 
-    logger.info(f"Get all database entries from backup directory: {BACKUP_DIRECTORY}.")
-    database_entries = database_manager.get_all_database_entries_from_backup()
-    logger.info(f"Number of database entries: {len(database_entries)}.")
 
+def get_database_entries() -> pd.DataFrame:
+    """Return all database entries from MongoDB Atlas."""
+    database_manager = get_database_manager()
+    coll = database_manager.database_handler.file_collection
+
+    projection = {
+        "_id": 0,
+        "system_upload_uuid": 1,
+        "system_status": 1,
+        "system_number_of_samples": 1,
+        "system_number_of_samples_completed": 1,
+        "system_path": 1,
+        "meta_name": 1,
+        "radar_dataset_id": 1,
+        "system_size": 1,
+        "system_size_hdf5": 1,
+    }
+
+    logger.info("Get all database entries from MongoDB Atlas.")
+    rows = list(coll.find({}, projection=projection))
+    database_entries = pd.DataFrame(rows)
+
+    logger.info("Number of database entries: %d.", len(database_entries))
     return database_entries
 
 
@@ -254,7 +273,8 @@ def generate_job_file(
     entry: pd.Series,
     limit_samples: int,
     log_level: str = "WARNING",
-) -> None:
+    only_ready_for_radar: bool = False,
+) -> int:
     """Generate a job file for the given entry.
 
     The job file is saved in the jobs directory with the name 'convert-{uuid}.sh'.
@@ -266,13 +286,35 @@ def generate_job_file(
 
     logger.info(f"Generate job (upload_uuid = {uuid}, samples = {number_of_samples})")
 
+    tar_exists, original_deleted, ready = _archive_readiness(entry)
+
+    if only_ready_for_radar and not ready:
+        logger.info(
+            "Skipping %s for conversion generation: "
+            "only-ready enabled and archive is not ready.",
+            uuid,
+        )
+        return 0
+
+    if not only_ready_for_radar and ready:
+        logger.info(
+            "Skipping %s for conversion generation: "
+            "tar exists (%s) and original binary deleted (%s).",
+            uuid,
+            tar_exists,
+            original_deleted,
+        )
+        return 0
+
     if number_of_samples is None or pd.isna(number_of_samples):
         logger.warning(f"Skipping {uuid} with NaN number of samples.")
-        return
+        return 0
 
     if int(number_of_samples) < 0:
-        print(f"Skipping {uuid} with negative number of samples: {number_of_samples}.")
-        return
+        logger.warning(
+            f"Skipping {uuid} with negative number of samples: {number_of_samples}."
+        )
+        return 0
 
     job_parameter_list = get_job_parameter_list(
         entry=entry,
@@ -283,7 +325,9 @@ def generate_job_file(
 
     if not job_parameter_list:
         logger.warning(f"No job parameter list for {uuid}.")
-        return
+        return 0
+
+    written = 0
 
     if len(job_parameter_list) == 1:
         job_parameters = job_parameter_list[0]
@@ -293,6 +337,7 @@ def generate_job_file(
 
         with open(os.path.join(job_directory, f"convert-{uuid}.sh"), "w") as handle:
             handle.write(job_parameters)
+        written = 1
 
     if len(job_parameter_list) > 1:
         logger.info(f"Multiple job parameters for {uuid}.")
@@ -305,6 +350,9 @@ def generate_job_file(
 
             with open(filename, "w") as handle:
                 handle.write(job_parameters)
+            written += 1
+
+    return written
 
 
 def generate_job_files(
@@ -312,18 +360,22 @@ def generate_job_files(
     database_entries: pd.DataFrame,
     limit_samples: int = LIMIT_SAMPLES,
     log_level: str = "WARNING",
-) -> None:
-    """Generate job files for all entries in the database with the status 'Uploaded'.
-
-    It filters the database entries for those with the status 'Uploaded' and applies
-    the generate_job_file function to each entry.
-    """
+    only_ready_for_radar: bool = False,
+) -> int:
+    """Generate job files for the given database entries."""
     logger.info(f"Generate job files for {len(database_entries)} entries.")
 
-    database_entries.apply(
-        lambda entry: generate_job_file(job_directory, entry, limit_samples, log_level),
-        axis=1,
-    )
+    generated_count = 0
+    for _, entry in database_entries.iterrows():
+        generated_count += generate_job_file(
+            job_directory=job_directory,
+            entry=entry,
+            limit_samples=limit_samples,
+            log_level=log_level,
+            only_ready_for_radar=only_ready_for_radar,
+        )
+
+    return generated_count
 
 
 def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
@@ -425,6 +477,7 @@ def submit_jobs(
     limit_samples: int,
     single_jobs: bool = False,
     multi_jobs: bool = False,
+    only_ready_for_radar: bool = False,
 ) -> None:
     """Submit jobs for each entry in the database not in 'Valid' or 'Invalid' status.
 
@@ -436,6 +489,8 @@ def submit_jobs(
         limit_samples (int): Maximum number of samples per job.
         single_jobs (bool): If True, allows single jobs for each entry.
         multi_jobs (bool): If True, allows multiple jobs for the same entry.
+        only_ready_for_radar (bool): If True, only submits jobs for entries that
+        are ready for radar import.
 
     Returns:
         None: This function does not return any value.
@@ -445,6 +500,26 @@ def submit_jobs(
 
     for _, database_entry in database_entries.iterrows():
         uuid = database_entry["system_upload_uuid"]
+
+        tar_exists, original_deleted, ready = _archive_readiness(database_entry)
+
+        if only_ready_for_radar and not ready:
+            logger.info(
+                "Skipping %s for conversion submit: only-ready enabled "
+                "and archive is not ready.",
+                uuid,
+            )
+            continue
+
+        if not only_ready_for_radar and ready:
+            logger.info(
+                "Skipping %s for conversion submit: tar exists (%s) "
+                "and original binary deleted (%s).",
+                uuid,
+                tar_exists,
+                original_deleted,
+            )
+            continue
 
         if (
             database_entry["system_status"] == "Valid"
@@ -664,6 +739,190 @@ def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
         return pd.DataFrame(columns=["job_id", "status", "dependencies"])
 
 
+def _remap_system_path_for_horeka(system_path: str) -> str:
+    """Remap DB path prefix to local mount prefix when needed."""
+    p = (system_path or "").strip()
+    if not p:
+        return p
+
+    if p.startswith("/mnt/ASSAS/"):
+        return p.replace("/mnt/ASSAS/", "/lsdf/kit/scc/projects/ASSAS/", 1)
+
+    return p
+
+
+def _normalize_system_path(value: object) -> str | None:
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s or s.lower() in {"nan", "none", "null"}:
+        return None
+    if not os.path.isabs(s):
+        return None
+    return s
+
+
+def _get_system_path_candidates(system_path: str) -> list[Path]:
+    p = (system_path or "").strip()
+    if not p:
+        return []
+
+    candidates: list[Path] = [Path(p)]
+
+    # /mnt -> /lsdf
+    if p.startswith("/mnt/ASSAS/"):
+        candidates.append(
+            Path(p.replace("/mnt/ASSAS/", "/lsdf/kit/scc/projects/ASSAS/", 1))
+        )
+
+    # /lsdf -> /mnt
+    if p.startswith("/lsdf/kit/scc/projects/ASSAS/"):
+        candidates.append(
+            Path(p.replace("/lsdf/kit/scc/projects/ASSAS/", "/mnt/ASSAS/", 1))
+        )
+
+    # deduplicate while preserving order
+    seen = set()
+    out: list[Path] = []
+    for c in candidates:
+        s = str(c)
+        if s not in seen:
+            seen.add(s)
+            out.append(c)
+    return out
+
+
+def _original_binary_deleted(entry: pd.Series) -> bool:
+    """Return True only if deletion is verified on a reachable parent path."""
+    uuid = str(entry.get("system_upload_uuid", "?"))
+    raw = _normalize_system_path(entry.get("system_path"))
+
+    if raw is None:
+        logger.warning(
+            "READINESS uuid=%s invalid system_path=%r", uuid, entry.get("system_path")
+        )
+        return False
+
+    candidates = _get_system_path_candidates(raw)
+    logger.debug(
+        "READINESS uuid=%s binary candidates=%s", uuid, [str(c) for c in candidates]
+    )
+
+    if not candidates:
+        logger.warning("READINESS uuid=%s no candidates from system_path=%s", uuid, raw)
+        return False
+
+    existing = [str(c) for c in candidates if c.exists()]
+    if existing:
+        logger.debug("READINESS uuid=%s binary exists at=%s", uuid, existing)
+        return False
+
+    reachable_parents = [str(c.parent) for c in candidates if c.parent.exists()]
+    if not reachable_parents:
+        logger.warning(
+            "READINESS uuid=%s cannot verify deletion; "
+            "no reachable parent. candidates=%s",
+            uuid,
+            [str(c) for c in candidates],
+        )
+        return False
+
+    logger.debug(
+        "READINESS uuid=%s binary verified deleted (reachable_parents=%s)",
+        uuid,
+        reachable_parents,
+    )
+    return True
+
+
+def _tar_file_exists(entry: pd.Series) -> bool:
+    """Return True if tar exists in any candidate location."""
+    uuid = str(entry.get("system_upload_uuid", "?"))
+    raw = _normalize_system_path(entry.get("system_path"))
+
+    if raw is None:
+        logger.warning(
+            "READINESS uuid=%s invalid system_path for tar check=%r",
+            uuid,
+            entry.get("system_path"),
+        )
+        return False
+
+    tar_candidates = []
+    for archive_dir in _get_system_path_candidates(raw):
+        tar_candidates.append(archive_dir.parent / f"{archive_dir.name}.tar")
+
+    logger.debug(
+        "READINESS uuid=%s tar candidates=%s", uuid, [str(p) for p in tar_candidates]
+    )
+
+    existing = [str(p) for p in tar_candidates if p.exists()]
+    if existing:
+        logger.debug("READINESS uuid=%s tar exists at=%s", uuid, existing)
+        return True
+
+    logger.debug("READINESS uuid=%s no tar found", uuid)
+    return False
+
+
+def _archive_readiness(entry: pd.Series) -> tuple[bool, bool, bool]:
+    """Return (tar_exists, original_binary_deleted, ready_for_radar)."""
+    uuid = str(entry.get("system_upload_uuid", "?"))
+    tar_exists = _tar_file_exists(entry)
+    original_deleted = _original_binary_deleted(entry)
+    ready = tar_exists and original_deleted
+    logger.debug(
+        "READINESS uuid=%s tar_exists=%s original_deleted=%s ready=%s",
+        uuid,
+        tar_exists,
+        original_deleted,
+        ready,
+    )
+    return tar_exists, original_deleted, ready
+
+
+def get_archive_readiness_stats(database_entries: pd.DataFrame) -> dict[str, object]:
+    """Return statistics on archive readiness for the given database entries."""
+    stats: dict[str, object] = {
+        "entries_seen": 0,
+        "tar_exists": 0,
+        "original_binary_deleted": 0,
+        "ready_for_radar": 0,
+        "sample_ready_uuids": [],
+        "sample_tar_only_uuids": [],
+        "sample_deleted_only_uuids": [],
+    }
+
+    for _, entry in database_entries.iterrows():
+        uuid = str(entry.get("system_upload_uuid", "?"))
+        stats["entries_seen"] += 1
+        tar_exists, original_deleted, ready = _archive_readiness(entry)
+
+        if tar_exists:
+            stats["tar_exists"] += 1
+        if original_deleted:
+            stats["original_binary_deleted"] += 1
+        if ready:
+            stats["ready_for_radar"] += 1
+
+        if ready and len(stats["sample_ready_uuids"]) < 10:
+            stats["sample_ready_uuids"].append(uuid)
+        elif (
+            tar_exists
+            and not original_deleted
+            and len(stats["sample_tar_only_uuids"]) < 10
+        ):
+            stats["sample_tar_only_uuids"].append(uuid)
+        elif (
+            original_deleted
+            and not tar_exists
+            and len(stats["sample_deleted_only_uuids"]) < 10
+        ):
+            stats["sample_deleted_only_uuids"].append(uuid)
+
+    return stats
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ASSAS Job Generator Script")
     parser.add_argument(
@@ -750,6 +1009,14 @@ if __name__ == "__main__":
         default=None,
         help="Filter database entries by name containing this string (e.g., 'CESAR')",
     )
+    parser.add_argument(
+        "--only-ready-for-radar",
+        action="store_true",
+        help=(
+            "Convert only archives that are ready_for_radar "
+            "(tar exists and original binary deleted)."
+        ),
+    )
     args = parser.parse_args()
 
     log_level = getattr(logging, args.log_level.upper(), logging.INFO)
@@ -769,6 +1036,8 @@ if __name__ == "__main__":
         )
         os.makedirs(args.job_directory, exist_ok=True)
 
+    logger.info("Only-ready-for-radar mode: %s", args.only_ready_for_radar)
+
     database_entries = get_database_entries()
 
     for status in AssasDocumentFileStatus.__members__.values():
@@ -779,6 +1048,24 @@ if __name__ == "__main__":
 
     file_status_list = [AssasDocumentFileStatus(args.state)]
     logger.info(f"File status list: {file_status_list}.")
+
+    readiness_all = get_archive_readiness_stats(database_entries)
+    logger.info(
+        "Archive readiness summary (all): queried=%d, tar_exists=%d, "
+        "original_binary_deleted=%d, ready_for_radar=%d",
+        readiness_all["entries_seen"],
+        readiness_all["tar_exists"],
+        readiness_all["original_binary_deleted"],
+        readiness_all["ready_for_radar"],
+    )
+    logger.info("READINESS sample ready uuids: %s", readiness_all["sample_ready_uuids"])
+    logger.info(
+        "READINESS sample tar_only uuids: %s", readiness_all["sample_tar_only_uuids"]
+    )
+    logger.info(
+        "READINESS sample deleted_only uuids: %s",
+        readiness_all["sample_deleted_only_uuids"],
+    )
 
     file_status_value_list = [status.value for status in file_status_list]
     logger.info(
@@ -813,11 +1100,18 @@ if __name__ == "__main__":
 
         remove_all_job_files(job_directory=args.job_directory)
 
-        generate_job_files(
+        generated_count = generate_job_files(
             job_directory=args.job_directory,
             database_entries=database_entries,
             limit_samples=args.limit_samples,
             log_level=args.job_log_level,
+            only_ready_for_radar=args.only_ready_for_radar,
+        )
+
+        logger.info(
+            "Generation finished: %d job files created in %s.",
+            generated_count,
+            args.job_directory,
         )
 
     elif args.action == "submit":
@@ -828,6 +1122,7 @@ if __name__ == "__main__":
             limit_samples=args.limit_samples,
             single_jobs=args.single,
             multi_jobs=args.multiple,
+            only_ready_for_radar=args.only_ready_for_radar,
         )
 
     elif args.action == "cancel":
