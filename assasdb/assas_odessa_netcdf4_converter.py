@@ -93,7 +93,6 @@ class AssasOdessaNetCDF4Converter:
             "astec_config/inr/assas_variables_vessel_general.csv",
             "astec_config/inr/assas_variables_vessel_mesh.csv",
             "astec_config/inr/assas_variables_primary_junction_ther.csv",
-            "astec_config/inr/assas_variables_primary_pipe_ther.csv",
             "astec_config/inr/assas_variables_primary_volume_ther.csv",
             "astec_config/inr/assas_variables_primary_wall.csv",
             "astec_config/inr/assas_variables_primary_wall_ther.csv",
@@ -125,9 +124,6 @@ class AssasOdessaNetCDF4Converter:
         )
 
         self.variable_strategy_mapping = {
-            "primary_pipe_ther": (
-                AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther
-            ),
             "primary_pipe_geom": (
                 AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_geom
             ),
@@ -154,9 +150,6 @@ class AssasOdessaNetCDF4Converter:
             ),
             "primary_wall_geom": (
                 AssasOdessaNetCDF4Converter.parse_variable_from_primary_wall_geom
-            ),
-            "secondar_pipe_ther": (
-                AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_ther
             ),
             "secondar_pipe_geom": (
                 AssasOdessaNetCDF4Converter.parse_variable_from_primary_pipe_geom
@@ -1101,55 +1094,6 @@ class AssasOdessaNetCDF4Converter:
         else:
             logger.debug(
                 f"Path {primary_volume_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
-
-    @staticmethod
-    def parse_variable_from_primary_pipe_ther(
-        odessa_base: pyod.Base, variable_name: str
-    ) -> np.ndarray:
-        """Parse ASTEC variable from primary pipe thermal data.
-
-        Args:
-            odessa_base: The odessa base object.
-            variable_name (str): Name of the variable to parse.
-
-        Returns:
-            np.ndarray: An array containing the parsed variable data.
-
-        """
-        logger.debug(f"Parse ASTEC variable {variable_name}, type primary_pipe_ther.")
-
-        primary_pipe_check_path = "PRIMARY 1: PIPE 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, primary_pipe_check_path
-        ):
-            primary = odessa_base.get("PRIMARY")
-            number_of_pipes = primary.len("PIPE")
-
-            logger.debug(f"Number of pipes in primary: {number_of_pipes}.")
-
-            array = np.full((number_of_pipes), fill_value=np.nan)
-
-            for idx, pipe_number in enumerate(range(1, number_of_pipes + 1)):
-                odessa_path = (
-                    f"PRIMARY 1: PIPE {pipe_number}: THER 1: {variable_name} 1"
-                )
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure
-
-        else:
-            logger.debug(
-                f"Path {primary_pipe_check_path} not in odessa base, "
                 "fill array with np.nan."
             )
             array = np.full((1), fill_value=np.nan)
