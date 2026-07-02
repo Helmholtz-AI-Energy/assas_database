@@ -5,7 +5,7 @@ average_liquid_temperature,average liquid temperature in each zone,TLIQ,[K],cont
 amtosph_comp_xco,atmospheric composition of xco in each zone,XCO,[-],containment_zone,containment_zone_ther,zone
 amtosph_comp_xco2,atmospheric composition of xco2 in each zone,XCO2,[-],containment_zone,containment_zone_ther,zone
 amtosph_comp_xh2,atmospheric composition of xh2 in each zone,XH2,[-],containment_zone,containment_zone_ther,zone
-amtosph_comp_xh2o,atmospheric composition of xh2o each zone,XH20,[-],containment_zone,containment_zone_ther,zone
+amtosph_comp_xh2o,atmospheric composition of xh2o each zone,XH2O,[-],containment_zone,containment_zone_ther,zone
 amtosph_comp_xn2,atmospheric composition of xn2 each zone,XN2,[-],containment_zone,containment_zone_ther,zone
 amtosph_comp_xo2,atmospheric composition of xo2 each zone,XO2,[-],containment_zone,containment_zone_ther,zone
 

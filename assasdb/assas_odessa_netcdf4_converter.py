@@ -2132,7 +2132,7 @@ class AssasOdessaNetCDF4Converter:
             number_of_connections = containment.len("CONN")
 
             logger.debug(
-                f"Number of connections in containment: {number_of_connections}."
+                f"Number of CONN in containment: {number_of_connections}."
             )
 
             array = np.full((number_of_connections), fill_value=np.nan)
@@ -2234,7 +2234,7 @@ class AssasOdessaNetCDF4Converter:
         ):
             number_of_connectis = odessa_base.len("CONNECTI")
 
-            logger.debug(f"Number of valves in systems: {number_of_connectis}.")
+            logger.debug(f"Number of CONNECTI in BASE: {number_of_connectis}.")
 
             array = np.full((number_of_connectis), fill_value=np.nan)
 
@@ -2254,7 +2254,7 @@ class AssasOdessaNetCDF4Converter:
 
         else:
             logger.debug(
-                f"Path {connecti_check_path} nnot in odessa base, "
+                f"Path {connecti_check_path} not in odessa base, "
                 "fill array with np.nan."
             )
             array = np.full((1), fill_value=np.nan)
@@ -2285,7 +2285,7 @@ class AssasOdessaNetCDF4Converter:
         ):
             number_of_connectis = odessa_base.len("CONNECTI")
 
-            logger.debug(f"Number of valves in systems: {number_of_connectis}.")
+            logger.debug(f"Number of CONNECTI in BASE: {number_of_connectis}.")
 
             array = np.full((number_of_connectis), fill_value=np.nan)
 
@@ -2332,26 +2332,21 @@ class AssasOdessaNetCDF4Converter:
         ):
             number_of_connectis = odessa_base.len("CONNECTI")
 
-            overall_shape = 0
-            for connecti_number in range(1, number_of_connectis + 1):
-                connecti_object = odessa_base.get(f"CONNECTI {connecti_number}")
-                number_of_sources = connecti_object.len("SOURCE")
-                for source_number in range(1, number_of_sources + 1):
-                    overall_shape += 1
-
             logger.debug(
-                f"Number of valves in systems: {number_of_connectis}."
-                f" Complete shape {overall_shape}."
+                f"Number of CONNECTI in BASE: {number_of_connectis}."
             )
 
-            array = np.full((overall_shape), fill_value=np.nan)
-
-            index = 0
+            array = np.full((number_of_connectis,3), fill_value=np.nan)
             for _, connecti_number in enumerate(range(1, number_of_connectis + 1)):
                 connecti_object = odessa_base.get(f"CONNECTI {connecti_number}")
                 number_of_sources = connecti_object.len("SOURCE")
 
+                index = 0
                 for _, source_number in enumerate(range(1, number_of_sources + 1)):
+                    source_object = connecti_object.get(f"'SOURCE' {source_number}")
+                    source_type = source_object.get("'TYPE'")
+                    if( source_type != 'FLUID'):
+                        continue
                     odessa_path = f"CONNECTI {connecti_number}:"
                     odessa_path += f" SOURCE {source_number}: {variable_name} 1"
 
@@ -2362,7 +2357,10 @@ class AssasOdessaNetCDF4Converter:
                         logger.debug(
                             f"Collect variable structure {variable_structure}."
                         )
-                        array[index] = variable_structure
+                        if( index==0 and connecti_number in [59, 70, 71, 72, 73,] ):
+                            # It is a connecti of TYPE SOURCE of STEAM
+                            index = 1
+                        array[connecti_number-1,index] = variable_structure
 
                     index += 1
 
@@ -2379,14 +2377,14 @@ class AssasOdessaNetCDF4Converter:
     def parse_variable_from_connection_source_index(
         odessa_base: pyod.Base,
         variable_name: str,
-        index: int,
+        pos: int,
     ) -> np.ndarray:
-        """Parse ASTEC variable from connection source with index.
+        """Parse ASTEC variable from connection source with pos.
 
         Args:
             odessa_base: The odessa base object.
             variable_name (str): Name of the variable to parse.
-            index (int): Index of the source to parse.
+            pos (int): Position in the source to parse.
 
         Returns:
             np.ndarray: An array containing the parsed variable data.
@@ -2394,7 +2392,7 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(
             f"Parse ASTEC variable {variable_name}, "
-            f"type connecti_source_index. Index: {index}"
+            f"type connecti_source_index. Index: {pos}"
         )
 
         connecti_source_check_path = "CONNECTI 1: SOURCE 1"
@@ -2404,19 +2402,11 @@ class AssasOdessaNetCDF4Converter:
         ):
             number_of_connectis = odessa_base.len("CONNECTI")
 
-            overall_shape = 0
-            for connecti_number in range(1, number_of_connectis + 1):
-                connecti_object = odessa_base.get(f"CONNECTI {connecti_number}")
-                number_of_sources = connecti_object.len("SOURCE")
-                for source_number in range(1, number_of_sources + 1):
-                    overall_shape += 1
-
             logger.debug(
-                f"Number of valves in systems: {number_of_connectis}. "
-                f"Complete shape {overall_shape}."
+                f"Number of CONNECTI in BASE: {number_of_connectis}. "
             )
 
-            array = np.full((overall_shape), fill_value=np.nan)
+            array = np.full((number_of_connectis), fill_value=np.nan)
 
             index = 0
             for _, connecti_number in enumerate(range(1, number_of_connectis + 1)):
@@ -2434,7 +2424,10 @@ class AssasOdessaNetCDF4Converter:
                         logger.debug(
                             f"Collect variable structure {variable_structure}."
                         )
-                        array[index] = variable_structure[index]
+                        array[index] = variable_structure[pos]
+                        break
+
+                index += 1
 
         else:
             logger.debug(
@@ -3057,13 +3050,17 @@ class AssasOdessaNetCDF4Converter:
                 ncfile.createDimension("junction", None)
                 ncfile.createDimension("volume", None)
                 ncfile.createDimension("face", None)
-                ncfile.createDimension("wall", None)
+                ncfile.createDimension("wall_primary", None)
+                ncfile.createDimension("wall_secondar", None)
+                ncfile.createDimension("wall_containm", None)
                 ncfile.createDimension("connection", None)
+                ncfile.createDimension("conn", None)
                 ncfile.createDimension("component", None)
                 ncfile.createDimension("cesar_output", None)
                 ncfile.createDimension("wall_profile", None)
                 ncfile.createDimension("sensor", None)
                 ncfile.createDimension("zone", None)
+                ncfile.createDimension("species", None)
 
                 time_dataset = ncfile.createVariable(
                     varname="time_points", datatype=np.float32, dimensions="time"
@@ -3161,7 +3158,7 @@ class AssasOdessaNetCDF4Converter:
                         data_per_timestep = strategy_function(
                             odessa_base=odessa_base,
                             variable_name=variable["name_odessa"],
-                            index=int(variable["index"]),
+                            pos=int(variable["index"]),
                         )
 
                     logger.debug(
