@@ -37,7 +37,7 @@ MongoDB database used for the data handling of the flask application.
 ### Install via `pip`
 
 ```bash
-git clone https://github.com/ke4920/assas_database
+git clone https://github.com//Helmholtz-AI-Energy/assas_database
 cd assas_database
 pip install .
 
