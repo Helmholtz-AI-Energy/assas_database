@@ -1,11 +1,45 @@
 name,long_name,name_odessa,unit,domain,strategy,dimension
-P_total,average total pressure in a zone,PRES,[Pa],containment_dome,containment_dome,none
-T_sump,average sump temperature in a zone,TFLU,[K],containment_dome,containment_dome,none
-x_CO,carbon monoxide mass fraction,XCO,[-],containment_dome,containment_dome,none
-x_CO2,carbon dioxide mass fraction,XCO2,[-],containment_dome,containment_dome,none
-x_H2,hydrogen mass fraction in a zone,XH2,[-],containment_dome,containment_dome,none
-x_H2O,steam mass fraction in a zone,XH2O,[-],containment_dome,containment_dome,none
-x_N2,average N2 mass fraction in a zone,XN2,[-],containment_dome,containment_dome,none
-x_O2,average O2 mass fraction in a zone,XO2,[-],containment_dome,containment_dome,none
-T_liq,temperature,TLIQ,[K],containment_pool,containment_pool,none
-water_level,water level,WLEV,[m],containment_pool,containment_pool,none
+m_Cm_aerosol_dome,mass of Cm in the phase AEROSOL of the containment dome,FPSM_STA:Cm,[kg],containment_dome,containment_dome,none
+m_Cs_aerosol_dome,mass of Cs in the phase AEROSOL of the containment dome,FPSM_STA:Cs,[kg],containment_dome,containment_dome,none
+m_I_aerosol_dome,mass of I in the phase AEROSOL of the containment dome,FPSM_STA:I,[kg],containment_dome,containment_dome,none
+m_La_aerosol_dome,mass of La in the phase AEROSOL of the containment dome,FPSM_STA:La,[kg],containment_dome,containment_dome,none
+m_Mo_aerosol_dome,mass of Mo in the phase AEROSOL of the containment dome,FPSM_STA:Mo,[kg],containment_dome,containment_dome,none
+m_Pu_aerosol_dome,mass of Pu in the phase AEROSOL of the containment dome,FPSM_STA:Pu,[kg],containment_dome,containment_dome,none
+m_Ru_aerosol_dome,mass of Ru in the phase AEROSOL of the containment dome,FPSM_STA:Ru,[kg],containment_dome,containment_dome,none
+m_Sb_aerosol_dome,mass of Sb in the phase AEROSOL of the containment dome,FPSM_STA:Sb,[kg],containment_dome,containment_dome,none
+m_Sr_aerosol_dome,mass of Sr in the phase AEROSOL of the containment dome,FPSM_STA:Sr,[kg],containment_dome,containment_dome,none
+m_Te_aerosol_dome,mass of Te in the phase AEROSOL of the containment dome,FPSM_STA:Te,[kg],containment_dome,containment_dome,none
+m_Xe_aerosol_dome,mass of Xe in the phase AEROSOL of the containment dome,FPSM_STA:Xe,[kg],containment_dome,containment_dome,none
+m_Cm_depoareo_dome,mass of Cm in the phase DEPOAREO of the containment dome,FPSM_STA:Cm,[kg],containment_dome,containment_dome,none
+m_Cs_depoareo_dome,mass of Cs in the phase DEPOAREO of the containment dome,FPSM_STA:Cs,[kg],containment_dome,containment_dome,none
+m_I_depoareo_dome,mass of I in the phase DEPOAREO of the containment dome,FPSM_STA:I,[kg],containment_dome,containment_dome,none
+m_La_depoareo_dome,mass of La in the phase DEPOAREO of the containment dome,FPSM_STA:La,[kg],containment_dome,containment_dome,none
+m_Mo_depoareo_dome,mass of Mo in the phase DEPOAREO of the containment dome,FPSM_STA:Mo,[kg],containment_dome,containment_dome,none
+m_Pu_depoareo_dome,mass of Pu in the phase DEPOAREO of the containment dome,FPSM_STA:Pu,[kg],containment_dome,containment_dome,none
+m_Ru_depoareo_dome,mass of Ru in the phase DEPOAREO of the containment dome,FPSM_STA:Ru,[kg],containment_dome,containment_dome,none
+m_Sb_depoareo_dome,mass of Sb in the phase DEPOAREO of the containment dome,FPSM_STA:Sb,[kg],containment_dome,containment_dome,none
+m_Sr_depoareo_dome,mass of Sr in the phase DEPOAREO of the containment dome,FPSM_STA:Sr,[kg],containment_dome,containment_dome,none
+m_Te_depoareo_dome,mass of Te in the phase DEPOAREO of the containment dome,FPSM_STA:Te,[kg],containment_dome,containment_dome,none
+m_Xe_depoareo_dome,mass of Xe in the phase DEPOAREO of the containment dome,FPSM_STA:Xe,[kg],containment_dome,containment_dome,none
+m_Cm_gas_dome,mass of Cm in the phase GAS of the containment dome,FPSM_STA:Cm,[kg],containment_dome,containment_dome,none
+m_Cs_gas_dome,mass of Cs in the phase GAS of the containment dome,FPSM_STA:Cs,[kg],containment_dome,containment_dome,none
+m_I_gas_dome,mass of I in the phase GAS of the containment dome,FPSM_STA:I,[kg],containment_dome,containment_dome,none
+m_La_gas_dome,mass of La in the phase GAS of the containment dome,FPSM_STA:La,[kg],containment_dome,containment_dome,none
+m_Mo_gas_dome,mass of Mo in the phase GAS of the containment dome,FPSM_STA:Mo,[kg],containment_dome,containment_dome,none
+m_Pu_gas_dome,mass of Pu in the phase GAS of the containment dome,FPSM_STA:Pu,[kg],containment_dome,containment_dome,none
+m_Ru_gas_dome,mass of Ru in the phase GAS of the containment dome,FPSM_STA:Ru,[kg],containment_dome,containment_dome,none
+m_Sb_gas_dome,mass of Sb in the phase GAS of the containment dome,FPSM_STA:Sb,[kg],containment_dome,containment_dome,none
+m_Sr_gas_dome,mass of Sr in the phase GAS of the containment dome,FPSM_STA:Sr,[kg],containment_dome,containment_dome,none
+m_Te_gas_dome,mass of Te in the phase GAS of the containment dome,FPSM_STA:Te,[kg],containment_dome,containment_dome,none
+m_Xe_gas_dome,mass of Xe in the phase GAS of the containment dome,FPSM_STA:Xe,[kg],containment_dome,containment_dome,none
+m_Cm_liquid_dome,mass of Cm in the phase LIQUID of the containment dome,FPSM_STA:Cm,[kg],containment_dome,containment_dome,none
+m_Cs_liquid_dome,mass of Cs in the phase LIQUID of the containment dome,FPSM_STA:Cs,[kg],containment_dome,containment_dome,none
+m_I_liquid_dome,mass of I in the phase LIQUID of the containment dome,FPSM_STA:I,[kg],containment_dome,containment_dome,none
+m_La_liquid_dome,mass of La in the phase LIQUID of the containment dome,FPSM_STA:La,[kg],containment_dome,containment_dome,none
+m_Mo_liquid_dome,mass of Mo in the phase LIQUID of the containment dome,FPSM_STA:Mo,[kg],containment_dome,containment_dome,none
+m_Pu_liquid_dome,mass of Pu in the phase LIQUID of the containment dome,FPSM_STA:Pu,[kg],containment_dome,containment_dome,none
+m_Ru_liquid_dome,mass of Ru in the phase LIQUID of the containment dome,FPSM_STA:Ru,[kg],containment_dome,containment_dome,none
+m_Sb_liquid_dome,mass of Sb in the phase LIQUID of the containment dome,FPSM_STA:Sb,[kg],containment_dome,containment_dome,none
+m_Sr_liquid_dome,mass of Sr in the phase LIQUID of the containment dome,FPSM_STA:Sr,[kg],containment_dome,containment_dome,none
+m_Te_liquid_dome,mass of Te in the phase LIQUID of the containment dome,FPSM_STA:Te,[kg],containment_dome,containment_dome,none
+m_Xe_liquid_dome,mass of Xe in the phase LIQUID of the containment dome,FPSM_STA:Xe,[kg],containment_dome,containment_dome,none
