@@ -2,8 +2,36 @@ name,long_name,name_odessa,unit,domain,strategy,dimension
 m_magma_vessel,vessel magma mass,magma_id,[kg],vessel_general,vessel_magma_debris,mesh
 m_debris_0_vessel,vessel debris 0 mass,debris_id_0,[kg],vessel_general,vessel_magma_debris,mesh
 m_debris_1_vessel,vessel debris 1 mass,debris_id_1,[kg],vessel_general,vessel_magma_debris,mesh
-T_comp_clad,clad component temperature,T,[K],vessel_general,vessel_clad,component
-T_comp_fuel,fuel component temperature,T,[K],vessel_general,vessel_fuel,component
+T_comp_clad,clad component temperature,T,[K],vessel_general,vessel_clad,component_clad
+m_comp_clad,clad component mass,M,[kg],vessel_general,vessel_clad,component_clad
+H_comp_clad,clad component enthalpy,PROP:H,[J],vessel_general,vessel_clad,component_clad
+T_comp_fuel,fuel component temperature,T,[K],vessel_general,vessel_fuel,component_fuel
+m_comp_fuel,fuel component mass,M,[kg],vessel_general,vessel_fuel,component_fuel
+H_comp_fuel,fuel component enthalpy,PROP:H,[J],vessel_general,vessel_fuel,component_fuel
+T_comp_bono,bono component temperature,T,[K],vessel_general,vessel_bono,component_bono
+m_comp_bono,bono component mass,M,[kg],vessel_general,vessel_bono,component_bono
+H_comp_bono,bono component enthalpy,PROP:H,[J],vessel_general,vessel_bono,component_bono
+T_comp_crod,crod component temperature,T,[K],vessel_general,vessel_crod,component_crod
+m_comp_crod,crod component mass,M,[kg],vessel_general,vessel_crod,component_crod
+H_comp_crod,crod component enthalpy,PROP:H,[J],vessel_general,vessel_crod,component_crod
+T_comp_clad_crod,clad_crod component temperature,T,[K],vessel_general,vessel_clad_crod,component_clad_crod
+m_comp_clad_crod,clad_crod component mass,M,[kg],vessel_general,vessel_clad_crod,component_clad_crod
+H_comp_clad_crod,clad_crod component enthalpy,PROP:H,[J],vessel_general,vessel_clad_crod,component_clad_crod
+T_comp_tguide,tguide component temperature,T,[K],vessel_general,vessel_tguide,component_tguide
+m_comp_tguide,tguide component mass,M,[kg],vessel_general,vessel_tguide,component_tguide
+H_comp_tguide,tguide component enthalpy,PROP:H,[J],vessel_general,vessel_tguide,component_tguide
+T_comp_tinst,tinst component temperature,T,[K],vessel_general,vessel_tinst,component_tinst
+m_comp_tinst,tinst component mass,M,[kg],vessel_general,vessel_tinst,component_tinst
+H_comp_tinst,tinst component enthalpy,PROP:H,[J],vessel_general,vessel_tinst,component_tinst
+T_comp_grid,grid component temperature,T,[K],vessel_general,vessel_grid,component_grid
+m_comp_grid,grid component mass,M,[kg],vessel_general,vessel_grid,component_grid
+H_comp_grid,grid component enthalpy,PROP:H,[J],vessel_general,vessel_grid,component_grid
+T_comp_LP_wall,LP_wall component temperature,T,[K],vessel_general,vessel_LP_wall,component_LP_wall
+m_comp_LP_wall,LP_wall component mass,M,[kg],vessel_general,vessel_LP_wall,component_LP_wall
+H_comp_LP_wall,LP_wall component enthalpy,PROP:H,[J],vessel_general,vessel_LP_wall,component_LP_wall
+T_comp_LP_corium,LP_corium component temperature,T,[K],vessel_general,vessel_LP_corium,component_LP_corium
+m_comp_LP_corium,LP_corium component mass,M,[kg],vessel_general,vessel_LP_corium,component_LP_corium
+H_comp_LP_corium,LP_corium component enthalpy,PROP:H,[J],vessel_general,vessel_LP_corium,component_LP_corium
 FP_A_heat,total activity in a domain,ACTISUM,[Bq],vessel_general,fp_heat_vessel,none
-state_clad,component state of cladding (0-4),STAT,[-],vessel_general,vessel_clad_stat,component
-state_fuel,component state of fuel (0-4),STAT,[-],vessel_general,vessel_fuel_stat,component
+state_clad,component state of cladding (0-4),STAT,[-],vessel_general,vessel_clad_stat,component_clad
+state_fuel,component state of fuel (0-4),STAT,[-],vessel_general,vessel_fuel_stat,component_fuel
