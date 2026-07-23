@@ -7,9 +7,7 @@ P_H2_primary_volume,hydrogen partial pressure,P_h2,[Pa],primary_volume,primary_v
 P_primary_volume,total pressure,P,[Pa],primary_volume,primary_volume_ther,volume_primary
 m_steam_primary_volume,steam mass,m_steam,[kg],primary_volume,primary_volume_ther,volume_primary
 rho_liq_primary_volume,liquid density,rho_liq,[kg/m3],primary_volume,primary_volume_ther,volume_primary
-rho_gas_primary_volume,gas density,rho_gas,[kg/m3],primary_volume,primary_volume_ther,volume_primary
 m_liq_primary_volume,liquid mass,m_liq,[kg],primary_volume,primary_volume_ther,volume_primary
-m_gas_primary_volume,gas mass,m_gas,[kg],primary_volume,primary_volume_ther,volume_primary
 T_sat_primary_volume,saturation temperature,T_sat,[K],primary_volume,primary_volume_ther,volume_primary
 x_steam_primary_volume,void fraction of steam water,x_steam,[-],primary_volume,primary_volume_ther,volume_primary
 T_liq_primary_volume,liquid temperature,T_liq,[K],primary_volume,primary_volume_ther,volume_primary

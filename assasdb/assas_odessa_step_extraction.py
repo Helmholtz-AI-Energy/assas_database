@@ -15,6 +15,8 @@ class assas_odessa_step_extraction:
     @staticmethod
     def extract_one_time_step(
         base: pyod.Base,
+        fp_anonymization: dict,
+        value_anonymization: dict
     ) -> dict:
         """Extract all variables from one saving time of a filtered astec database."""
         result = {}
@@ -192,9 +194,7 @@ class assas_odessa_step_extraction:
             "T_gas_primary_volume",
             "T_liq_primary_volume",
             "T_sat_primary_volume",
-            "rho_gas_primary_volume",
             "rho_liq_primary_volume",
-            "m_gas_primary_volume",
             "m_steam_primary_volume",
             "m_liq_primary_volume",
             "P_primary_volume",
@@ -219,9 +219,7 @@ class assas_odessa_step_extraction:
                         "T_gas",
                         "T_liq",
                         "T_sat",
-                        "rho_gas",
                         "rho_liq",
-                        "m_gas",
                         "m_steam",
                         "m_liq",
                         "P",
@@ -1594,6 +1592,10 @@ class assas_odessa_step_extraction:
             79,
         ]
 
+        if not fp_anonymization:
+            fp_anonymization ={name : name for name in ['Ac', 'Ag', 'Am', 'As', 'B', 'Ba', 'Br', 'C', 'Cd', 'Ce', 'Cl', 'Cm', 'Cr', 'Cs', 'Cu', 'Dy', 'Er', 'Eu', 'Fe', 'Ga', 'Gd', 'Ge', 'Ho', 'I', 'I2', 'I_NG', 'In', 'Kr', 'La', 'Mn', 'Mo', 'Nb', 'Nd', 'Ni', 'Np', 'Pa', 'Pd', 'Pm', 'Pr', 'Pu', 'Ra', 'Rb', 'Re', 'Rh', 'Ru', 'SMAG', 'SMB', 'SMC', 'SMCD', 'SMCL', 'SMCR', 'SMFE', 'SMIN', 'SMMN', 'SMNI', 'SMSI', 'SMSN', 'SMZR', 'Sb', 'Se', 'Si', 'Sm', 'Sn', 'Sr', 'Tb', 'Tc', 'Te', 'Th', 'Tl', 'Tm', 'U', 'Xe', 'Y', 'Yb', 'Zn', 'Zr']}
+
+
         var_m = [
             "Mwater_cum_connecti_",
             "Msteam_cum_connecti_",
@@ -1614,10 +1616,10 @@ class assas_odessa_step_extraction:
                     (len(flow_idx)), dtype=np.float64, fill_value=np.nan
                 )
         for fp in flow_fp_list:
-            result["Q_fp_" + fp + "_connecti_flow"] = np.full(
+            result["Q_fp_" + fp_anonymization[fp] + "_connecti_flow"] = np.full(
                 (1), dtype=np.float64, fill_value=np.nan
             )
-            result["m_cum_fp_" + fp + "_connecti_flow"] = np.full(
+            result["m_cum_fp_" + fp_anonymization[fp] + "_connecti_flow"] = np.full(
                 (1), dtype=np.float64, fill_value=np.nan
             )
 
@@ -1647,12 +1649,12 @@ class assas_odessa_step_extraction:
                         connecti, "SOURCE", flow_fp_idx[idx]
                     )
                     value = pyod.lib.odbase_get_double(source, "QMAV", 1)
-                    result["Q_fp_" + fp + "_connecti_flow"][count] = value
+                    result["Q_fp_" + fp_anonymization[fp] + "_connecti_flow"][count] = value
                     odr1_vect = pyod.lib.odbase_get_odr1(
                         source, "FLOW", 1
                     )  # WARNING: FLOW differs from MTOT...
                     value = pyod.lib.odr1_get(odr1_vect, 0)
-                    result["m_cum_fp_" + fp + "_connecti_flow"][count] = value
+                    result["m_cum_fp_" + fp_anonymization[fp] + "_connecti_flow"][count] = value
 
         # BREAK CONNECTI
         nb_sources = 80
@@ -1662,7 +1664,8 @@ class assas_odessa_step_extraction:
                     (len(break_idx)), dtype=np.float64, fill_value=np.nan
                 )
         for fp in break_fp_list:
-            result["Q_fp_" + fp + "_connecti_break"] = np.full(
+<<<<<<< HEAD
+            result["Q_fp_" + fp_anonymization[fp] + "_connecti_break"] = np.full(
                 (len(break_idx)), dtype=np.float64, fill_value=np.nan
             )
 
@@ -1693,7 +1696,7 @@ class assas_odessa_step_extraction:
                         connecti, "SOURCE", break_fp_idx[idx]
                     )
                     value = pyod.lib.odbase_get_double(source, "QMAV", 1)
-                    result["Q_fp_" + fp + "_connecti_break"][count] = value
+                    result["Q_fp_" + fp_anonymization[fp] + "_connecti_break"][count] = value
 
         # FEEDWATE CONNECTI
         for vari in [
@@ -1917,11 +1920,15 @@ class assas_odessa_step_extraction:
                 phase = pyod.lib.odbase_get_odrg(fpsm_sta, phase_name, 1)
                 for fp in fp_names:
                     value = pyod.lib.odrg_get(phase, fp)
-                    result["m_" + fp + "_" + phase_name.lower() + "_dome"] = value
+                    result["m_" + fp_anonymization[fp] + "_" + phase_name.lower() + "_dome"] = value
         else:
             for phase_name in phases:
                 for fp in fp_names:
-                    result["m_" + fp + "_" + phase_name.lower() + "_dome"] = np.nan
+                    result["m_" + fp_anonymization[fp] + "_" + phase_name.lower() + "_dome"] = np.nan
+
+        #Possible value anonymization
+        if value_anonymization:
+            result = {k: result[k] / (2. ** np.array(value_anonymization[k])) for k in result}
 
         # time_points
         value = pyod.lib.odbase_get_double(root, "LOADTIME", 1)
