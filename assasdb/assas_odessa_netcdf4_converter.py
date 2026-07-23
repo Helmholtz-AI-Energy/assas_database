@@ -3272,7 +3272,7 @@ class AssasOdessaNetCDF4Converter:
                         data_per_timestep = strategy_function(
                             odessa_base=odessa_base,
                             variable_name=variable["name_odessa"],
-                            index=int(variable["index"]),
+                            pos=int(variable["index"]),
                         )
 
                     logger.debug(
