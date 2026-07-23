@@ -86,12 +86,24 @@ class AssasOdessaNetCDF4Converter:
         self.with_cesar_io = B.len("CESAR_IO") > 0
         del B
 
+        self.fp_anonymization = None
+        self.value_anonymization = None
+        file_fp = os.path.join("data_extraction","fp_anonymization.json")
+        file_val = os.path.join("data_extraction","anonymization.json")
+        if os.path.isfile(file_fp):
+            with open(file_fp, "r") as f:
+               self.fp_anonymization = json.load(f)
+        if os.path.isfile(file_val):
+            with open(file_val, "r") as f:
+               self.value_anonymization = json.load(f)
+
+
         logger.info(f"Read {len(self.time_points)} time points from ASTEC archive.")
         logger.debug(f"List of time points: {self.time_points}.")
 
         self.variable_index_file_list = variable_index_file_list or [
             "astec_config/inr/assas_variables_containment_connection.csv",
-            "astec_config/inr/assas_variables_containment_dome_pool.csv",
+            "astec_config/inr/assas_variables_containment_dome_pool.csv" if not self.fp_anonymization else "astec_config/inr/assas_variables_containment_dome_pool_anonymized.csv",
             "astec_config/inr/assas_variables_containment_wall.csv",
             "astec_config/inr/assas_variables_containment_zone.csv",
             "astec_config/inr/assas_variables_vessel.csv",
@@ -106,7 +118,7 @@ class AssasOdessaNetCDF4Converter:
             "astec_config/inr/assas_variables_secondar_volume_ther.csv",
             "astec_config/inr/assas_variables_secondar_wall.csv",
             "astec_config/inr/assas_variables_secondar_wall_ther.csv",
-            "astec_config/inr/assas_variables_connection.csv",
+            "astec_config/inr/assas_variables_connection.csv" if not self.fp_anonymization else "astec_config/inr/assas_variables_connection_anonymized.csv",
             "astec_config/inr/assas_variables_sequence.csv",
             "astec_config/inr/assas_variables_private_assas_param.csv",
             "astec_config/inr/assas_variables_cesar_io.csv",
@@ -3477,7 +3489,11 @@ class AssasOdessaNetCDF4Converter:
                 total=len(time_points[start_index:]),
             ):
                 idx += 1
-                data = assas_odessa_step_extraction.extract_one_time_step(odessa_base)
+                data = assas_odessa_step_extraction.extract_one_time_step(
+                                                    odessa_base,
+                                                    self.fp_anonymization,
+                                                    self.value_anonymization
+                                                    )
 
                 for name, values in data.items():
                     ncfile.variables[name][start_index + idx, ...] = values
