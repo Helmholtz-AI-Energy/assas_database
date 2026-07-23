@@ -30,17 +30,41 @@ logger = logging.getLogger("assas_app")
 
 LOG_INTERVAL = 100
 
-NESTED_THER_STRATEGIES = {
-    "vessel_mesh_ther": ("VESSEL", "MESH", 1),
-    "vessel_face_ther": ("VESSEL", "FACE", 1),
-    "primary_volume_ther": ("PRIMARY", "VOLUME", 1),
-    "secondar_volume_ther": ("SECONDAR", "VOLUME", 1),
-    "primary_junction_ther": ("PRIMARY", "JUNCTION", 1),
-    "secondar_junction_ther": ("SECONDAR", "JUNCTION", 1),
-    "primary_wall_ther": ("PRIMARY", "WALL", 1),
-    "primary_wall_ther_2": ("PRIMARY", "WALL", 2),
-    "secondar_wall_ther": ("SECONDAR", "WALL", 1),
-    "secondar_wall_ther_2": ("SECONDAR", "WALL", 2),
+# Strategies whose variables share a repeated child structure that can be read
+# incrementally and batched. Each entry maps a strategy name to
+# (parent, child, inter, inter_index, take_first) describing the odessa path
+# ``PARENT 1: CHILD n[: INTER inter_index]: <var> 1``. ``take_first`` selects
+# ``structure[0]`` (True) or the structure itself (False), matching the
+# original per-strategy extraction. ``inter`` is None when the variable sits
+# directly on the child.
+NESTED_STRATEGIES = {
+    # Thermal (THER) substructures.
+    "vessel_mesh_ther": ("VESSEL", "MESH", "THER", 1, True),
+    "vessel_face_ther": ("VESSEL", "FACE", "THER", 1, True),
+    "primary_volume_ther": ("PRIMARY", "VOLUME", "THER", 1, True),
+    "secondar_volume_ther": ("SECONDAR", "VOLUME", "THER", 1, True),
+    "primary_junction_ther": ("PRIMARY", "JUNCTION", "THER", 1, True),
+    "secondar_junction_ther": ("SECONDAR", "JUNCTION", "THER", 1, True),
+    "primary_wall_ther": ("PRIMARY", "WALL", "THER", 1, True),
+    "primary_wall_ther_2": ("PRIMARY", "WALL", "THER", 2, True),
+    "secondar_wall_ther": ("SECONDAR", "WALL", "THER", 1, True),
+    "secondar_wall_ther_2": ("SECONDAR", "WALL", "THER", 2, True),
+    # Geometric (GEOM) substructures.
+    "primary_junction_geom": ("PRIMARY", "JUNCTION", "GEOM", 1, True),
+    "primary_volume_geom": ("PRIMARY", "VOLUME", "GEOM", 1, True),
+    "secondar_junction_geom": ("SECONDAR", "JUNCTION", "GEOM", 1, True),
+    "primary_wall_geom": ("PRIMARY", "WALL", "GEOM", 1, True),
+    "secondar_wall_geom": ("SECONDAR", "WALL", "GEOM", 1, True),
+    # Variable sits directly on the child structure.
+    "vessel_mesh": ("VESSEL", "MESH", None, 1, False),
+    "primary_wall": ("PRIMARY", "WALL", None, 1, False),
+    "secondar_wall": ("SECONDAR", "WALL", None, 1, False),
+    "systems_pump": ("SYSTEMS", "PUMP", None, 1, True),
+    "systems_pump_momentum": ("SYSTEMS", "PUMP", "MOMENTUM", 1, False),
+    "systems_valve": ("SYSTEMS", "VALVE", None, 1, True),
+    "containment_zone": ("CONTAINM", "ZONE", None, 1, True),
+    "containment_zone_ther": ("CONTAINM", "ZONE", "THER", 1, True),
+    "containment_connection": ("CONTAINM", "CONN", None, 1, True),
 }
 
 ASTEC_ROOT = os.environ.get("ASTEC_ROOT")
@@ -384,13 +408,13 @@ class AssasOdessaNetCDF4Converter:
                 + "/astec_config/assas_variables_wp2_report.csv"
             )
             dataframe.to_csv(output_file)
-            logger.info("Saved variable index to file: ", output_file)
+            logger.info("Saved variable index to file: %s", output_file)
 
             output_file_repo = os.path.join(
                 os.getcwd(), "assas_variables_wp2_report.csv"
             )
             dataframe.to_csv(output_file_repo)
-            logger.info("Saved variable index to file (repo): ", output_file_repo)
+            logger.info("Saved variable index to file (repo): %s", output_file_repo)
 
         if tex_report:
             output_file_latex = (
@@ -537,67 +561,84 @@ class AssasOdessaNetCDF4Converter:
         return is_valid_path
 
     @staticmethod
-    def _parse_nested_ther_variable(
+    def _parse_nested_variable(
         odessa_base: pyod.Base,
         variable_name: str,
         parent_name: str,
         child_name: str,
-        ther_index: int = 1,
+        inter_name: Optional[str] = None,
+        inter_index: int = 1,
+        take_first: bool = True,
     ) -> np.ndarray:
-        """Parse a variable at ``PARENT 1: CHILD n: THER {ther_index}: <var> 1``.
+        """Parse a variable at ``PARENT 1: CHILD n[: INTER {inter_index}]: <var> 1``.
 
         This navigates the odessa base incrementally: the parent structure is
-        fetched once and reused across all children, and each child/THER is
-        fetched once, instead of resolving the full path from the root for every
-        child. Because ``pyod.Base.get`` copies the whole receiver base on every
-        call, reusing the parent avoids re-copying the full base per child, which
-        is significantly faster for structures with many children (mesh, volume,
-        junction, face, wall). The returned array is identical to the previous
-        per-path lookup.
+        fetched once and reused across all children, and each child (and its
+        intermediate structure) is fetched once, instead of resolving the full
+        path from the root for every child. Because ``pyod.Base.get`` copies the
+        whole receiver base on every call, reusing the parent avoids re-copying
+        the full base per child, which is significantly faster for structures
+        with many children (mesh, volume, junction, face, wall, pump, zone). The
+        returned array is identical to the previous per-path lookup.
 
         Args:
             odessa_base: The odessa base object.
             variable_name (str): Name of the variable to parse.
             parent_name (str): Top-level structure name (e.g. ``VESSEL``).
             child_name (str): Repeated child family name (e.g. ``MESH``).
-            ther_index (int): Index of the ``THER`` substructure (1 or 2).
+            inter_name (Optional[str]): Intermediate structure between child and
+                variable (e.g. ``THER`` or ``GEOM``); None if the variable sits
+                directly on the child.
+            inter_index (int): Index of the intermediate substructure.
+            take_first (bool): Store ``structure[0]`` (True) or the structure
+                itself (False), matching the original per-strategy extraction.
 
         Returns:
             np.ndarray: An array with one entry per child (np.nan where absent).
 
         """
-        return AssasOdessaNetCDF4Converter._batch_parse_nested_ther_variables(
+        return AssasOdessaNetCDF4Converter._batch_parse_nested_variables(
             odessa_base=odessa_base,
             parent_name=parent_name,
             child_name=child_name,
             variable_names=[variable_name],
-            ther_index=ther_index,
+            inter_name=inter_name,
+            inter_index=inter_index,
+            take_first=take_first,
         )[0]
 
     @staticmethod
-    def _batch_parse_nested_ther_variables(
+    def _batch_parse_nested_variables(
         odessa_base: pyod.Base,
         parent_name: str,
         child_name: str,
         variable_names: List[str],
-        ther_index: int = 1,
+        inter_name: Optional[str] = None,
+        inter_index: int = 1,
+        take_first: bool = True,
     ) -> List[np.ndarray]:
-        """Parse several variables sharing ``PARENT 1: CHILD n: THER {idx}: <var> 1``.
+        """Parse several variables sharing ``PARENT 1: CHILD n[: INTER {i}]: <var> 1``.
 
-        Fetches the parent once and each child/THER once, extracting every
-        requested variable from each child before moving to the next child. This
-        avoids re-fetching the parent and children once per variable (each
-        ``pyod.Base.get`` copies the whole receiver base), which is much faster
-        when many variables share the same parent/child structure (e.g. all
-        thermal variables on vessel meshes). Each returned array is identical to
-        calling :meth:`_parse_nested_ther_variable` for that variable name.
+        Fetches the parent once and each child (and its intermediate structure)
+        once, extracting every requested variable from each child before moving
+        to the next child. This avoids re-fetching the parent and children once
+        per variable (each ``pyod.Base.get`` copies the whole receiver base),
+        which is much faster when many variables share the same parent/child
+        structure (e.g. all thermal variables on vessel meshes). Each returned
+        array is identical to calling :meth:`_parse_nested_variable` for that
+        variable name.
 
         Args:
             odessa_base: The odessa base object.
             parent_name (str): Top-level structure name (e.g. ``VESSEL``).
             child_name (str): Repeated child family name (e.g. ``MESH``).
             variable_names (List[str]): Variables to extract from each child.
-            ther_index (int): Index of the ``THER`` substructure (1 or 2).
+            inter_name (Optional[str]): Intermediate structure between child and
+                variable (e.g. ``THER`` or ``GEOM``); None if the variable sits
+                directly on the child.
+            inter_index (int): Index of the intermediate substructure.
+            take_first (bool): Store ``structure[0]`` (True) or the structure
+                itself (False), matching the original per-strategy extraction.
 
         Returns:
             List[np.ndarray]: One array per requested variable, in input order,
@@ -620,19 +661,26 @@ class AssasOdessaNetCDF4Converter:
 
         for idx, child_number in enumerate(range(1, number_of_children + 1)):
             child = parent.get(f"{child_name} {child_number}")
-            if child is None or child.len("THER") < ther_index:
+            if child is None:
                 continue
 
-            ther = child.get(f"THER {ther_index}")
-            if ther is None:
-                continue
+            if inter_name is None:
+                container = child
+            else:
+                if child.len(inter_name) < inter_index:
+                    continue
+                container = child.get(f"{inter_name} {inter_index}")
+                if container is None:
+                    continue
 
             for var_idx, variable_name in enumerate(variable_names):
-                if ther.len(variable_name) < 1:
+                if container.len(variable_name) < 1:
                     continue
-                variable_structure = ther.get(f"{variable_name} 1")
+                variable_structure = container.get(f"{variable_name} 1")
                 if variable_structure is not None:
-                    arrays[var_idx][idx] = variable_structure[0]
+                    arrays[var_idx][idx] = (
+                        variable_structure[0] if take_first else variable_structure
+                    )
 
         return arrays
 
@@ -1176,8 +1224,13 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type vessel_mesh_ther.")
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "VESSEL", "MESH", ther_index=1
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "VESSEL",
+            "MESH",
+            inter_name="THER",
+            inter_index=1,
         )
 
     @staticmethod
@@ -1197,37 +1250,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type vessel_mesh.")
 
-        vessel_mesh_check_path = "VESSEL 1: MESH 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, vessel_mesh_check_path
-        ):
-            vessel = odessa_base.get("VESSEL")
-            number_of_meshes = vessel.len("MESH")
-
-            array = np.full((number_of_meshes), fill_value=np.nan)
-            logger.debug(f"Initialized array with shape {array.shape}.")
-
-            for idx, mesh_number in enumerate(range(1, number_of_meshes + 1)):
-                logger.debug(f"Mesh number {mesh_number}.")
-
-                odessa_path = f"VESSEL 1: MESH {mesh_number}: {variable_name} 1"
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure
-
-        else:
-            logger.debug(
-                f"Path {vessel_mesh_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "VESSEL", "MESH", take_first=False
+        )
 
     @staticmethod
     def parse_variable_from_vessel_face_ther(
@@ -1246,8 +1271,13 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type vessel_face_ther.")
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "VESSEL", "FACE", ther_index=1
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "VESSEL",
+            "FACE",
+            inter_name="THER",
+            inter_index=1,
         )
 
     @staticmethod
@@ -1339,8 +1369,13 @@ class AssasOdessaNetCDF4Converter:
             f"Parse ASTEC variable {variable_name}, type primary_junction_ther."
         )
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "PRIMARY", "JUNCTION", ther_index=1
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "PRIMARY",
+            "JUNCTION",
+            inter_name="THER",
+            inter_index=1,
         )
 
     @staticmethod
@@ -1361,38 +1396,9 @@ class AssasOdessaNetCDF4Converter:
             f"Parse ASTEC variable {variable_name}, type primary_junction_geom."
         )
 
-        primary_junction_check_path = "PRIMARY 1: JUNCTION 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, primary_junction_check_path
-        ):
-            primary = odessa_base.get("PRIMARY")
-            number_of_junctions = primary.len("JUNCTION")
-
-            logger.debug(f"Number of junctions in primary: {number_of_junctions}.")
-
-            array = np.full((number_of_junctions), fill_value=np.nan)
-
-            for idx, junction_number in enumerate(range(1, number_of_junctions + 1)):
-                odessa_path = (
-                    f"PRIMARY 1: JUNCTION {junction_number}: GEOM 1: {variable_name} 1"
-                )
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {primary_junction_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "PRIMARY", "JUNCTION", inter_name="GEOM"
+        )
 
     @staticmethod
     def parse_variable_from_primary_volume_ther(
@@ -1410,8 +1416,13 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type primary_volume_ther.")
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "PRIMARY", "VOLUME", ther_index=1
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "PRIMARY",
+            "VOLUME",
+            inter_name="THER",
+            inter_index=1,
         )
 
     @staticmethod
@@ -1430,38 +1441,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type primary_volume_geom.")
 
-        primary_volume_check_path = "PRIMARY 1: VOLUME 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, primary_volume_check_path
-        ):
-            primary = odessa_base.get("PRIMARY")
-            number_of_volumes = primary.len("VOLUME")
-
-            logger.debug(f"Number of volumes in primary: {number_of_volumes}.")
-
-            array = np.full((number_of_volumes), fill_value=np.nan)
-
-            for idx, volume_number in enumerate(range(1, number_of_volumes + 1)):
-                odessa_path = (
-                    f"PRIMARY 1: VOLUME {volume_number}: GEOM 1: {variable_name} 1"
-                )
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {primary_volume_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "PRIMARY", "VOLUME", inter_name="GEOM"
+        )
 
     @staticmethod
     def parse_variable_from_primary_pipe_geom(
@@ -1537,8 +1519,13 @@ class AssasOdessaNetCDF4Converter:
             f"Parse ASTEC variable {variable_name}, type secondar_junction_ther."
         )
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "SECONDAR", "JUNCTION", ther_index=1
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "SECONDAR",
+            "JUNCTION",
+            inter_name="THER",
+            inter_index=1,
         )
 
     @staticmethod
@@ -1559,38 +1546,9 @@ class AssasOdessaNetCDF4Converter:
             f"Parse ASTEC variable {variable_name}, type secondar_junction_geom."
         )
 
-        secondar_junction_check_path = "SECONDAR 1: JUNCTION 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, secondar_junction_check_path
-        ):
-            secondar = odessa_base.get("SECONDAR")
-            number_of_junctions = secondar.len("JUNCTION")
-
-            logger.debug(f"Number of junctions in secondar: {number_of_junctions}.")
-
-            array = np.full((number_of_junctions), fill_value=np.nan)
-
-            for idx, junction_number in enumerate(range(1, number_of_junctions + 1)):
-                odessa_path = (
-                    f"SECONDAR 1: JUNCTION {junction_number}: GEOM 1: {variable_name} 1"
-                )
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {secondar_junction_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "SECONDAR", "JUNCTION", inter_name="GEOM"
+        )
 
     @staticmethod
     def parse_variable_from_secondar_volume_ther(
@@ -1610,8 +1568,13 @@ class AssasOdessaNetCDF4Converter:
             f"Parse ASTEC variable {variable_name}, type secondar_volume_ther."
         )
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "SECONDAR", "VOLUME", ther_index=1
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "SECONDAR",
+            "VOLUME",
+            inter_name="THER",
+            inter_index=1,
         )
 
     @staticmethod
@@ -1631,36 +1594,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type primary_wall.")
 
-        primary_wall_check_path = "PRIMARY 1: WALL 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, primary_wall_check_path
-        ):
-            primary = odessa_base.get("PRIMARY")
-            number_of_walls = primary.len("WALL")
-
-            logger.debug(f"Number of walls in primary: {number_of_walls}.")
-
-            array = np.full((number_of_walls), fill_value=np.nan)
-
-            for idx, wall_number in enumerate(range(1, number_of_walls + 1)):
-                odessa_path = f"PRIMARY 1: WALL {wall_number}: {variable_name} 1"
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure
-
-        else:
-            logger.debug(
-                f"Path {primary_wall_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "PRIMARY", "WALL", take_first=False
+        )
 
     @staticmethod
     def parse_variable_from_primary_wall_ther(
@@ -1679,8 +1615,13 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type primary_wall_ther.")
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "PRIMARY", "WALL", ther_index=1
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "PRIMARY",
+            "WALL",
+            inter_name="THER",
+            inter_index=1,
         )
 
     @staticmethod
@@ -1700,8 +1641,13 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type primary_wall_ther_2.")
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "PRIMARY", "WALL", ther_index=2
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "PRIMARY",
+            "WALL",
+            inter_name="THER",
+            inter_index=2,
         )
 
     @staticmethod
@@ -1721,38 +1667,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type primary_wall_geom.")
 
-        primary_wall_check_path = "PRIMARY 1: WALL 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, primary_wall_check_path
-        ):
-            primary = odessa_base.get("PRIMARY")
-            number_of_walls = primary.len("WALL")
-
-            logger.debug(f"Number of walls in primary: {number_of_walls}.")
-
-            array = np.full((number_of_walls), fill_value=np.nan)
-
-            for idx, wall_number in enumerate(range(1, number_of_walls + 1)):
-                odessa_path = (
-                    f"PRIMARY 1: WALL {wall_number}: GEOM 1: {variable_name} 1"
-                )
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {primary_wall_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "PRIMARY", "WALL", inter_name="GEOM"
+        )
 
     @staticmethod
     def parse_variable_from_secondar_wall(
@@ -1771,36 +1688,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type secondar_wall.")
 
-        secondar_wall_check_path = "SECONDAR 1: WALL 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, secondar_wall_check_path
-        ):
-            secondar = odessa_base.get("SECONDAR")
-            number_of_walls = secondar.len("WALL")
-
-            logger.debug(f"Number of walls in secondar: {number_of_walls}.")
-
-            array = np.full((number_of_walls), fill_value=np.nan)
-
-            for idx, wall_number in enumerate(range(1, number_of_walls + 1)):
-                odessa_path = f"SECONDAR 1: WALL {wall_number}: {variable_name} 1"
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure
-
-        else:
-            logger.debug(
-                f"Path {secondar_wall_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "SECONDAR", "WALL", take_first=False
+        )
 
     @staticmethod
     def parse_variable_from_secondar_wall_ther(
@@ -1819,8 +1709,13 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type secondar_wall_ther.")
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "SECONDAR", "WALL", ther_index=1
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "SECONDAR",
+            "WALL",
+            inter_name="THER",
+            inter_index=1,
         )
 
     @staticmethod
@@ -1840,8 +1735,13 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type secondar_wall_ther.")
 
-        return AssasOdessaNetCDF4Converter._parse_nested_ther_variable(
-            odessa_base, variable_name, "SECONDAR", "WALL", ther_index=2
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "SECONDAR",
+            "WALL",
+            inter_name="THER",
+            inter_index=2,
         )
 
     @staticmethod
@@ -1861,38 +1761,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type secondar_wall_geom.")
 
-        secondar_wall_check_path = "SECONDAR 1: WALL 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, secondar_wall_check_path
-        ):
-            secondar = odessa_base.get("SECONDAR")
-            number_of_walls = secondar.len("WALL")
-
-            logger.debug(f"Number of walls in secondar: {number_of_walls}.")
-
-            array = np.full((number_of_walls), fill_value=np.nan)
-
-            for idx, wall_number in enumerate(range(1, number_of_walls + 1)):
-                odessa_path = (
-                    f"SECONDAR 1: WALL {wall_number}: GEOM 1: {variable_name} 1"
-                )
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {secondar_wall_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "SECONDAR", "WALL", inter_name="GEOM"
+        )
 
     @staticmethod
     def parse_variable_from_systems_pump(
@@ -1911,36 +1782,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type systems_pump.")
 
-        systems_pump_check_path = "SYSTEMS 1: PUMP 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, systems_pump_check_path
-        ):
-            systems = odessa_base.get("SYSTEMS")
-            number_of_pumps = systems.len("PUMP")
-
-            logger.debug(f"Number of pumps in systems: {number_of_pumps}.")
-
-            array = np.full((number_of_pumps), fill_value=np.nan)
-
-            for idx, pump_number in enumerate(range(1, number_of_pumps + 1)):
-                odessa_path = f"SYSTEMS 1: PUMP {pump_number}: {variable_name} 1"
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {systems_pump_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "SYSTEMS", "PUMP"
+        )
 
     @staticmethod
     def parse_variable_from_systems_pump_momentum(
@@ -1959,38 +1803,14 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type systems_pump.")
 
-        systems_pump_check_path = "SYSTEMS 1: PUMP 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, systems_pump_check_path
-        ):
-            systems = odessa_base.get("SYSTEMS")
-            number_of_pumps = systems.len("PUMP")
-
-            logger.debug(f"Number of pumps in systems: {number_of_pumps}.")
-
-            array = np.full((number_of_pumps), fill_value=np.nan)
-
-            for idx, pump_number in enumerate(range(1, number_of_pumps + 1)):
-                odessa_path = (
-                    f"SYSTEMS 1: PUMP {pump_number}: MOMENTUM 1: {variable_name} 1"
-                )
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure
-
-        else:
-            logger.debug(
-                f"Path {systems_pump_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base,
+            variable_name,
+            "SYSTEMS",
+            "PUMP",
+            inter_name="MOMENTUM",
+            take_first=False,
+        )
 
     @staticmethod
     def parse_variable_from_systems_valve(
@@ -2009,36 +1829,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type systems_valve.")
 
-        systems_valve_check_path = "SYSTEMS 1: VALVE 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, systems_valve_check_path
-        ):
-            systems = odessa_base.get("SYSTEMS")
-            number_of_valves = systems.len("VALVE")
-
-            logger.debug(f"Number of valves in systems: {number_of_valves}.")
-
-            array = np.full((number_of_valves), fill_value=np.nan)
-
-            for idx, valve_number in enumerate(range(1, number_of_valves + 1)):
-                odessa_path = f"SYSTEMS 1: VALVE {valve_number}: {variable_name} 1"
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {systems_valve_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "SYSTEMS", "VALVE"
+        )
 
     @staticmethod
     def parse_variable_from_sensor(
@@ -2212,36 +2005,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type containment_.")
 
-        secondar_wall_check_path = "CONTAINM 1: ZONE 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, secondar_wall_check_path
-        ):
-            containment = odessa_base.get("CONTAINM")
-            number_of_zones = containment.len("ZONE")
-
-            logger.debug(f"Number of zones in containment: {number_of_zones}.")
-
-            array = np.full((number_of_zones), fill_value=np.nan)
-
-            for idx, zone_number in enumerate(range(1, number_of_zones + 1)):
-                odessa_path = f"CONTAINM 1: ZONE {zone_number}: {variable_name} 1"
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {secondar_wall_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "CONTAINM", "ZONE"
+        )
 
     @staticmethod
     def parse_variable_from_containment_zone_ther(
@@ -2260,38 +2026,9 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, type containment_.")
 
-        secondar_wall_check_path = "CONTAINM 1: ZONE 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, secondar_wall_check_path
-        ):
-            containment = odessa_base.get("CONTAINM")
-            number_of_zones = containment.len("ZONE")
-
-            logger.debug(f"Number of zones in containment: {number_of_zones}.")
-
-            array = np.full((number_of_zones), fill_value=np.nan)
-
-            for idx, zone_number in enumerate(range(1, number_of_zones + 1)):
-                odessa_path = (
-                    f"CONTAINM 1: ZONE {zone_number}: THER 1: {variable_name} 1"
-                )
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {secondar_wall_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "CONTAINM", "ZONE", inter_name="THER"
+        )
 
     @staticmethod
     def parse_variable_from_containment_connection(
@@ -2312,38 +2049,9 @@ class AssasOdessaNetCDF4Converter:
             f"Parse ASTEC variable {variable_name}, type containment_connection."
         )
 
-        containment_zone_check_path = "CONTAINM 1: CONN 1"
-
-        if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-            odessa_base, containment_zone_check_path
-        ):
-            containment = odessa_base.get("CONTAINM")
-            number_of_connections = containment.len("CONN")
-
-            logger.debug(f"Number of CONN in containment: {number_of_connections}.")
-
-            array = np.full((number_of_connections), fill_value=np.nan)
-
-            for idx, connection_number in enumerate(
-                range(1, number_of_connections + 1)
-            ):
-                odessa_path = f"CONTAINM 1: CONN {connection_number}: {variable_name} 1"
-
-                if AssasOdessaNetCDF4Converter.check_if_odessa_path_exists(
-                    odessa_base, odessa_path
-                ):
-                    variable_structure = odessa_base.get(odessa_path)
-                    logger.debug(f"Collect variable structure {variable_structure}.")
-                    array[idx] = variable_structure[0]
-
-        else:
-            logger.debug(
-                f"Path {containment_zone_check_path} not in odessa base, "
-                "fill array with np.nan."
-            )
-            array = np.full((1), fill_value=np.nan)
-
-        return array
+        return AssasOdessaNetCDF4Converter._parse_nested_variable(
+            odessa_base, variable_name, "CONTAINM", "CONN"
+        )
 
     @staticmethod
     def parse_variable_from_containment_wall_temp(
@@ -3418,19 +3126,19 @@ class AssasOdessaNetCDF4Converter:
             variable_datasets = self.get_all_variable_datasets(ncfile)
             logger.info(f"Found {len(variable_datasets)} variables to populate.")
 
-            # Pre-group variables that share a "PARENT 1: CHILD n: THER" structure
-            # so each child is read once per time point instead of once per
-            # variable (see NESTED_THER_STRATEGIES).
-            nested_ther_batches = {}
+            # Pre-group variables that share a "PARENT 1: CHILD n[: INTER]"
+            # structure so each child is read once per time point instead of once
+            # per variable (see NESTED_STRATEGIES).
+            nested_batches = {}
             batched_var_names = set()
             for _, variable in self.variable_index.iterrows():
-                structure = NESTED_THER_STRATEGIES.get(variable["strategy"])
+                structure = NESTED_STRATEGIES.get(variable["strategy"])
                 if structure is None or not np.isnan(variable["index"]):
                     continue
                 var_name = variable["name"]
                 if var_name not in variable_datasets:
                     continue
-                nested_ther_batches.setdefault(structure, []).append(
+                nested_batches.setdefault(structure, []).append(
                     {
                         "name_odessa": variable["name_odessa"],
                         "dataset": variable_datasets[var_name]["dataset"],
@@ -3439,7 +3147,7 @@ class AssasOdessaNetCDF4Converter:
                 batched_var_names.add(var_name)
             logger.info(
                 f"Grouped {len(batched_var_names)} variables into "
-                f"{len(nested_ther_batches)} nested THER batches."
+                f"{len(nested_batches)} nested structure batches."
             )
 
             progress_bar = tqdm(time_points)
@@ -3499,14 +3207,18 @@ class AssasOdessaNetCDF4Converter:
 
                 # Batched extraction: read each child structure once and fill all
                 # of its variables, instead of re-reading it per variable.
-                for structure, members in nested_ther_batches.items():
-                    parent_name, child_name, ther_index = structure
-                    arrays = self._batch_parse_nested_ther_variables(
+                for structure, members in nested_batches.items():
+                    parent_name, child_name, inter_name, inter_index, take_first = (
+                        structure
+                    )
+                    arrays = self._batch_parse_nested_variables(
                         odessa_base=odessa_base,
                         parent_name=parent_name,
                         child_name=child_name,
                         variable_names=[member["name_odessa"] for member in members],
-                        ther_index=ther_index,
+                        inter_name=inter_name,
+                        inter_index=inter_index,
+                        take_first=take_first,
                     )
                     for member, data_per_timestep in zip(members, arrays):
                         member["dataset"][start_index + idx] = data_per_timestep
