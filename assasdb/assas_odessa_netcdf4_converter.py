@@ -25,7 +25,6 @@ from typing import List, Union, Optional
 from pathlib import Path
 from .assas_netcdf4_meta_config import META_DATA_VAR_NAMES, DOMAIN_GROUP_CONFIG
 from .assas_unit_manager import AssasUnitManager
-import time
 
 logger = logging.getLogger("assas_app")
 
@@ -42,7 +41,7 @@ if ASTEC_PYTHON_ODESSA not in sys.path:
     sys.path.append(ASTEC_PYTHON_ODESSA)
 
 import pyodessa as pyod  # noqa: E402
-from .assas_odessa_step_extraction import assas_odessa_step_extraction
+from .assas_odessa_step_extraction import assas_odessa_step_extraction  # noqa: E402
 
 
 class AssasOdessaNetCDF4Converter:
@@ -83,9 +82,9 @@ class AssasOdessaNetCDF4Converter:
 
         self.time_points = pyod.get_saving_times(str(self.input_path))[1:]
 
-        B = pyod.restore(str(self.input_path),self.time_points[0])
+        B = pyod.restore(str(self.input_path), self.time_points[0])
         self.with_cesar_io = B.len("CESAR_IO") > 0
-        del(B)
+        del B
 
         logger.info(f"Read {len(self.time_points)} time points from ASTEC archive.")
         logger.debug(f"List of time points: {self.time_points}.")
@@ -474,11 +473,11 @@ class AssasOdessaNetCDF4Converter:
         is_valid_path = True
 
         logger.debug(f"Keys of odessa_path: {keys}. Depth of path: {nkeys}.")
-        #Other implementation could be
-        #try:
-            #odessa_base.get(odessa_path)
-        #except ValueError:
-            #is_valid_path = False
+        # Other implementation could be
+        # try:
+        # odessa_base.get(odessa_path)
+        # except ValueError:
+        # is_valid_path = False
 
         for count, var in enumerate(keys, start=1):
             logger.debug("   ------")
@@ -507,9 +506,9 @@ class AssasOdessaNetCDF4Converter:
                     break
 
             else:  # Using substructure
-                if type(new_base) == pyod.cls_rg.Rg:
+                if isinstance(new_base, pyod.cls_rg.Rg):
                     len_odessa_base = int(new_base.has_key(name_stru.replace("'", "")))
-                elif type(new_base) == pyod.cls_r1.R1:
+                elif isinstance(new_base, pyod.cls_r1.R1):
                     len_odessa_base = len(new_base)
                 else:
                     len_odessa_base = new_base.len(name_stru.replace("'", ""))
@@ -2494,9 +2493,7 @@ class AssasOdessaNetCDF4Converter:
             containment = odessa_base.get("CONTAINM")
             number_of_connections = containment.len("CONN")
 
-            logger.debug(
-                f"Number of CONN in containment: {number_of_connections}."
-            )
+            logger.debug(f"Number of CONN in containment: {number_of_connections}.")
 
             array = np.full((number_of_connections), fill_value=np.nan)
 
@@ -2577,13 +2574,14 @@ class AssasOdessaNetCDF4Converter:
     def parse_variable_from_connection(
         odessa_base: pyod.Base,
         variable_name: str,
-        connecti_index: list = list(range(1,81))
+        connecti_index: list = list(range(1, 81)),
     ) -> np.ndarray:
         """Parse ASTEC variable from connection data.
 
         Args:
             odessa_base: The odessa base object.
             variable_name (str): Name of the variable to parse.
+            connecti_index (list): Connection indices to parse.
 
         Returns:
             np.ndarray: An array containing the parsed variable data.
@@ -2643,7 +2641,8 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f"Parse ASTEC variable {variable_name}, type connecti BREAK.")
 
         return self.parse_variable_from_connection(
-            odessa_base, variable_name, self.connection_break_ids["break_id"])
+            odessa_base, variable_name, self.connection_break_ids["break_id"]
+        )
 
     def parse_variable_from_connection_feedwater(
         self,
@@ -2663,7 +2662,8 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f"Parse ASTEC variable {variable_name}, type connecti FEEDWATE.")
 
         return self.parse_variable_from_connection(
-            odessa_base, variable_name, self.connection_feedwater_ids["feedwater_id"])
+            odessa_base, variable_name, self.connection_feedwater_ids["feedwater_id"]
+        )
 
     def parse_variable_from_connection_flow(
         self,
@@ -2683,7 +2683,8 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f"Parse ASTEC variable {variable_name}, type connecti FLOW.")
 
         return self.parse_variable_from_connection(
-            odessa_base, variable_name, self.connection_flow_ids["flow_id"])
+            odessa_base, variable_name, self.connection_flow_ids["flow_id"]
+        )
 
     def parse_variable_from_connection_flow_fp(
         self,
@@ -2702,8 +2703,7 @@ class AssasOdessaNetCDF4Converter:
         """
         logger.debug(f"Parse ASTEC variable {variable_name}, first type connecti FLOW.")
 
-        return self.parse_variable_from_connection(
-            odessa_base, variable_name, [1])
+        return self.parse_variable_from_connection(odessa_base, variable_name, [1])
 
     def parse_variable_from_connection_heat(
         self,
@@ -2723,7 +2723,8 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f"Parse ASTEC variable {variable_name}, type connecti HEAT.")
 
         return self.parse_variable_from_connection(
-            odessa_base, variable_name, self.connection_heat_ids["heat_id"])
+            odessa_base, variable_name, self.connection_heat_ids["heat_id"]
+        )
 
     def parse_variable_from_connection_mcci(
         self,
@@ -2743,7 +2744,8 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f"Parse ASTEC variable {variable_name}, type connecti MCCI.")
 
         return self.parse_variable_from_connection(
-            odessa_base, variable_name, self.connection_mcci_ids["mcci_id"])
+            odessa_base, variable_name, self.connection_mcci_ids["mcci_id"]
+        )
 
     def parse_variable_from_connection_source(
         self,
@@ -2763,7 +2765,8 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f"Parse ASTEC variable {variable_name}, type connecti SOURCE.")
 
         return self.parse_variable_from_connection(
-            odessa_base, variable_name, self.connection_source_ids["source_id"])
+            odessa_base, variable_name, self.connection_source_ids["source_id"]
+        )
 
     def parse_variable_from_connection_vespour(
         self,
@@ -2783,7 +2786,8 @@ class AssasOdessaNetCDF4Converter:
         logger.debug(f"Parse ASTEC variable {variable_name}, type connecti VESPOUR.")
 
         return self.parse_variable_from_connection(
-            odessa_base, variable_name, self.connection_vespour_ids["vespour_id"])
+            odessa_base, variable_name, self.connection_vespour_ids["vespour_id"]
+        )
 
     @staticmethod
     def parse_variable_vessel_trup(
@@ -3364,14 +3368,22 @@ class AssasOdessaNetCDF4Converter:
                 ncfile.createDimension("wall_primary", 92)
                 ncfile.createDimension("wall_secondar", 125)
                 ncfile.createDimension("wall_containm", 62)
-                ncfile.createDimension("connection_break", len(self.connection_break_ids))
-                ncfile.createDimension("connection_feedwater", len(self.connection_feedwater_ids))
+                ncfile.createDimension(
+                    "connection_break", len(self.connection_break_ids)
+                )
+                ncfile.createDimension(
+                    "connection_feedwater", len(self.connection_feedwater_ids)
+                )
                 ncfile.createDimension("connection_flow", len(self.connection_flow_ids))
                 ncfile.createDimension("connection_heat", len(self.connection_heat_ids))
                 ncfile.createDimension("connection_mcci", len(self.connection_mcci_ids))
-                ncfile.createDimension("connection_source", len(self.connection_source_ids))
-                ncfile.createDimension("connection_vespour", len(self.connection_vespour_ids))
-                ncfile.createDimension("conn", 68) # only 44 at saving_time 0.
+                ncfile.createDimension(
+                    "connection_source", len(self.connection_source_ids)
+                )
+                ncfile.createDimension(
+                    "connection_vespour", len(self.connection_vespour_ids)
+                )
+                ncfile.createDimension("conn", 68)  # only 44 at saving_time 0.
                 ncfile.createDimension("component_clad", len(self.clad_ids))
                 ncfile.createDimension("component_fuel", len(self.fuel_ids))
                 ncfile.createDimension("component_bono", len(self.bono_ids))
@@ -3382,7 +3394,9 @@ class AssasOdessaNetCDF4Converter:
                 ncfile.createDimension("component_grid", len(self.grid_ids))
                 ncfile.createDimension("component_LP_wall", len(self.LP_wall_ids))
                 ncfile.createDimension("component_LP_corium", len(self.LP_corium_ids))
-                ncfile.createDimension("cesar_output",  2233 if self.with_cesar_io else 1)
+                ncfile.createDimension(
+                    "cesar_output", 2233 if self.with_cesar_io else 1
+                )
                 ncfile.createDimension("wall_profile", 20)
                 ncfile.createDimension("sensor", 780)
                 ncfile.createDimension("zone", 18)
@@ -3455,12 +3469,13 @@ class AssasOdessaNetCDF4Converter:
                     f"{len(self.time_points)}. {len(time_points)} time points left."
                 )
 
-            begin = time.perf_counter()
-
-
             idx = -1
-            for time_point, odessa_base in tqdm(pyod.save_iterator(str(self.input_path), \
-                time_points[start_index],time_points[-1]), total=len(time_points[start_index:])):
+            for time_point, odessa_base in tqdm(
+                pyod.save_iterator(
+                    str(self.input_path), time_points[start_index], time_points[-1]
+                ),
+                total=len(time_points[start_index:]),
+            ):
                 idx += 1
                 data = assas_odessa_step_extraction.extract_one_time_step(odessa_base)
 
@@ -3469,57 +3484,55 @@ class AssasOdessaNetCDF4Converter:
 
                 ncfile.variables["time_points"].completed_index = start_index + idx
 
+            # progress_bar = tqdm(time_points)
+            # for idx, time_point in enumerate(progress_bar):
+            # logger.info(f"Restore odessa base for time point {time_point}.")
+            # odessa_base = pyod.restore(str(self.input_path), time_point)
 
-            #progress_bar = tqdm(time_points)
-            #for idx, time_point in enumerate(progress_bar):
-                #logger.info(f"Restore odessa base for time point {time_point}.")
-                #odessa_base = pyod.restore(str(self.input_path), time_point)
+            # for _, variable in self.variable_index.iterrows():
+            # if variable["name"] not in list(variable_datasets.keys()):
+            # logger.info(
+            # f"Variable {variable['name']} not required to convert."
+            # )
+            # continue
+            # logger.info(
+            # f"Parse ASTEC variable {variable['name']} for time point "
+            # f"{time_point}."
+            # )
+            # strategy_function = self.variable_strategy_mapping[
+            # variable["strategy"]
+            # ]
 
-                #for _, variable in self.variable_index.iterrows():
-                    #if variable["name"] not in list(variable_datasets.keys()):
-                        #logger.info(
-                            #f"Variable {variable['name']} not required to convert."
-                        #)
-                        #continue
-                    #logger.info(
-                        #f"Parse ASTEC variable {variable['name']} for time point "
-                        #f"{time_point}."
-                    #)
-                    #strategy_function = self.variable_strategy_mapping[
-                        #variable["strategy"]
-                    #]
+            # if np.isnan(variable["index"]):
+            # data_per_timestep = strategy_function(
+            # odessa_base=odessa_base,
+            # variable_name=variable["name_odessa"],
+            # )
+            # else:
+            # data_per_timestep = strategy_function(
+            # odessa_base=odessa_base,
+            # variable_name=variable["name_odessa"],
+            # pos=int(variable["index"]),
+            # )
 
-                    #if np.isnan(variable["index"]):
-                        #data_per_timestep = strategy_function(
-                            #odessa_base=odessa_base,
-                            #variable_name=variable["name_odessa"],
-                        #)
-                    #else:
-                        #data_per_timestep = strategy_function(
-                            #odessa_base=odessa_base,
-                            #variable_name=variable["name_odessa"],
-                            #pos=int(variable["index"]),
-                        #)
+            # logger.debug(
+            # f"Read data for {variable['name_odessa']} with "
+            # f"shape {data_per_timestep.shape}. "
+            # f"Odessa index {variable['index']}, "
+            # f"isnan {np.isnan(variable['index'])}."
+            # )
 
-                    #logger.debug(
-                        #f"Read data for {variable['name_odessa']} with "
-                        #f"shape {data_per_timestep.shape}. "
-                        #f"Odessa index {variable['index']}, "
-                        #f"isnan {np.isnan(variable['index'])}."
-                    #)
+            # ncfile.variables[variable["name"]][start_index + idx] = (
+            # data_per_timestep
+            # )
 
-                    #ncfile.variables[variable["name"]][start_index + idx] = (
-                        #data_per_timestep
-                    #)
+            # if progress_bar.n % LOG_INTERVAL == 0:
+            # logger.info(str(progress_bar))
 
-                #if progress_bar.n % LOG_INTERVAL == 0:
-                    #logger.info(str(progress_bar))
+            # ncfile.variables["time_points"].completed_index = start_index + idx
 
-                #ncfile.variables["time_points"].completed_index = start_index + idx
-
-
-            #end = time.perf_counter()
-            #print(f"time : {end - begin:.6f} s")
+            # end = time.perf_counter()
+            # print(f"time : {end - begin:.6f} s")
 
     def populate_data_from_groups_to_netcdf4(
         self,
