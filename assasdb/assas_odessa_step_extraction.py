@@ -1866,32 +1866,32 @@ class assas_odessa_step_extraction:
                     r1 = pyod.lib.odbase_get_odr1(ther, "TLIQ", 1)
                     TLIQ[izone] = pyod.lib.odr1_get(r1, 0)
 
-                # amtosph_comp_xco2
+                # atmosph_comp_xco2
                 if pyod.lib.odbase_card(ther, "XCO2") > 0:
                     r1 = pyod.lib.odbase_get_odr1(ther, "XCO2", 1)
                     XCO2[izone] = pyod.lib.odr1_get(r1, 0)
 
-                # amtosph_comp_xco
+                # atmosph_comp_xco
                 if pyod.lib.odbase_card(ther, "XCO") > 0:
                     r1 = pyod.lib.odbase_get_odr1(ther, "XCO", 1)
                     XCO[izone] = pyod.lib.odr1_get(r1, 0)
 
-                # amtosph_comp_xh2
+                # atmosph_comp_xh2
                 if pyod.lib.odbase_card(ther, "XH2") > 0:
                     r1 = pyod.lib.odbase_get_odr1(ther, "XH2", 1)
                     XH2[izone] = pyod.lib.odr1_get(r1, 0)
 
-                # amtosph_comp_xh2o
+                # atmosph_comp_xh2o
                 if pyod.lib.odbase_card(ther, "XH2O") > 0:
                     r1 = pyod.lib.odbase_get_odr1(ther, "XH2O", 1)
                     XH2O[izone] = pyod.lib.odr1_get(r1, 0)
 
-                # amtosph_comp_xn2
+                # atmosph_comp_xn2
                 if pyod.lib.odbase_card(ther, "XN2") > 0:
                     r1 = pyod.lib.odbase_get_odr1(ther, "XN2", 1)
                     XN2[izone] = pyod.lib.odr1_get(r1, 0)
 
-                # amtosph_comp_xo2
+                # atmosph_comp_xo2
                 if pyod.lib.odbase_card(ther, "XO2") > 0:
                     r1 = pyod.lib.odbase_get_odr1(ther, "XO2", 1)
                     XO2[izone] = pyod.lib.odr1_get(r1, 0)
@@ -1899,12 +1899,12 @@ class assas_odessa_step_extraction:
         result["average_fluid_temperature"] = TFLU
         result["water_level"] = WLEV
         result["average_liquid_temperature"] = TLIQ
-        result["amtosph_comp_xco2"] = XCO2
-        result["amtosph_comp_xco"] = XCO
-        result["amtosph_comp_xh2"] = XH2
-        result["amtosph_comp_xh2o"] = XH2O
-        result["amtosph_comp_xn2"] = XN2
-        result["amtosph_comp_xo2"] = XO2
+        result["atmosph_comp_xco2"] = XCO2
+        result["atmosph_comp_xco"] = XCO
+        result["atmosph_comp_xh2"] = XH2
+        result["atmosph_comp_xh2o"] = XH2O
+        result["atmosph_comp_xn2"] = XN2
+        result["atmosph_comp_xo2"] = XO2
 
         # Fp of different form in DOME
         fp_names = ["Xe", "I", "Cs", "Te", "Sr", "Ru", "La", "Cm", "Pu", "Mo", "Sb"]
