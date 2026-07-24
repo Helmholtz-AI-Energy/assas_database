@@ -1664,7 +1664,6 @@ class assas_odessa_step_extraction:
                     (len(break_idx)), dtype=np.float64, fill_value=np.nan
                 )
         for fp in break_fp_list:
-<<<<<<< HEAD
             result["Q_fp_" + fp_anonymization[fp] + "_connecti_break"] = np.full(
                 (len(break_idx)), dtype=np.float64, fill_value=np.nan
             )

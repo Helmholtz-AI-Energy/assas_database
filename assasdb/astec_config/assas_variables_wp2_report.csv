@@ -36,7 +36,7 @@
 34,m_CT_gas_dome,mass of CT in the phase GAS of the containment dome,FPSM_STA:CT,[kg],containment_dome,containment_dome,none,
 35,m_AL_liquid_dome,mass of AL in the phase LIQUID of the containment dome,FPSM_STA:AL,[kg],containment_dome,containment_dome,none,
 36,m_AN_liquid_dome,mass of AN in the phase LIQUID of the containment dome,FPSM_STA:AN,[kg],containment_dome,containment_dome,none,
-37,m_AX_liquid_dome,mass of AX in the phase LAXQUAXD of the containment dome,FPSM_STA:AX,[kg],containment_dome,containment_dome,none,
+37,m_AX_liquid_dome,mass of AX in the phase LIQUID of the containment dome,FPSM_STA:AX,[kg],containment_dome,containment_dome,none,
 38,m_BC_liquid_dome,mass of BC in the phase LIQUID of the containment dome,FPSM_STA:BC,[kg],containment_dome,containment_dome,none,
 39,m_BE_liquid_dome,mass of BE in the phase LIQUID of the containment dome,FPSM_STA:BE,[kg],containment_dome,containment_dome,none,
 40,m_BN_liquid_dome,mass of BN in the phase LIQUID of the containment dome,FPSM_STA:BN,[kg],containment_dome,containment_dome,none,

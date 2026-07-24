@@ -3607,59 +3607,26 @@ class AssasOdessaNetCDF4Converter:
             variable_datasets = self.get_all_variable_datasets(ncfile)
             logger.info(f"Found {len(variable_datasets)} variables to populate.")
 
-            progress_bar = tqdm(time_points)
-            for idx, time_point in enumerate(progress_bar):
-                logger.info(f"Restore odessa base for time point {time_point}.")
-                odessa_base = pyod.restore(str(self.input_path), time_point)
 
-                for _, variable in self.variable_index.iterrows():
-                    var_name = variable["name"]
+            idx = -1
+            for time_point, odessa_base in tqdm(
+                pyod.save_iterator(
+                    str(self.input_path), time_points[start_index], time_points[-1]
+                ),
+                total=len(time_points[start_index:]),
+            ):
+                idx += 1
 
-                    # Check if variable exists in any location (root or groups)
-                    if var_name not in variable_datasets:
-                        logger.info(
-                            f"Variable {var_name} not found in any location, skipping."
-                        )
-                        continue
+                data = assas_odessa_step_extraction.extract_one_time_step(
+                                                    odessa_base,
+                                                    self.fp_anonymization,
+                                                    self.value_anonymization
+                                                    )
+                for name, values in data.items():
+                     var_info = variable_datasets[name]
+                     var_dataset = var_info["dataset"]
+                     var_dataset[start_index + idx] = values
 
-                    # Get the variable dataset and its location info
-                    var_info = variable_datasets[var_name]
-                    var_dataset = var_info["dataset"]
-                    location_path = var_info["location"]
-
-                    logger.info(
-                        f"Parse ASTEC variable {var_name} for time point "
-                        f"{time_point} in {location_path}."
-                    )
-
-                    strategy_function = self.variable_strategy_mapping[
-                        variable["strategy"]
-                    ]
-
-                    if np.isnan(variable["index"]):
-                        data_per_timestep = strategy_function(
-                            odessa_base=odessa_base,
-                            variable_name=variable["name_odessa"],
-                        )
-                    else:
-                        data_per_timestep = strategy_function(
-                            odessa_base=odessa_base,
-                            variable_name=variable["name_odessa"],
-                            pos=int(variable["index"]),
-                        )
-
-                    logger.debug(
-                        f"Read data for {variable['name_odessa']} with "
-                        f"shape {data_per_timestep.shape}. "
-                        f"Odessa index {variable['index']}, "
-                        f"isnan {np.isnan(variable['index'])}."
-                    )
-
-                    # Populate data in the variable dataset
-                    var_dataset[start_index + idx] = data_per_timestep
-
-                if progress_bar.n % LOG_INTERVAL == 0:
-                    logger.info(str(progress_bar))
 
                 dimension_group.variables["time_points"].completed_index = (
                     start_index + idx
@@ -4178,31 +4145,52 @@ class AssasOdessaNetCDF4Converter:
             variable_datasets = {}
 
             # Initialize dimensions at root level
-            dimension_list = self.variable_index["dimension"].unique().tolist()
-            dimension_list = [
-                dimension.split(";") if ";" in dimension else dimension
-                for dimension in dimension_list
-            ]
-            dimension_list = [
-                item
-                for sublist in dimension_list
-                for item in (sublist if isinstance(sublist, list) else [sublist])
-            ]
-            if "none" in dimension_list:
-                dimension_list.remove("none")
-            logger.info(
-                f"Found {len(dimension_list)} unique dimensions: {dimension_list}"
-            )
 
             dimensions_group = ncfile.createGroup("dimensions")
             dimensions_group.description = "Group for dataset dimensions"
 
-            for dimension in dimension_list:
-                if dimension not in list(dimensions_group.dimensions.keys()):
-                    logger.info(f"Create dimension {dimension} in netCDF4 file.")
-                    dimensions_group.createDimension(dimension, None)
-
             dimensions_group.createDimension("time", len(self.time_points))
+            dimensions_group.createDimension("mesh", 76)
+            dimensions_group.createDimension("junction_primary", 93)
+            dimensions_group.createDimension("junction_secondar", 76)
+            dimensions_group.createDimension("volume_primary", 85)
+            dimensions_group.createDimension("volume_secondar", 73)
+            dimensions_group.createDimension("face", 140)
+            dimensions_group.createDimension("wall_primary", 92)
+            dimensions_group.createDimension("wall_secondar", 125)
+            dimensions_group.createDimension("wall_containm", 62)
+            dimensions_group.createDimension(
+                "connection_break", len(self.connection_break_ids)
+            )
+            dimensions_group.createDimension(
+                "connection_feedwater", len(self.connection_feedwater_ids)
+            )
+            dimensions_group.createDimension("connection_flow", len(self.connection_flow_ids))
+            dimensions_group.createDimension("connection_heat", len(self.connection_heat_ids))
+            dimensions_group.createDimension("connection_mcci", len(self.connection_mcci_ids))
+            dimensions_group.createDimension(
+                "connection_source", len(self.connection_source_ids)
+            )
+            dimensions_group.createDimension(
+                "connection_vespour", len(self.connection_vespour_ids)
+            )
+            dimensions_group.createDimension("conn", 68)  # only 44 at saving_time 0.
+            dimensions_group.createDimension("component_clad", len(self.clad_ids))
+            dimensions_group.createDimension("component_fuel", len(self.fuel_ids))
+            dimensions_group.createDimension("component_bono", len(self.bono_ids))
+            dimensions_group.createDimension("component_crod", len(self.crod_ids))
+            dimensions_group.createDimension("component_clad_crod", len(self.clad_crod_ids))
+            dimensions_group.createDimension("component_tguide", len(self.tguide_ids))
+            dimensions_group.createDimension("component_tinst", len(self.tinst_ids))
+            dimensions_group.createDimension("component_grid", len(self.grid_ids))
+            dimensions_group.createDimension("component_LP_wall", len(self.LP_wall_ids))
+            dimensions_group.createDimension("component_LP_corium", len(self.LP_corium_ids))
+            dimensions_group.createDimension(
+                "cesar_output", 2233 if self.with_cesar_io else 1
+            )
+            dimensions_group.createDimension("wall_profile", 20)
+            dimensions_group.createDimension("sensor", 780)
+            dimensions_group.createDimension("zone", 18)
 
             # Create time variable with proper unit
             time_dataset = self.create_variable_with_unit(
