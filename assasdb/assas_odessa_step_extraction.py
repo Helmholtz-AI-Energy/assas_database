@@ -1193,7 +1193,6 @@ class assas_odessa_step_extraction:
             "PRODH2": "m_cum_H2",
             "SATUMX": "sat_core_mesh",
             "TOTMAMAG": "m_tot_cor",
-            "TOTMADEB": "m_tot_deb",
         }
         for value in names.values():
             result[value] = np.nan
