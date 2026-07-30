@@ -4,6 +4,50 @@
 import pyodessa as pyod  # noqa: E402
 import numpy as np
 
+def _get_correct_sensor_value(
+    base: pyod.Base
+) -> list:
+    """Get the correct value of some faulty sensors."""
+    val = [0.]*7
+    mass = 0.
+    cont = pyod.lib.odbase_get_odbase(base._od_obj,'CONTAINM',1)
+    for i in range(1, pyod.lib.odbase_card(cont,'ZONE')+1):
+        if i == 15 or i == 16: continue
+        zone = pyod.lib.odbase_get_odbase(cont,'ZONE',i)
+        if(pyod.lib.odbase_card(zone,'FPSM_STA') > 0):
+            fpsm = pyod.lib.odbase_get_odbase(zone,'FPSM_STA',1)
+            aero = pyod.lib.odbase_get_odrg(fpsm,'AEROSOL',1)
+            zone_mass = pyod.lib.odrg_get(aero,'I')
+            mass = mass + zone_mass
+    if mass > 0.:
+        heat = pyod.lib.odbase_get_odbase(base._od_obj,'FP_HEAT',1)
+        cont_heat = pyod.lib.odbase_get_odbase(heat,'CONTAINM',1)
+        me = pyod.lib.odbase_get_odr1(cont_heat,'ME',1)
+        mass_me = pyod.lib.odr1_get(me, 17)
+        if mass_me > 0.:
+            mi = pyod.lib.odbase_get_odr1(cont_heat,'MI',1)
+            mass_mi1 = pyod.lib.odr1_get(mi, 648)
+            mass_mi2 = pyod.lib.odr1_get(mi, 478)
+            acti = pyod.lib.odbase_get_odr1(cont_heat,'ACTI',1)
+            ae_kg = pyod.lib.odr1_get(acti, 79)
+            val[0] = ae_kg*mass*mass_mi1/mass_me
+            val[1] = ae_kg*mass*mass_mi2/mass_me
+
+    vess = pyod.lib.odbase_get_odbase(base._od_obj,'VESSEL',1)
+    mass_tot = 0.
+    for i in [362, 363, 364]:
+        comp = pyod.lib.odbase_get_odbase(vess,'COMP',i)
+        m = pyod.lib.odbase_get_double(comp,'M',1)
+        mass_tot += m
+    val[2] = mass_tot
+
+    id_val = 3
+    for i in [32, 33, 34, 35]:
+        conn = pyod.lib.odbase_get_odbase(base._od_obj,'CONNECTI',i)
+        val[id_val] = pyod.lib.odbase_get_double(conn,'Qsteam',1)
+        id_val +=1
+
+    return val
 
 class assas_odessa_step_extraction:
     """Extract variables from a single ASTEC saving time step."""
@@ -45,6 +89,16 @@ class assas_odessa_step_extraction:
             sensor = pyod.lib.odbase_get_odbase(root, "SENSOR", isens + 1)
             values[isens] = pyod.lib.odbase_get_double(sensor, "value", 1)
         result["sensor_values"] = values
+
+        # Correction of some faulty sensors
+        val = _get_correct_sensor_value(base)
+        result["sensor_values"][325] = val[0]
+        result["sensor_values"][326] = val[1]
+        result["sensor_values"][354] = val[2]
+        result["sensor_values"][245] = val[3]
+        result["sensor_values"][248] = val[4]
+        result["sensor_values"][251] = val[5]
+        result["sensor_values"][254] = val[6]
 
         # operator actions
         names = [
