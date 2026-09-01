@@ -80,7 +80,7 @@ export ASTEC_ROOT={astec_root}
 mkdir ${{LOGDIR}}
 cd ${{LOGDIR}}
 
-srun python ${{PYDIR}}/assas_conversion_handler.py -uuid {uuid} {new_time_command} --log-level {log_level}
+srun python ${{PYDIR}}/assas_conversion_handler.py -uuid {uuid} {new_time_command} {flat_command} --log-level {log_level}
 mv ../slurm-${{SLURM_JOBID}}.out ${{LOGDIR}}
 mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 """  # noqa: E501
@@ -205,15 +205,28 @@ def get_job_parameter_list(
     entry: pd.Series,
     limit_samples: int,
     log_level: str = "WARNING",
+    flat: bool = True,
 ) -> List[dict]:
     """Return a list of job parameters for the given entry.
 
-    Each job parameter is a dictionary with the keys 'jobname', 'uuid'
-    and 'new_time_command'.
+    Each job parameter is a dictionary with the keys 'jobname', 'uuid',
+    'new_time_command' and 'flat_command'.
+
+    Args:
+        entry (pd.Series): Database entry to generate the job parameters for.
+        limit_samples (int): Maximum number of samples per job.
+        log_level (str): Logging level passed to the conversion handler.
+        flat (bool): If True (default), the generated jobs run the flat
+            conversion path instead of the grouped one.
+
+    Returns:
+        List[dict]: The rendered job scripts for the entry.
+
     """
     job_parameter_list = []
 
     uuid = entry["system_upload_uuid"]
+    flat_command = "--flat" if flat else "--no-flat"
     maximum_indizes = get_maximum_indizes(
         number_of_samples=int(entry["system_number_of_samples"]),
         limit_samples=limit_samples,
@@ -227,6 +240,7 @@ def get_job_parameter_list(
             "astec_root": os.environ.get("ASTEC_ROOT", ""),
             "uuid": uuid,
             "new_time_command": "-n",
+            "flat_command": flat_command,
             "log_level": log_level,
         }
 
@@ -241,6 +255,7 @@ def get_job_parameter_list(
                 "astec_root": os.environ.get("ASTEC_ROOT", ""),
                 "uuid": uuid,
                 "new_time_command": f"-t {maximum_indizes[i]}",
+                "flat_command": flat_command,
                 "log_level": log_level,
             }
 
@@ -254,12 +269,22 @@ def generate_job_file(
     entry: pd.Series,
     limit_samples: int,
     log_level: str = "WARNING",
+    flat: bool = True,
 ) -> None:
     """Generate a job file for the given entry.
 
     The job file is saved in the jobs directory with the name 'convert-{uuid}.sh'.
     If there are multiple job parameters, it generates multiple job files with the
     name 'convert-{uuid}-{i}.sh'.
+
+    Args:
+        job_directory (str): Directory the job files are written to.
+        entry (pd.Series): Database entry to generate the job file for.
+        limit_samples (int): Maximum number of samples per job.
+        log_level (str): Logging level passed to the conversion handler.
+        flat (bool): If True (default), the generated jobs run the flat
+            conversion path instead of the grouped one.
+
     """
     uuid = entry["system_upload_uuid"]
     number_of_samples = entry["system_number_of_samples"]
@@ -278,6 +303,7 @@ def generate_job_file(
         entry=entry,
         limit_samples=limit_samples,
         log_level=log_level,
+        flat=flat,
     )
     logger.debug(f"Job parameter list for {uuid}: {job_parameter_list}")
 
@@ -312,16 +338,29 @@ def generate_job_files(
     database_entries: pd.DataFrame,
     limit_samples: int = LIMIT_SAMPLES,
     log_level: str = "WARNING",
+    flat: bool = True,
 ) -> None:
     """Generate job files for all entries in the database with the status 'Uploaded'.
 
     It filters the database entries for those with the status 'Uploaded' and applies
     the generate_job_file function to each entry.
+
+    Args:
+        job_directory (str): Directory the job files are written to.
+        database_entries (pd.DataFrame): DataFrame containing database entries.
+        limit_samples (int): Maximum number of samples per job.
+        log_level (str): Logging level passed to the conversion handler.
+        flat (bool): If True (default), the generated jobs run the flat
+            conversion path instead of the grouped one.
+
     """
     logger.info(f"Generate job files for {len(database_entries)} entries.")
+    logger.info(f"Conversion path for generated jobs: {'flat' if flat else 'grouped'}.")
 
     database_entries.apply(
-        lambda entry: generate_job_file(job_directory, entry, limit_samples, log_level),
+        lambda entry: generate_job_file(
+            job_directory, entry, limit_samples, log_level, flat
+        ),
         axis=1,
     )
 
@@ -745,6 +784,15 @@ if __name__ == "__main__":
         "-s", "--single", action="store_true", help="Submit only single-jobs"
     )
     parser.add_argument(
+        "--flat",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "generate jobs that run the flat conversion path (all variables at "
+            "root level, default). Use --no-flat for the grouped one"
+        ),
+    )
+    parser.add_argument(
         "--contains",
         type=str,
         default=None,
@@ -818,6 +866,7 @@ if __name__ == "__main__":
             database_entries=database_entries,
             limit_samples=args.limit_samples,
             log_level=args.job_log_level,
+            flat=args.flat,
         )
 
     elif args.action == "submit":

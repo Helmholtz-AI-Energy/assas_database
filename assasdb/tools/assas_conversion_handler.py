@@ -39,6 +39,7 @@ class AssasConversionHandler:
         new: bool = False,
         rerun: bool = False,
         time: int = None,
+        flat: bool = True,
         log_level: str = "WARNING",
         lsdf_data_dir: str = LSDF_DATA_DIR,
         lsdf_backup_dir: str = LSDF_BACKUP_DIR,
@@ -50,6 +51,9 @@ class AssasConversionHandler:
             new (bool): Flag to indicate if the output file should be overwritten.
             rerun (bool): Flag to indicate if the conversion should be rerun.
             time (int, optional): Number of time points to consider for conversion.
+            flat (bool): Flag to use the flat conversion path
+                (``convert_astec_variables_to_netcdf4``, all variables at root level)
+                instead of the grouped one. Defaults to True.
             log_level (str): Logging level to use.
             lsdf_data_dir (str): Directory for LSDF data.
             lsdf_backup_dir (str): Directory for LSDF backup.
@@ -80,6 +84,7 @@ class AssasConversionHandler:
         self.new = new
         self.time = time
         self.rerun = rerun
+        self.flat = flat
 
         self.input_path = Path(
             str(assas_archive_meta["system_path"].iloc[0]).replace(
@@ -116,6 +121,7 @@ class AssasConversionHandler:
         logger.info(f"output_path: {str(self.output_path)}")
         logger.info(f"name: {str(self.name)}")
         logger.info(f"description: {str(self.description)}")
+        logger.info(f"conversion path: {'flat' if self.flat else 'grouped'}")
 
         logger.info(f"tmp_dir: {str(self.tmp_dir)}")
         logger.info(f"tmp_path: {str(self.tmp_path)}")
@@ -172,6 +178,10 @@ class AssasConversionHandler:
         It also handles the notification of conversion status and saves the
         converted result to the specified output path.
 
+        Depending on ``self.flat`` either the grouped conversion path
+        (``populate_data_from_groups_to_netcdf4``) or the flat one
+        (``convert_astec_variables_to_netcdf4``) is used.
+
         Returns:
             None
 
@@ -224,18 +234,25 @@ class AssasConversionHandler:
                     archive_description=self.description,
                 )
 
-                # Initialization process
-                logger.info("Initializing groups in NetCDF4.")
-                odessa_converter.initialize_groups_in_netcdf4()
+                if self.flat:
+                    logger.info(
+                        "Flat conversion path, dimensions and root variables are "
+                        "created by the conversion itself."
+                    )
 
-                logger.info("Initializing astec variables with group assignment.")
-                odessa_converter.initialize_astec_variables_in_netcdf4()
+                else:
+                    # Initialization process
+                    logger.info("Initializing groups in NetCDF4.")
+                    odessa_converter.initialize_groups_in_netcdf4()
 
-                logger.info("Creating metadata variables in groups.")
-                odessa_converter.create_metadata_variables_in_groups()
+                    logger.info("Initializing astec variables with group assignment.")
+                    odessa_converter.initialize_astec_variables_in_netcdf4()
 
-                logger.info("Converting metadata from Odessa.")
-                odessa_converter.populate_metadata_variables_in_domain_groups()
+                    logger.info("Creating metadata variables in groups.")
+                    odessa_converter.create_metadata_variables_in_groups()
+
+                    logger.info("Converting metadata from Odessa.")
+                    odessa_converter.populate_metadata_variables_in_domain_groups()
 
             else:
                 logger.info(f"Using existing output file {str(self.tmp_output_path)}.")
@@ -254,10 +271,17 @@ class AssasConversionHandler:
                     )
 
             # Actual conversion process
-            logger.info("Populating data from groups to NetCDF4.")
-            odessa_converter.populate_data_from_groups_to_netcdf4(
-                maximum_index=self.time
-            )
+            if self.flat:
+                logger.info("Converting ASTEC variables to NetCDF4 (flat).")
+                odessa_converter.convert_astec_variables_to_netcdf4(
+                    maximum_index=self.time
+                )
+
+            else:
+                logger.info("Populating data from groups to NetCDF4.")
+                odessa_converter.populate_data_from_groups_to_netcdf4(
+                    maximum_index=self.time
+                )
 
             self.save_hdf5_result(
                 local_output_path=self.tmp_output_path,
@@ -653,12 +677,23 @@ if __name__ == "__main__":
         required=False,
         action="store_true",
     )
+    argparser.add_argument(
+        "--flat",
+        help=(
+            "use the flat conversion path (all variables at root level, read via "
+            "assas_odessa_step_extraction, default). Use --no-flat for the grouped one"
+        ),
+        required=False,
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
     args = argparser.parse_args()
 
     conversion_handler = AssasConversionHandler(
         upload_uuid=args.upload_uuid,
         new=args.new,
         time=args.time,
+        flat=args.flat,
         log_level=args.log_level,
         lsdf_data_dir=LSDF_DATA_DIR,
         lsdf_backup_dir=LSDF_BACKUP_DIR,
