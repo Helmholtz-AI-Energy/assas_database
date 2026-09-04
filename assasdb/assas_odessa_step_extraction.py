@@ -96,11 +96,11 @@ class assas_odessa_step_extraction:
                 value = pyod.lib.odbase_get_int(output, "ITER", 1)
                 result["iteration_info"] = value
 
-                pyod.lib.odbase_get_odr1(output, "VARPRIM", 1)
+                variable_prime = pyod.lib.odbase_get_odr1(output, "VARPRIM", 1)
                 nb_varprim = 2233
                 values = np.empty((nb_varprim), dtype=np.float64)
                 for ivar in range(nb_varprim):
-                    values[ivar] = pyod.lib.odr1_get(ivar + 1)
+                    values[ivar] = pyod.lib.odr1_get(variable_prime, ivar)
                 result["variable_prime"] = values
             else:
                 result["macro_ts_begin"] = np.array([np.nan])
@@ -1924,12 +1924,15 @@ class assas_odessa_step_extraction:
                 for fp in fp_names:
                     result["m_" + fp_anonymization[fp] + "_" + phase_name.lower() + "_dome"] = np.nan
 
-        #Possible value anonymization
-        if value_anonymization:
-            result = {k: result[k] / (2. ** np.array(value_anonymization[k])) for k in result}
-
         # time_points
         value = pyod.lib.odbase_get_double(root, "LOADTIME", 1)
         result["time_points"] = value
+
+        # Possible value anonymization
+        if value_anonymization:
+            result = {
+                key: item / (2.0 ** np.asarray(value_anonymization[key]))
+                for key, item in result.items()
+            }
 
         return result
