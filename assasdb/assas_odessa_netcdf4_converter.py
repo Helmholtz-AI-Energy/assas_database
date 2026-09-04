@@ -55,6 +55,7 @@ class AssasOdessaNetCDF4Converter:
         input_path: Union[str, Path],
         output_path: Union[str, Path],
         variable_index_file_list: Optional[List[str]] = None,
+        anonymization_directory: Optional[Union[str, Path]] = None,
     ) -> None:
         """Initialize AssasOdessaNetCDF4Converter class.
 
@@ -64,6 +65,9 @@ class AssasOdessaNetCDF4Converter:
             variable_index_file_list (Optional[List[str]]):
                 List of ASTEC variable index files. If not provided,
                 a default list will be used.
+            anonymization_directory (Optional[Union[str, Path]]): Directory
+                containing ``fp_anonymization.json`` and ``anonymization.json``.
+                If omitted, anonymization is disabled.
 
         Returns:
             None
@@ -88,15 +92,37 @@ class AssasOdessaNetCDF4Converter:
 
         self.fp_anonymization = None
         self.value_anonymization = None
-        file_fp = os.path.join("data_extraction","fp_anonymization.json")
-        file_val = os.path.join("data_extraction","anonymization.json")
-        if os.path.isfile(file_fp):
-            with open(file_fp, "r") as f:
-               self.fp_anonymization = json.load(f)
-        if os.path.isfile(file_val):
-            with open(file_val, "r") as f:
-               self.value_anonymization = json.load(f)
+        if anonymization_directory is None:
+            logger.warning(
+                "Anonymization is disabled; output names and values are unchanged."
+            )
+        else:
+            anonymization_directory = Path(anonymization_directory).resolve()
+            file_fp = anonymization_directory / "fp_anonymization.json"
+            file_val = anonymization_directory / "anonymization.json"
 
+            missing_files = [
+                str(path) for path in (file_fp, file_val) if not path.is_file()
+            ]
+            if missing_files:
+                raise FileNotFoundError(
+                    "Missing required anonymization file(s): "
+                    + ", ".join(missing_files)
+                )
+
+            with file_fp.open("r", encoding="utf-8") as file:
+                self.fp_anonymization = json.load(file)
+            with file_val.open("r", encoding="utf-8") as file:
+                self.value_anonymization = json.load(file)
+
+            if not isinstance(self.fp_anonymization, dict):
+                raise ValueError(f"Expected a JSON object in {file_fp}.")
+            if not isinstance(self.value_anonymization, dict):
+                raise ValueError(f"Expected a JSON object in {file_val}.")
+
+            logger.info(
+                "Loaded anonymization mappings from %s.", anonymization_directory
+            )
 
         logger.info(f"Read {len(self.time_points)} time points from ASTEC archive.")
         logger.debug(f"List of time points: {self.time_points}.")
@@ -382,13 +408,13 @@ class AssasOdessaNetCDF4Converter:
                 + "/astec_config/assas_variables_wp2_report.csv"
             )
             dataframe.to_csv(output_file)
-            logger.info("Saved variable index to file: ", output_file)
+            logger.info("Saved variable index to file: %s", output_file)
 
             output_file_repo = os.path.join(
                 os.getcwd(), "assas_variables_wp2_report.csv"
             )
             dataframe.to_csv(output_file_repo)
-            logger.info("Saved variable index to file (repo): ", output_file_repo)
+            logger.info("Saved variable index to file (repo): %s", output_file_repo)
 
         if tex_report:
             output_file_latex = (

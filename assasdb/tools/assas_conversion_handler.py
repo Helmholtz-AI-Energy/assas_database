@@ -38,10 +38,16 @@ class AssasConversionHandler:
         upload_uuid: str,
         new: bool = False,
         rerun: bool = False,
+        copy_input_to_tmp: bool = True,
+        anonymization_directory: str = None,
         time: int = None,
         log_level: str = "WARNING",
         lsdf_data_dir: str = LSDF_DATA_DIR,
         lsdf_backup_dir: str = LSDF_BACKUP_DIR,
+        archive_path: str = None,
+        output_path: str = None,
+        name: str = None,
+        description: str = None,
     ) -> None:
         """Initialize the AssasSingleConverter class.
 
@@ -49,9 +55,17 @@ class AssasConversionHandler:
             upload_uuid (str): The UUID of the upload to be converted.
             new (bool): Flag to indicate if the output file should be overwritten.
             rerun (bool): Flag to indicate if the conversion should be rerun.
+            copy_input_to_tmp (bool): Copy input files to node-local temporary
+                storage before conversion. When false, read them in place.
+            anonymization_directory (str, optional): Directory containing both
+                anonymization JSON mappings. If omitted, conversion is raw.
             time (int, optional): Number of time points to consider for conversion.
             log_level (str): Logging level to use.
             lsdf_data_dir (str): Directory for LSDF data.
+            archive_path (str, optional): Direct path to the ASTEC archive.
+            output_path (str, optional): Direct HDF5 output path.
+            name (str, optional): Archive name stored in result metadata.
+            description (str, optional): Description stored in result metadata.
             lsdf_backup_dir (str): Directory for LSDF backup.
 
         Returns:
@@ -64,36 +78,92 @@ class AssasConversionHandler:
         self.lsdf_project_dir = os.environ.get("LSDFPROJECTS")
         self.tmp_dir = os.environ.get("TMPDIR")
 
-        self.database_handler = AssasDatabaseHandler(
-            client=None,
-            backup_directory=f"{self.lsdf_project_dir}/{LSDF_BACKUP_DIR}",
-        )
-        database_manager = AssasDatabaseManager(
-            database_handler=self.database_handler,
-        )
+        # Direct mode: the caller supplies the archive location outright, so no
+        # database is consulted.  The master list resolves archive paths from
+        # the filesystem, which is authoritative -- the database's system_path
+        # is written verbatim from upload_info.pickle and is wrong for most
+        # uploads.
+        self.direct_mode = archive_path is not None
 
-        dataframe = database_manager.get_all_database_entries_from_backup()
-        assas_archive_meta = dataframe.loc[
-            dataframe["system_upload_uuid"] == upload_uuid
-        ]
-        self.upload_uuid = assas_archive_meta["system_upload_uuid"].iloc[0]
+        if self.direct_mode:
+            self.database_handler = None
+            self.upload_uuid = upload_uuid
+        else:
+            self.database_handler = AssasDatabaseHandler(
+                client=None,
+                backup_directory=f"{self.lsdf_project_dir}/{LSDF_BACKUP_DIR}",
+            )
+            database_manager = AssasDatabaseManager(
+                database_handler=self.database_handler,
+            )
+
+            dataframe = database_manager.get_all_database_entries_from_backup()
+            assas_archive_meta = dataframe.loc[
+                dataframe["system_upload_uuid"] == upload_uuid
+            ]
+            if assas_archive_meta.empty:
+                raise ValueError(
+                    f"No database entry for upload_uuid {upload_uuid}. "
+                    "Pass --archive-path to convert without the database."
+                )
+            self.upload_uuid = assas_archive_meta["system_upload_uuid"].iloc[0]
+
         self.new = new
         self.time = time
         self.rerun = rerun
+        self.copy_input_to_tmp = copy_input_to_tmp
+        self.anonymization_directory = anonymization_directory
 
-        self.input_path = Path(
-            str(assas_archive_meta["system_path"].iloc[0]).replace(
-                "/mnt", f"{self.lsdf_project_dir}"
+        if self.anonymization_directory is not None:
+            anonymization_path = Path(self.anonymization_directory).resolve()
+            required_files = (
+                anonymization_path / "fp_anonymization.json",
+                anonymization_path / "anonymization.json",
             )
-        )
-        self.output_path = Path(
-            str(assas_archive_meta["system_result"].iloc[0]).replace(
-                "/mnt", f"{self.lsdf_project_dir}"
-            )
-        )
+            missing_files = [str(path) for path in required_files if not path.is_file()]
+            if missing_files:
+                raise FileNotFoundError(
+                    "Missing required anonymization file(s): "
+                    + ", ".join(missing_files)
+                )
+            self.anonymization_directory = str(anonymization_path)
 
-        self.name = assas_archive_meta["meta_name"].iloc[0]
-        self.description = assas_archive_meta["meta_description"].iloc[0]
+        if self.direct_mode:
+            self.input_path = Path(archive_path)
+            self.output_path = Path(
+                output_path
+                if output_path
+                else self._direct_result_path(self.input_path)
+            )
+            self.name = name if name else self.input_path.stem
+            self.description = description if description else ""
+
+            if not self.input_path.is_dir():
+                raise FileNotFoundError(
+                    f"Archive path {self.input_path} is not a directory."
+                )
+        else:
+            self.input_path = Path(
+                str(assas_archive_meta["system_path"].iloc[0]).replace(
+                    "/mnt", f"{self.lsdf_project_dir}"
+                )
+            )
+            self.output_path = Path(
+                str(assas_archive_meta["system_result"].iloc[0]).replace(
+                    "/mnt", f"{self.lsdf_project_dir}"
+                )
+            )
+
+            # Older database backups still refer to ASSAS/upload_test although
+            # the archive directories have since moved to ASSAS/upload_datahub.
+            # Keep the recorded path when it exists and otherwise preserve
+            # everything below the UUID while switching to the configured
+            # DataHub directory.
+            self.input_path = self._resolve_datahub_path(self.input_path)
+            self.output_path = self._resolve_datahub_path(self.output_path)
+
+            self.name = assas_archive_meta["meta_name"].iloc[0]
+            self.description = assas_archive_meta["meta_description"].iloc[0]
 
         self.tmp_path = Path.joinpath(Path(self.tmp_dir), Path(upload_uuid))
         self.tmp_output_path = Path.joinpath(self.tmp_path, "result/dataset.h5")
@@ -105,9 +175,42 @@ class AssasConversionHandler:
         )
         self.log_config_info()
 
+    def _direct_result_path(self, archive_path: Path) -> Path:
+        """Return the canonical result path directly below the UUID folder."""
+        parts = archive_path.parts
+        try:
+            uuid_index = parts.index(str(self.upload_uuid))
+        except ValueError as exception:
+            raise ValueError(
+                f"Archive path {archive_path} does not contain upload UUID "
+                f"{self.upload_uuid}; pass --output-path explicitly."
+            ) from exception
+
+        return Path(*parts[: uuid_index + 1]) / "result" / "dataset.h5"
+
+    def _resolve_datahub_path(self, recorded_path: Path) -> Path:
+        """Resolve a stale upload path against the configured DataHub root."""
+        if recorded_path.exists():
+            return recorded_path
+
+        parts = recorded_path.parts
+        try:
+            uuid_index = parts.index(str(self.upload_uuid))
+        except ValueError:
+            return recorded_path
+
+        datahub_root = Path(self.lsdf_project_dir) / self.lsdf_data_dir
+        candidate = datahub_root.joinpath(*parts[uuid_index:])
+        if candidate.exists() or candidate.parent.exists():
+            logger.info("Resolved stale path %s to %s.", recorded_path, candidate)
+            return candidate
+
+        return recorded_path
+
     def close_resources(self) -> None:
         """Close resources used by the handler."""
-        self.database_handler.close()
+        if self.database_handler is not None:
+            self.database_handler.close()
 
     def log_config_info(self) -> None:
         """Log the configuration information."""
@@ -158,6 +261,7 @@ class AssasConversionHandler:
         remote_logfilename = f"{self.output_path.parent}/"
         remote_logfilename += f"{timestamp}_assas_single_converter.log"
 
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
         logger.addHandler(logging.FileHandler(remote_logfilename, "w"))
 
     def handle_conversion(
@@ -182,10 +286,21 @@ class AssasConversionHandler:
 
         self.remove_tmp(tmp_path=self.tmp_path)
 
-        tmp_input_path = self.copytree_verbose_to_tmp_with_process(
-            input_path=self.input_path,
-            tmp_path=self.tmp_path,
-        )
+        if self.copy_input_to_tmp:
+            conversion_input_path = self.copytree_verbose_to_tmp_with_process(
+                input_path=self.input_path,
+                tmp_path=self.tmp_path,
+            )
+        else:
+            conversion_input_path = str(self.input_path)
+            logger.info(
+                "Input copying disabled; reading archive directly from %s.",
+                conversion_input_path,
+            )
+
+        # The input-copy step normally creates tmp_path. Without that step the
+        # result directory still needs to exist for the NetCDF/HDF5 writer.
+        self.tmp_output_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not self.new and self.time is not None:
             logger.info(f"Only convert {self.time} time points.")
@@ -201,13 +316,14 @@ class AssasConversionHandler:
                 destination=self.tmp_output_path,
             )
 
-        logger.info(f"tmp_input_path: {str(tmp_input_path)}")
+        logger.info(f"conversion_input_path: {conversion_input_path}")
         logger.info(f"tmp_output_path: {str(self.tmp_output_path)}")
 
         try:
             odessa_converter = AssasOdessaNetCDF4Converter(
-                input_path=tmp_input_path,
+                input_path=conversion_input_path,
                 output_path=self.tmp_output_path,
+                anonymization_directory=self.anonymization_directory,
             )
 
             number_of_samples = len(odessa_converter.get_time_points())
@@ -271,6 +387,7 @@ class AssasConversionHandler:
                 upload_uuid=self.upload_uuid,
                 upload_directory=f"{self.lsdf_project_dir}/{LSDF_DATA_DIR}",
             )
+            raise
 
         else:
             finished = False
@@ -463,6 +580,7 @@ class AssasConversionHandler:
 
         except Exception as exception:
             logger.error(f"Error when copy result from tmp to lsdf: {exception}.")
+            raise
 
     def backup_hdf5_result(
         self,
@@ -653,15 +771,58 @@ if __name__ == "__main__":
         required=False,
         action="store_true",
     )
+    argparser.add_argument(
+        "--no-input-copy",
+        help="read the input archive in place instead of copying it to TMPDIR",
+        action="store_true",
+    )
+    argparser.add_argument(
+        "--anonymization-dir",
+        help=(
+            "directory containing fp_anonymization.json and anonymization.json; "
+            "if omitted, output is not anonymized"
+        ),
+    )
+    argparser.add_argument(
+        "--archive-path",
+        help=(
+            "path of the ASTEC binary archive; when given, the database backup "
+            "is not consulted at all (direct mode)"
+        ),
+    )
+    argparser.add_argument(
+        "--output-path",
+        help=(
+            "path of the HDF5 result (direct mode; defaults to "
+            "<uuid>/result/dataset.h5)"
+        ),
+    )
+    argparser.add_argument(
+        "--name",
+        help="archive name recorded in the result metadata (direct mode)",
+    )
+    argparser.add_argument(
+        "--description",
+        help="archive description recorded in the result metadata (direct mode)",
+    )
     args = argparser.parse_args()
+
+    if args.archive_path is None and args.upload_uuid is None:
+        argparser.error("either --upload_uuid or --archive-path is required")
 
     conversion_handler = AssasConversionHandler(
         upload_uuid=args.upload_uuid,
         new=args.new,
+        copy_input_to_tmp=not args.no_input_copy,
+        anonymization_directory=args.anonymization_dir,
         time=args.time,
         log_level=args.log_level,
         lsdf_data_dir=LSDF_DATA_DIR,
         lsdf_backup_dir=LSDF_BACKUP_DIR,
+        archive_path=args.archive_path,
+        output_path=args.output_path,
+        name=args.name,
+        description=args.description,
     )
 
     conversion_handler.backup_hdf5_result()

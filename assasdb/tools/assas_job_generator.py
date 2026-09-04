@@ -1,32 +1,56 @@
 #!/usr/bin/env python
 """ASSAS Job Generator Script.
 
-This script is designed to generate, submit, and manage jobs for converting
-ASTEC binary archives. It provides functionality to create job files,
-submit jobs to a SLURM scheduler, cancel running jobs, and retrieve job
-information from the SLURM queue. The script uses the `AssasDatabaseManager`
-to interact with the ASSAS database and manage document files. It supports
-multiple job configurations based on the number of samples in the database
-and allows for job dependencies to be set when submitting multiple jobs
-for the same archive.
+This script generates, submits, and manages jobs for converting ASTEC binary
+archives.  Archive discovery is filesystem-driven; running this command does
+not require MongoDB or a MongoDB backup.  A previously generated master-list
+CSV can be supplied when rescanning the upload directory is undesirable.
 """
 
 import os
+import sys
 import pandas as pd
 import subprocess
 import logging
 import argparse
+import shlex
 
+from dataclasses import asdict
 from enum import Enum
+from pathlib import Path
 from typing import List
 
-from assasdb import AssasDatabaseManager, AssasDocumentFileStatus, AssasDatabaseHandler
+try:
+    from .assas_build_master_list import (
+        DEFAULT_UPLOAD_DIRECTORY,
+        PROCESSABLE_STATES,
+        build_entries,
+    )
+except ImportError:  # Support direct execution: python assas_job_generator.py
+    from assas_build_master_list import (  # type: ignore
+        DEFAULT_UPLOAD_DIRECTORY,
+        PROCESSABLE_STATES,
+        build_entries,
+    )
 
 pd.set_option("display.max_rows", None)  # Show all rows
 pd.set_option("display.max_columns", None)  # Show all columns
 pd.set_option("display.width", None)  # Adjust width to avoid truncation
 
 logger = logging.getLogger(__name__)
+
+
+def result_path_for_upload(archive_path: str, upload_uuid: str) -> Path:
+    """Return ``<upload-root>/<uuid>/result/dataset.h5`` for an archive."""
+    parts = Path(archive_path).parts
+    try:
+        uuid_index = parts.index(str(upload_uuid))
+    except ValueError as exception:
+        raise ValueError(
+            f"Archive path {archive_path!r} does not contain UUID {upload_uuid!r}."
+        ) from exception
+
+    return Path(*parts[: uuid_index + 1]) / "result" / "dataset.h5"
 
 
 class SlurmJobState(Enum):
@@ -49,20 +73,38 @@ class SlurmJobState(Enum):
     SUSPENDED = "S"  # Job is suspended
 
 
+class AssasDocumentFileStatus(Enum):
+    """Legacy status values used by the public dataframe helper functions.
+
+    Keeping this small enum local prevents importing the database package just
+    to parse command-line arguments or work with scheduler jobs.
+    """
+
+    UPLOADED = "Uploaded"
+    CONVERTING = "Converting"
+    VALID = "Valid"
+    INVALID = "Invalid"
+
+
 LIMIT_SAMPLES = 80000
 BACKUP_DIRECTORY = "/lsdf/kit/scc/projects/ASSAS/backup_mongodb"
+SLURM_ACCOUNT = os.environ.get("SLURM_ACCOUNT", "hk-project-pai00119")
+SLURM_PARTITION = os.environ.get("SLURM_PARTITION", "cpuonly")
+SLURM_TIME = os.environ.get("SLURM_TIME", "3-00:00:00")
+MAIL_USER = os.environ.get("SLURM_MAIL_USER", "jonas.dressner@kit.edu")
 TEMPLATE = """#!/bin/bash
 
 # Training commands
 
-#SBATCH --account=hk-project-pai00112
+#SBATCH --account={account}
 #SBATCH --job-name={jobname}
-#SBATCH --partition=cpuonly
+#SBATCH --partition={partition}
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --time=3-00:00:00
+#SBATCH --time={wall_time}
 #SBATCH --mem=239400mb
 #SBATCH --constraint=LSDF
+#SBATCH --exclusive
 #SBATCH --output={py_dir}/result/slurm-%j.out
 #SBATCH --error={py_dir}/result/slurm-error-%j.out
 #SBATCH --mail-type=ALL
@@ -85,6 +127,333 @@ mv ../slurm-${{SLURM_JOBID}}.out ${{LOGDIR}}
 mv ../slurm-error-${{SLURM_JOBID}}.out ${{LOGDIR}}
 """  # noqa: E501
 
+BUNDLE_TEMPLATE = """#!/bin/bash
+
+# Run several independent conversions on one exclusively allocated node.
+
+#SBATCH --account={account}
+#SBATCH --job-name=convert-bundle-{bundle_index:03d}
+#SBATCH --partition={partition}
+#SBATCH --nodes=1
+#SBATCH --ntasks={bundle_size}
+#SBATCH --time={wall_time}
+#SBATCH --mem={memory_mb}mb
+#SBATCH --constraint=LSDF
+{exclusive_directive}
+#SBATCH --output={job_directory}/slurm-%j.out
+#SBATCH --error={job_directory}/slurm-error-%j.out
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=jonas.dressner@kit.edu
+
+module purge
+source {env_dir}/bin/activate
+
+export PYDIR={py_dir}
+export ASTEC_ROOT={astec_root}
+export LOGDIR={job_directory}/job_${{SLURM_JOB_ID}}
+mkdir -p "${{LOGDIR}}"
+cd "${{LOGDIR}}"
+
+{conversion_steps}
+
+failed=0
+for pid in "${{pids[@]}}"; do
+    if ! wait "$pid"; then
+        failed=1
+    fi
+done
+exit "$failed"
+"""
+
+
+MASTER_TEMPLATE = """#!/bin/bash
+
+#SBATCH --account={account}
+#SBATCH --job-name={jobname}
+#SBATCH --partition={partition}
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --time={wall_time}
+#SBATCH --mem={memory_mb}mb
+#SBATCH --constraint=LSDF
+#SBATCH --exclusive
+#SBATCH --output={job_directory}/slurm-%j.out
+#SBATCH --error={job_directory}/slurm-error-%j.out
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user={mail_user}
+
+set -o pipefail
+
+module purge
+source {env_dir}/bin/activate
+
+export PYDIR={py_dir}
+export ASTEC_ROOT={astec_root}
+export LOGDIR={job_directory}/job_${{SLURM_JOB_ID}}
+mkdir -p "${{LOGDIR}}"
+cd "${{LOGDIR}}"
+
+ARCHIVE="{archive_path}"
+SOURCE_TAR="{source_tar}"
+SCRATCH="${{TMPDIR:-/tmp}}/{uuid}"
+INPUT_COPY_FLAG=""
+
+cleanup() {{
+    if [ -n "${{EXTRACTED_DIR:-}}" ] && [ -d "${{EXTRACTED_DIR}}" ]; then
+        echo "Removing extracted archive ${{EXTRACTED_DIR}}"
+        rm -rf "${{EXTRACTED_DIR}}"
+    fi
+}}
+trap cleanup EXIT
+
+# Preprocessing: extract the archive into node-local scratch when the upload
+# was never unpacked.  Extracting here rather than onto LSDF keeps ~53 GB per
+# archive off the shared filesystem, and replaces the handler's own copy step
+# (the archive is already node-local afterwards, hence --no-input-copy).
+if [ -n "${{SOURCE_TAR}}" ]; then
+    if [ ! -f "${{SOURCE_TAR}}" ]; then
+        echo "Source tarball ${{SOURCE_TAR}} does not exist" >&2
+        exit 1
+    fi
+
+    mkdir -p "${{SCRATCH}}"
+    echo "Extracting ${{SOURCE_TAR}} into ${{SCRATCH}}"
+    if ! tar -xf "${{SOURCE_TAR}}" -C "${{SCRATCH}}"; then
+        echo "Extraction of ${{SOURCE_TAR}} failed" >&2
+        exit 1
+    fi
+
+    EXTRACTED_DIR="${{SCRATCH}}/{archive_basename}"
+    if [ ! -d "${{EXTRACTED_DIR}}" ]; then
+        echo "Extraction did not produce ${{EXTRACTED_DIR}}" >&2
+        ls -la "${{SCRATCH}}" >&2
+        exit 1
+    fi
+
+    ARCHIVE="${{EXTRACTED_DIR}}"
+    INPUT_COPY_FLAG="--no-input-copy"
+fi
+
+srun python "${{PYDIR}}/assas_conversion_handler.py" \\
+    --archive-path "${{ARCHIVE}}" \\
+    --output-path "{result_path}" \\
+    --name {name} \\
+    --upload_uuid {uuid} \\
+    --new {time_command} {anonymization_command}${{INPUT_COPY_FLAG}} \\
+    --log-level {log_level}
+"""  # noqa: E501
+
+
+def load_master_list(
+    master_list_path: str,
+    states: List[str] = None,
+) -> pd.DataFrame:
+    """Load the master list produced by assas_build_master_list.py.
+
+    The master list is derived from the filesystem rather than from MongoDB,
+    so it covers archives the database never registered correctly.
+
+    Args:
+        master_list_path (str): Path to the master list CSV.
+        states (List[str]): Optional filter on the state column.
+
+    Returns:
+        pd.DataFrame: The master list entries.
+
+    """
+    logger.info(f"Load master list from {master_list_path}.")
+    entries = pd.read_csv(master_list_path, dtype=str).fillna("")
+
+    required = {"system_upload_uuid", "system_path", "state"}
+    missing = required - set(entries.columns)
+    if missing:
+        raise ValueError(f"Master list is missing column(s): {sorted(missing)}")
+
+    logger.info(f"Master list contains {len(entries)} entries.")
+    for state, count in entries["state"].value_counts().items():
+        logger.info(f"  {count} entries in state {state}.")
+
+    if states:
+        entries = entries[entries["state"].isin(states)]
+        logger.info(f"Entries after state filter {states}: {len(entries)}.")
+
+    return entries
+
+
+def load_filesystem_entries(
+    upload_directory: str,
+    states: List[str] = None,
+) -> pd.DataFrame:
+    """Discover convertible archives directly from the upload filesystem."""
+    upload_path = Path(upload_directory)
+    if not upload_path.is_dir():
+        raise FileNotFoundError(f"Upload directory does not exist: {upload_path}")
+
+    logger.info("Scanning upload directory %s.", upload_path)
+    entries = pd.DataFrame(
+        asdict(entry) for entry in build_entries(upload_path, with_samples=False)
+    )
+
+    if entries.empty:
+        logger.warning("No archive entries found under %s.", upload_path)
+        return pd.DataFrame(
+            columns=[
+                "system_upload_uuid",
+                "meta_name",
+                "meta_description",
+                "system_path",
+                "system_result",
+                "system_number_of_samples",
+                "source_tar",
+                "state",
+                "recorded_path",
+                "resolution",
+            ]
+        )
+
+    for state, count in entries["state"].value_counts().items():
+        logger.info("  %d entries in state %s.", count, state)
+
+    if states:
+        entries = entries[entries["state"].isin(states)]
+        logger.info("Entries after state filter %s: %d.", states, len(entries))
+
+    return entries
+
+
+def generate_master_job_files(
+    job_directory: str,
+    entries: pd.DataFrame,
+    log_level: str = "WARNING",
+    account: str = SLURM_ACCOUNT,
+    partition: str = SLURM_PARTITION,
+    wall_time: str = SLURM_TIME,
+    memory_mb: int = 239400,
+    maximum_index: int = None,
+    anonymization_directory: str = None,
+    mail_user: str = MAIL_USER,
+) -> List[str]:
+    """Generate one job script per master-list entry, with untar preprocessing.
+
+    Args:
+        job_directory (str): Directory the job scripts are written to.
+        entries (pd.DataFrame): Master list entries to generate jobs for.
+        log_level (str): Log level passed to the conversion handler.
+        account (str): SLURM account.
+        partition (str): SLURM partition.
+        wall_time (str): SLURM wall-time limit.
+        memory_mb (int): Memory requested per job, in MB.
+        maximum_index (int): Optional limit on converted time points.
+        anonymization_directory (str): Directory holding the anonymization
+            configuration; output is raw when omitted.
+        mail_user (str): Address for SLURM failure mail.
+
+    Returns:
+        List[str]: Paths of the generated job scripts.
+
+    """
+    anonymization_command = ""
+    if anonymization_directory is not None:
+        anonymization_path = os.path.abspath(anonymization_directory)
+        required_files = (
+            os.path.join(anonymization_path, "fp_anonymization.json"),
+            os.path.join(anonymization_path, "anonymization.json"),
+        )
+        missing_files = [path for path in required_files if not os.path.isfile(path)]
+        if missing_files:
+            raise FileNotFoundError(
+                "Missing required anonymization file(s): " + ", ".join(missing_files)
+            )
+        quoted_path = shlex.quote(anonymization_path)
+        anonymization_command = f"--anonymization-dir {quoted_path} "
+    else:
+        logger.warning(
+            "Generating jobs without anonymization; output will be raw."
+        )
+
+    generated_files = []
+    py_dir = os.path.dirname(os.path.realpath(__file__))
+    job_directory = os.path.abspath(job_directory)
+
+    for _, entry in entries.iterrows():
+        uuid = entry["system_upload_uuid"]
+        archive_path = entry["system_path"]
+        source_tar = entry.get("source_tar", "")
+        # Derive this from the UUID directory instead of trusting an older
+        # master list.  Archives can be nested arbitrarily deeply below their
+        # upload, but all results belong directly below the UUID directory.
+        result_path = result_path_for_upload(archive_path, uuid)
+
+        script = MASTER_TEMPLATE.format(
+            jobname=f"convert-{uuid}",
+            account=account,
+            partition=partition,
+            wall_time=wall_time,
+            memory_mb=memory_mb,
+            job_directory=job_directory,
+            py_dir=py_dir,
+            env_dir=os.environ.get("VIRTUAL_ENV", ""),
+            astec_root=os.environ.get("ASTEC_ROOT", ""),
+            uuid=uuid,
+            archive_path=archive_path,
+            archive_basename=os.path.basename(archive_path),
+            source_tar=source_tar,
+            result_path=result_path,
+            name=shlex.quote(str(entry.get("meta_name", "")) or uuid),
+            time_command=f"--time {maximum_index}" if maximum_index is not None else "",
+            anonymization_command=anonymization_command,
+            log_level=log_level,
+            mail_user=mail_user,
+        )
+
+        filename = os.path.join(job_directory, f"convert-{uuid}.sh")
+        with open(filename, "w") as handle:
+            handle.write(script)
+        generated_files.append(filename)
+
+    logger.info(f"Generated {len(generated_files)} job scripts in {job_directory}.")
+
+    return generated_files
+
+
+def submit_master_jobs(job_directory: str, maximum_jobs: int = None) -> int:
+    """Submit the job scripts generated from the master list.
+
+    Args:
+        job_directory (str): Directory holding the job scripts.
+        maximum_jobs (int): Optional limit on how many jobs to submit.
+
+    Returns:
+        int: Number of jobs submitted.
+
+    """
+    filenames = sorted(
+        name
+        for name in os.listdir(job_directory)
+        if name.startswith("convert-") and name.endswith(".sh")
+    )
+
+    if maximum_jobs is not None:
+        filenames = filenames[:maximum_jobs]
+
+    submitted = 0
+    for filename in filenames:
+        result = subprocess.run(
+            ["sbatch", os.path.join(job_directory, filename)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            logger.error(f"Failed to submit {filename}: {result.stderr.strip()}")
+            continue
+        submitted += 1
+        logger.debug(f"Submitted {filename}: {result.stdout.strip()}")
+
+    logger.info(f"Submitted {submitted} of {len(filenames)} jobs.")
+
+    return submitted
+
 
 def get_database_entries() -> pd.DataFrame:
     """Return all database entries from the backup directory.
@@ -92,6 +461,10 @@ def get_database_entries() -> pd.DataFrame:
     This function initializes an instance of `AssasDatabaseManager` with the
     specified backup directory and retrieves all database entries.
     """
+    # Kept for callers of the old Python API. Database dependencies are lazy so
+    # the generator CLI and filesystem workflow never import them.
+    from assasdb import AssasDatabaseHandler, AssasDatabaseManager
+
     database_manager = AssasDatabaseManager(
         database_handler=AssasDatabaseHandler(
             client=None, backup_directory=BACKUP_DIRECTORY
@@ -123,6 +496,8 @@ def get_database_sizes(
         dict: A dictionary with status as keys and their sizes as values.
 
     """
+    from assasdb import AssasDatabaseManager
+
     size_info = {}
     sum_sizes = 0
     for status in AssasDocumentFileStatus:
@@ -222,6 +597,9 @@ def get_job_parameter_list(
     if len(maximum_indizes) == 1:
         job_parameters = {
             "jobname": "convert-" + uuid,
+            "account": SLURM_ACCOUNT,
+            "partition": SLURM_PARTITION,
+            "wall_time": SLURM_TIME,
             "py_dir": os.path.dirname(os.path.realpath(__file__)),
             "env_dir": os.environ.get("VIRTUAL_ENV", ""),
             "astec_root": os.environ.get("ASTEC_ROOT", ""),
@@ -236,6 +614,9 @@ def get_job_parameter_list(
         for i, _ in enumerate(maximum_indizes):
             job_parameters = {
                 "jobname": "convert-" + uuid,
+                "account": SLURM_ACCOUNT,
+                "partition": SLURM_PARTITION,
+                "wall_time": SLURM_TIME,
                 "py_dir": os.path.dirname(os.path.realpath(__file__)),
                 "env_dir": os.environ.get("VIRTUAL_ENV", ""),
                 "astec_root": os.environ.get("ASTEC_ROOT", ""),
@@ -324,6 +705,103 @@ def generate_job_files(
         lambda entry: generate_job_file(job_directory, entry, limit_samples, log_level),
         axis=1,
     )
+
+
+def generate_bundle_job_files(
+    job_directory: str,
+    database_entries: pd.DataFrame,
+    bundle_size: int,
+    log_level: str = "WARNING",
+    account: str = SLURM_ACCOUNT,
+    partition: str = SLURM_PARTITION,
+    wall_time: str = SLURM_TIME,
+    maximum_index: int = None,
+    memory_mb: int = 239400,
+    exclusive_node: bool = True,
+    anonymization_directory: str = None,
+) -> List[str]:
+    """Generate scripts that run several grouped conversions per exclusive node."""
+    if bundle_size < 2:
+        raise ValueError("bundle_size must be at least 2")
+
+    anonymization_command = ""
+    if anonymization_directory is not None:
+        anonymization_path = os.path.abspath(anonymization_directory)
+        required_files = (
+            os.path.join(anonymization_path, "fp_anonymization.json"),
+            os.path.join(anonymization_path, "anonymization.json"),
+        )
+        missing_files = [path for path in required_files if not os.path.isfile(path)]
+        if missing_files:
+            raise FileNotFoundError(
+                "Missing required anonymization file(s): " + ", ".join(missing_files)
+            )
+        anonymization_command = (
+            f"--anonymization-dir {shlex.quote(anonymization_path)} "
+        )
+    else:
+        logger.warning(
+            "Generating bundle jobs without anonymization; output will be raw."
+        )
+
+    generated_files = []
+    py_dir = os.path.dirname(os.path.realpath(__file__))
+    entries = database_entries.reset_index(drop=True)
+
+    for bundle_index, start in enumerate(range(0, len(entries), bundle_size)):
+        bundle = entries.iloc[start : start + bundle_size]
+        steps = ["pids=()"]
+        for _, entry in bundle.iterrows():
+            upload_uuid = entry["system_upload_uuid"]
+            time_command = (
+                f"--time {maximum_index}" if maximum_index is not None else ""
+            )
+            steps.extend(
+                [
+                    (
+                        "srun --exclusive --nodes=1 --ntasks=1 --cpus-per-task=1 "
+                        f"--mem={memory_mb // bundle_size}M "
+                        f"python \"${{PYDIR}}/assas_conversion_handler.py\" "
+                        f"--upload_uuid {upload_uuid} --new {time_command} "
+                        f"{anonymization_command}"
+                        f"--log-level {log_level} "
+                        f"> \"${{LOGDIR}}/{upload_uuid}.out\" 2>&1 &"
+                    ),
+                    'pids+=("$!")',
+                ]
+            )
+
+        script = BUNDLE_TEMPLATE.format(
+            bundle_index=bundle_index,
+            bundle_size=len(bundle),
+            account=account,
+            partition=partition,
+            wall_time=wall_time,
+            memory_mb=memory_mb,
+            exclusive_directive="#SBATCH --exclusive" if exclusive_node else "",
+            py_dir=py_dir,
+            job_directory=os.path.abspath(job_directory),
+            env_dir=os.environ.get("VIRTUAL_ENV", ""),
+            astec_root=os.environ.get("ASTEC_ROOT", ""),
+            conversion_steps="\n".join(steps),
+        )
+        filename = os.path.join(job_directory, f"convert-bundle-{bundle_index:03d}.sh")
+        with open(filename, "w") as handle:
+            handle.write(script)
+        generated_files.append(filename)
+
+    return generated_files
+
+
+def submit_bundle_jobs(job_directory: str) -> None:
+    """Submit all generated bundle scripts in lexical order."""
+    filenames = sorted(
+        name
+        for name in os.listdir(job_directory)
+        if name.startswith("convert-bundle-") and name.endswith(".sh")
+    )
+    for filename in filenames:
+        subprocess.run(["sbatch", os.path.join(job_directory, filename)], check=True)
 
 
 def cancel_all_jobs_in_certain_state(state: SlurmJobState) -> None:
@@ -664,7 +1142,26 @@ def get_job_dependencies(state: SlurmJobState) -> pd.DataFrame:
         return pd.DataFrame(columns=["job_id", "status", "dependencies"])
 
 
-if __name__ == "__main__":
+def _filter_entries(
+    entries: pd.DataFrame,
+    contains: str = None,
+    upload_uuid: str = None,
+    maximum_files: int = None,
+) -> pd.DataFrame:
+    """Apply the common, database-independent archive filters."""
+    if contains is not None:
+        entries = entries[
+            entries["meta_name"].str.contains(contains, case=False, na=False)
+        ]
+    if upload_uuid is not None:
+        entries = entries[entries["system_upload_uuid"] == upload_uuid]
+    if maximum_files is not None:
+        entries = entries.head(maximum_files)
+    return entries
+
+
+def main(argv: List[str] = None) -> int:
+    """Run the filesystem-backed job-generator CLI."""
     parser = argparse.ArgumentParser(description="ASSAS Job Generator Script")
     parser.add_argument(
         "--log_level",
@@ -681,20 +1178,6 @@ if __name__ == "__main__":
         help="Set the logging level (default: WARNING)",
     )
     parser.add_argument(
-        "-b",
-        "--backup_directory",
-        type=str,
-        default=BACKUP_DIRECTORY,
-        help="Path to the backup directory containing the database entries",
-    )
-    parser.add_argument(
-        "-l",
-        "--limit_samples",
-        type=int,
-        default=LIMIT_SAMPLES,
-        help="Maximum number of samples per job (default: 80000)",
-    )
-    parser.add_argument(
         "--job_directory",
         type=str,
         default=os.path.join(os.path.dirname(os.path.realpath(__file__)), "jobs"),
@@ -704,53 +1187,102 @@ if __name__ == "__main__":
         "--action",
         type=str,
         required=True,
-        choices=["generate", "submit", "cancel", "squeue", "dependencies", "size"],
-        help="Action to perform: generate, submit, cancel, or dependencies",
+        choices=["generate", "submit", "cancel", "squeue", "dependencies"],
+        help="Action to perform",
     )
     parser.add_argument(
-        "--state",
+        "--master-list",
         type=str,
-        default=AssasDocumentFileStatus.UPLOADED.value,
-        choices=[
-            AssasDocumentFileStatus.VALID.value,
-            AssasDocumentFileStatus.INVALID.value,
-            AssasDocumentFileStatus.CONVERTING.value,
-            AssasDocumentFileStatus.UPLOADED.value,
-        ],
-        help=f"State of the jobs to cancel \
-        (default: {AssasDocumentFileStatus.UPLOADED.value})",
+        default=None,
+        help=(
+            "optional CSV produced by assas_build_master_list.py; when omitted, "
+            "archives are discovered directly under --upload-directory"
+        ),
+    )
+    parser.add_argument(
+        "-u",
+        "--upload-directory",
+        default=DEFAULT_UPLOAD_DIRECTORY,
+        help="filesystem directory holding the per-UUID upload folders",
+    )
+    parser.add_argument(
+        "--states",
+        type=str,
+        nargs="+",
+        default=list(PROCESSABLE_STATES),
+        help="filesystem archive states to generate jobs for",
+    )
+    parser.add_argument(
+        "--max-jobs",
+        type=int,
+        default=None,
+        help="Limit how many generated scripts are submitted",
     )
     parser.add_argument(
         "--uuid",
         type=str,
         default=None,
-        help="UUID of the archive to generate or submit jobs for (optional)",
-    )
-    parser.add_argument(
-        "--astec_root",
-        type=str,
-        default=os.environ.get("ASTEC_ROOT"),
-        help="Path to the ASTEC root directory",
-    )
-    parser.add_argument(
-        "--env_dir",
-        type=str,
-        default=os.environ.get("VIRTUAL_ENV"),
-        help="Path to the virtual environment directory",
-    )
-    parser.add_argument(
-        "-m", "--multiple", action="store_true", help="Submit only multi-jobs"
-    )
-    parser.add_argument(
-        "-s", "--single", action="store_true", help="Submit only single-jobs"
+        help="UUID of the archive to generate jobs for (optional)",
     )
     parser.add_argument(
         "--contains",
         type=str,
         default=None,
-        help="Filter database entries by name containing this string (e.g., 'CESAR')",
+        help="Filter discovered entries by name (for example, 'CESAR')",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--max-files",
+        type=int,
+        default=None,
+        help="Limit processing to the first N eligible database entries",
+    )
+    parser.add_argument(
+        "--bundle-size",
+        type=int,
+        default=1,
+        help="Run this many conversions concurrently on one exclusive node",
+    )
+    parser.add_argument(
+        "--account",
+        default=SLURM_ACCOUNT,
+        help="SLURM account used by generated job scripts",
+    )
+    parser.add_argument(
+        "--partition",
+        default=SLURM_PARTITION,
+        help="SLURM partition used by generated job scripts",
+    )
+    parser.add_argument(
+        "--wall-time",
+        default=SLURM_TIME,
+        help="SLURM wall-time limit used by generated job scripts",
+    )
+    parser.add_argument(
+        "--maximum-index",
+        type=int,
+        default=None,
+        help="Limit bundled conversions to the first N time points",
+    )
+    parser.add_argument(
+        "--memory-mb",
+        type=int,
+        default=239400,
+        help="Total memory requested by a bundled job, in MB",
+    )
+    parser.add_argument(
+        "--shared-node",
+        action="store_true",
+        help="Do not request exclusive ownership of the allocated node",
+    )
+    parser.add_argument(
+        "--anonymization-dir",
+        default=None,
+        help=(
+            "directory containing fp_anonymization.json and anonymization.json; "
+            "generated conversions are raw when omitted"
+        ),
+    )
+    args = parser.parse_args(argv)
 
     log_level = getattr(logging, args.log_level.upper(), logging.INFO)
     logging.basicConfig(
@@ -758,105 +1290,45 @@ if __name__ == "__main__":
     )
     logger.info(f"Logging level set to: {logging.getLevelName(log_level)}")
 
-    job_log_level = getattr(logging, args.job_log_level.upper(), logging.WARNING)
-    logger.info(f"Job logging level set to: {logging.getLevelName(job_log_level)}")
-
-    logger.info(f"Parsed actions: {args.action}")
-
-    if not os.path.exists(args.job_directory):
-        logger.info(
-            f"Job directory '{args.job_directory}' does not exist. Creating it..."
-        )
-        os.makedirs(args.job_directory, exist_ok=True)
-
-    database_entries = get_database_entries()
-
-    for status in AssasDocumentFileStatus.__members__.values():
-        count = count_entries_by_status(database_entries, status)
-        logger.info(f"Number of archives in state {status} in database: {count}.")
-
-    logger.info(f"All archives in database: {len(database_entries)}.")
-
-    file_status_list = [AssasDocumentFileStatus(args.state)]
-    logger.info(f"File status list: {file_status_list}.")
-
-    file_status_value_list = [status.value for status in file_status_list]
-    logger.info(
-        f"Generate job files for entries with status: {file_status_value_list}."
-    )
-    database_entries = database_entries[
-        database_entries["system_status"].isin(file_status_value_list)
-    ]
-
-    logger.info(f"Generate job files for {len(database_entries)} entries.")
-
-    if args.contains is not None:
-        logger.info(f"Filtering database entries containing '{args.contains}' in name.")
-        database_entries = database_entries[
-            database_entries["meta_name"].str.contains(
-                args.contains, case=False, na=False
-            )
-        ]
-        logger.info(f"Entries after name filter: {len(database_entries)}.")
-
-    if args.uuid is not None:
-        logger.info(f"Filtering database entries by UUID: {args.uuid}.")
-        database_entries = database_entries[
-            database_entries["system_upload_uuid"] == args.uuid
-        ]
-
-    logger.info(f"Filtered database entries: {len(database_entries)}.")
-    logger.info(f"Generating job files for {len(database_entries)} entries.")
-
     if args.action == "generate":
-        logger.info(f"Generating job files into {args.job_directory}.")
-
+        os.makedirs(args.job_directory, exist_ok=True)
+        entries = (
+            load_master_list(args.master_list, states=args.states)
+            if args.master_list
+            else load_filesystem_entries(args.upload_directory, states=args.states)
+        )
+        entries = _filter_entries(
+            entries,
+            contains=args.contains,
+            upload_uuid=args.uuid,
+            maximum_files=args.max_files,
+        )
+        logger.info("Generating jobs for %d filesystem entries.", len(entries))
         remove_all_job_files(job_directory=args.job_directory)
-
-        generate_job_files(
+        if args.bundle_size > 1:
+            logger.warning(
+                "--bundle-size is ignored for filesystem jobs; generating one "
+                "direct conversion script per archive."
+            )
+        generate_master_job_files(
             job_directory=args.job_directory,
-            database_entries=database_entries,
-            limit_samples=args.limit_samples,
+            entries=entries,
             log_level=args.job_log_level,
+            account=args.account,
+            partition=args.partition,
+            wall_time=args.wall_time,
+            memory_mb=args.memory_mb,
+            maximum_index=args.maximum_index,
+            anonymization_directory=args.anonymization_dir,
         )
 
     elif args.action == "submit":
-        logger.info("Submitting jobs...")
-
-        submit_jobs(
-            database_entries=database_entries,
-            limit_samples=args.limit_samples,
-            single_jobs=args.single,
-            multi_jobs=args.multiple,
-        )
+        submit_master_jobs(args.job_directory, maximum_jobs=args.max_jobs)
 
     elif args.action == "cancel":
         logger.info("Cancelling all jobs in certain states...")
         # cancel_all_jobs_in_certain_state(SlurmJobState.RUNNING)
         cancel_all_jobs_in_certain_state(SlurmJobState.PENDING)
-
-    elif args.action == "size":
-        logger.info("Retrieving database sizes raw")
-        all_database_entries = get_database_entries()
-        size_info = get_database_sizes(
-            database_entries=all_database_entries, key="system_size"
-        )
-        logger.info(f"Database sizes raw:\n{size_info}")
-
-        logger.info("Retrieving database sizes hdf5")
-        all_database_entries = get_database_entries()
-        size_info = get_database_sizes(
-            database_entries=all_database_entries, key="system_size_hdf5"
-        )
-        logger.info(f"Database sizes hdf5:\n{size_info}")
-
-        frames = all_database_entries[
-            all_database_entries["system_status"] == AssasDocumentFileStatus.VALID.value
-        ]
-        logger.info(f"Calculating compression rate for {len(frames)} valid frames.")
-        compression = AssasDatabaseManager.calc_compression_rate(frames)
-        logger.info(f"Compression: {compression[0]}.")
-        logger.info(f"Compression rate: {compression[1]}.")
 
     elif args.action == "squeue":
         logger.info("Retrieving squeue DataFrame...")
@@ -888,10 +1360,9 @@ if __name__ == "__main__":
         completed_dependencies = get_job_dependencies(SlurmJobState.COMPLETED)
         logger.info(f"Completed dependencies:\n{completed_dependencies}")
 
-    else:
-        logger.error(
-            f"Invalid action: {args.action}. "
-            "Choose from 'generate', 'submit', 'cancel', or 'dependencies'."
-        )
-
     logger.info("Script execution completed.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
